@@ -5,6 +5,7 @@ const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
 let currentUser = null;
+let lastSavedWorkout = null;
 let sets = []; // { distance_m, reps, time_or_pace, rest_between }
 let selectedType = 'training';
 
@@ -29,7 +30,7 @@ async function api(path, options = {}) {
 }
 
 // ---------- Единая функция переключения экранов (защита от пропуска элементов) ----------
-const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'insightsScreen', 'chatScreen'];
+const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'insightsScreen', 'chatScreen', 'editScreen'];
 function showScreen(targetId) {
   ALL_SCREENS.forEach((id) => {
     const el = document.getElementById(id);
@@ -131,6 +132,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   const statusEl = document.getElementById('statusMsg');
   const aiBox = document.getElementById('aiFeedbackBox');
   aiBox.style.display = 'none';
+  document.getElementById('shareTodayBtn').style.display = 'none';
   statusEl.textContent = 'Сохраняю...';
 
   const today = new Date().toISOString().slice(0, 10);
@@ -156,6 +158,9 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
       aiBox.style.display = 'block';
     }
 
+    lastSavedWorkout = { ...result.workout, sets: payload.sets };
+    document.getElementById('shareTodayBtn').style.display = 'block';
+
     // обновляем streak локально из свежего списка
     const { streak } = await api('/api/workouts');
     currentUser.current_streak = streak.current;
@@ -165,6 +170,10 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     console.error(err);
     statusEl.textContent = 'Ошибка сохранения. Попробуй ещё раз.';
   }
+});
+
+document.getElementById('shareTodayBtn').addEventListener('click', () => {
+  if (lastSavedWorkout) shareWorkout(lastSavedWorkout);
 });
 
 // ---------- Экран профиля ----------
@@ -189,6 +198,7 @@ document.getElementById('profileBtn').addEventListener('click', async () => {
       div.textContent = `${w.date} — ${w.type === 'training' ? 'тренировка' : 'отдых'}${
         w.rpe ? `, RPE ${w.rpe}` : ''
       }`;
+      div.addEventListener('click', () => openEditScreen(w.id));
       historyList.appendChild(div);
     });
   } catch (err) {
@@ -399,6 +409,166 @@ document.getElementById('chatBackBtn').addEventListener('click', () => {
 document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
 document.getElementById('chatInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendChatMessage();
+});
+
+// ---------- Поделиться записью ----------
+function buildShareText(w) {
+  const lines = [];
+  lines.push(w.type === 'rest' ? '😴 День отдыха' : '🏃 Тренировка');
+  lines.push(`📅 ${w.date}`);
+
+  if (w.type === 'training') {
+    if (w.warmup) lines.push(`Разминка: ${w.warmup}`);
+    if (Array.isArray(w.sets) && w.sets.length > 0) {
+      lines.push('Основная работа:');
+      w.sets.forEach((s, i) => {
+        const parts = [];
+        if (s.distance_m) parts.push(`${s.distance_m}м`);
+        if (s.reps) parts.push(`x${s.reps}`);
+        if (s.time_or_pace) parts.push(s.time_or_pace);
+        if (s.rest_between) parts.push(`отдых ${s.rest_between}`);
+        if (parts.length) lines.push(`${i + 1}. ${parts.join(' ')}`);
+      });
+    }
+    if (w.cooldown) lines.push(`Заминка: ${w.cooldown}`);
+    if (w.rpe) lines.push(`RPE: ${w.rpe}/10`);
+  }
+  if (w.feeling) lines.push(`Самочувствие: ${w.feeling}/10`);
+  if (w.notes) lines.push(`Заметка: ${w.notes}`);
+
+  return lines.join('\n');
+}
+
+function shareWorkout(w) {
+  const text = buildShareText(w);
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent('')}&text=${encodeURIComponent(text)}`;
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(shareUrl);
+  } else {
+    window.open(shareUrl, '_blank');
+  }
+}
+
+document.getElementById('editShareBtn').addEventListener('click', () => {
+  if (currentEditWorkout) shareWorkout(currentEditWorkout);
+});
+
+// ---------- Экран редактирования записи ----------
+let currentEditWorkout = null;
+let editSets = [];
+
+function renderEditSets() {
+  const list = document.getElementById('editSetsList');
+  list.innerHTML = '';
+  editSets.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'set-row';
+    row.innerHTML = `
+      <input type="number" placeholder="Метры" value="${s.distance_m ?? ''}" data-field="distance_m" />
+      <input type="number" placeholder="Кол-во" value="${s.reps ?? ''}" data-field="reps" />
+      <input type="text" placeholder="Темп/время" value="${s.time_or_pace ?? ''}" data-field="time_or_pace" />
+      <input type="text" placeholder="Отдых" value="${s.rest_between ?? ''}" data-field="rest_between" />
+      <button type="button">✕</button>
+    `;
+    row.querySelectorAll('input').forEach((inp) => {
+      inp.addEventListener('input', () => {
+        editSets[i][inp.dataset.field] = inp.value;
+      });
+    });
+    row.querySelector('button').addEventListener('click', () => {
+      editSets.splice(i, 1);
+      renderEditSets();
+    });
+    list.appendChild(row);
+  });
+}
+
+document.getElementById('addEditSetBtn').addEventListener('click', () => {
+  editSets.push({ distance_m: '', reps: '', time_or_pace: '', rest_between: '' });
+  renderEditSets();
+});
+
+document.getElementById('editFeeling').addEventListener('input', (e) => {
+  document.getElementById('editFeelingVal').textContent = e.target.value;
+});
+document.getElementById('editRpe').addEventListener('input', (e) => {
+  document.getElementById('editRpeVal').textContent = e.target.value;
+});
+
+async function openEditScreen(workoutId) {
+  showScreen('editScreen');
+  document.getElementById('editStatusMsg').textContent = 'Загружаю...';
+
+  try {
+    const { workout } = await api(`/api/workouts/${workoutId}`);
+    currentEditWorkout = workout;
+    editSets = Array.isArray(workout.sets) ? workout.sets : [];
+
+    document.getElementById('editDateLabel').textContent = workout.date;
+    document.getElementById('editWarmup').value = workout.warmup || '';
+    document.getElementById('editCooldown').value = workout.cooldown || '';
+    document.getElementById('editNotes').value = workout.notes || '';
+    document.getElementById('editVisibility').checked = workout.visibility === 'public';
+    document.getElementById('editFeeling').value = workout.feeling || 5;
+    document.getElementById('editFeelingVal').textContent = workout.feeling || 5;
+    document.getElementById('editRpe').value = workout.rpe || 5;
+    document.getElementById('editRpeVal').textContent = workout.rpe || 5;
+    document.getElementById('editTrainingFields').style.display = workout.type === 'training' ? 'block' : 'none';
+
+    renderEditSets();
+    document.getElementById('editStatusMsg').textContent = '';
+  } catch (err) {
+    console.error('Failed to load workout', err);
+    document.getElementById('editStatusMsg').textContent = 'Не удалось загрузить запись.';
+  }
+}
+
+document.getElementById('editBackBtn').addEventListener('click', () => {
+  showScreen('profileScreen');
+});
+
+document.getElementById('editSaveBtn').addEventListener('click', async () => {
+  if (!currentEditWorkout) return;
+  const statusEl = document.getElementById('editStatusMsg');
+  statusEl.textContent = 'Сохраняю...';
+
+  const payload = {
+    type: currentEditWorkout.type,
+    warmup: document.getElementById('editWarmup').value,
+    cooldown: document.getElementById('editCooldown').value,
+    feeling: Number(document.getElementById('editFeeling').value),
+    rpe: Number(document.getElementById('editRpe').value),
+    notes: document.getElementById('editNotes').value,
+    visibility: document.getElementById('editVisibility').checked ? 'public' : 'private',
+    sets: currentEditWorkout.type === 'training' ? editSets : [],
+  };
+
+  try {
+    const result = await api(`/api/workouts/${currentEditWorkout.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    currentEditWorkout = { ...result.workout, sets: payload.sets };
+    statusEl.textContent = 'Сохранено ✓';
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Ошибка сохранения. Попробуй ещё раз.';
+  }
+});
+
+document.getElementById('editDeleteBtn').addEventListener('click', async () => {
+  if (!currentEditWorkout) return;
+  if (!confirm('Точно удалить эту запись? Это необратимо.')) return;
+
+  const statusEl = document.getElementById('editStatusMsg');
+  statusEl.textContent = 'Удаляю...';
+  try {
+    await api(`/api/workouts/${currentEditWorkout.id}`, { method: 'DELETE' });
+    showScreen('profileScreen');
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Не удалось удалить запись.';
+  }
 });
 
 init();
