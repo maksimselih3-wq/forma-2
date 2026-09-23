@@ -203,13 +203,20 @@ textarea, input[type="text"], input[type="number"] {
 .profile-stats span { font-size: 20px; font-weight: 700; }
 .muted { color: var(--hint); font-size: 13px; }
 
+.danger-btn {
+  border-color: #e05555;
+  color: #e05555;
+}
+
 .history-item {
   background: var(--secondary-bg);
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 8px;
   font-size: 13px;
+  cursor: pointer;
 }
+.history-item:active { opacity: 0.7; }
 
 .chat-section {
   display: flex;
