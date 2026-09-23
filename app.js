@@ -28,6 +28,23 @@ async function api(path, options = {}) {
   return res.json();
 }
 
+// ---------- Единая функция переключения экранов (защита от пропуска элементов) ----------
+const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'insightsScreen', 'chatScreen'];
+function showScreen(targetId) {
+  ALL_SCREENS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) {
+      console.error('Screen element not found:', id);
+      return;
+    }
+    if (id === targetId) {
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
+  });
+}
+
 // ---------- Инициализация ----------
 async function init() {
   try {
@@ -152,11 +169,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
 // ---------- Экран профиля ----------
 document.getElementById('profileBtn').addEventListener('click', async () => {
-  document.getElementById('mainScreen').classList.add('hidden');
-  document.getElementById('friendsScreen').classList.add('hidden');
-  document.getElementById('insightsScreen').classList.add('hidden');
-  document.getElementById('chatScreen').classList.add('hidden');
-  document.getElementById('profileScreen').classList.remove('hidden');
+  showScreen('profileScreen');
 
   const tgUser = tg?.initDataUnsafe?.user;
   document.getElementById('profileAvatar').src = tgUser?.photo_url || '';
@@ -184,8 +197,7 @@ document.getElementById('profileBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('backBtn').addEventListener('click', () => {
-  document.getElementById('profileScreen').classList.add('hidden');
-  document.getElementById('mainScreen').classList.remove('hidden');
+  showScreen('mainScreen');
 });
 
 // ---------- Экран друзей ----------
@@ -250,17 +262,12 @@ async function loadFriendsScreen() {
 }
 
 document.getElementById('friendsBtn').addEventListener('click', () => {
-  document.getElementById('mainScreen').classList.add('hidden');
-  document.getElementById('profileScreen').classList.add('hidden');
-  document.getElementById('insightsScreen').classList.add('hidden');
-  document.getElementById('chatScreen').classList.add('hidden');
-  document.getElementById('friendsScreen').classList.remove('hidden');
+  showScreen('friendsScreen');
   loadFriendsScreen();
 });
 
 document.getElementById('friendsBackBtn').addEventListener('click', () => {
-  document.getElementById('friendsScreen').classList.add('hidden');
-  document.getElementById('mainScreen').classList.remove('hidden');
+  showScreen('mainScreen');
 });
 
 document.getElementById('sendRequestBtn').addEventListener('click', async () => {
@@ -311,16 +318,11 @@ async function loadInsight() {
 }
 
 document.getElementById('insightsBtn').addEventListener('click', () => {
-  document.getElementById('mainScreen').classList.add('hidden');
-  document.getElementById('profileScreen').classList.add('hidden');
-  document.getElementById('friendsScreen').classList.add('hidden');
-  document.getElementById('chatScreen').classList.add('hidden');
-  document.getElementById('insightsScreen').classList.remove('hidden');
+  showScreen('insightsScreen');
 });
 
 document.getElementById('insightsBackBtn').addEventListener('click', () => {
-  document.getElementById('insightsScreen').classList.add('hidden');
-  document.getElementById('mainScreen').classList.remove('hidden');
+  showScreen('mainScreen');
 });
 
 document.querySelectorAll('#insightsScreen .seg-btn').forEach((btn) => {
@@ -386,17 +388,12 @@ async function sendChatMessage() {
 }
 
 document.getElementById('chatBtn').addEventListener('click', () => {
-  document.getElementById('mainScreen').classList.add('hidden');
-  document.getElementById('profileScreen').classList.add('hidden');
-  document.getElementById('friendsScreen').classList.add('hidden');
-  document.getElementById('insightsScreen').classList.add('hidden');
-  document.getElementById('chatScreen').classList.remove('hidden');
+  showScreen('chatScreen');
   renderChatMessages();
 });
 
 document.getElementById('chatBackBtn').addEventListener('click', () => {
-  document.getElementById('chatScreen').classList.add('hidden');
-  document.getElementById('mainScreen').classList.remove('hidden');
+  showScreen('mainScreen');
 });
 
 document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
