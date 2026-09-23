@@ -155,6 +155,7 @@ document.getElementById('profileBtn').addEventListener('click', async () => {
   document.getElementById('mainScreen').classList.add('hidden');
   document.getElementById('friendsScreen').classList.add('hidden');
   document.getElementById('insightsScreen').classList.add('hidden');
+  document.getElementById('chatScreen').classList.add('hidden');
   document.getElementById('profileScreen').classList.remove('hidden');
 
   const tgUser = tg?.initDataUnsafe?.user;
@@ -252,6 +253,7 @@ document.getElementById('friendsBtn').addEventListener('click', () => {
   document.getElementById('mainScreen').classList.add('hidden');
   document.getElementById('profileScreen').classList.add('hidden');
   document.getElementById('insightsScreen').classList.add('hidden');
+  document.getElementById('chatScreen').classList.add('hidden');
   document.getElementById('friendsScreen').classList.remove('hidden');
   loadFriendsScreen();
 });
@@ -312,6 +314,7 @@ document.getElementById('insightsBtn').addEventListener('click', () => {
   document.getElementById('mainScreen').classList.add('hidden');
   document.getElementById('profileScreen').classList.add('hidden');
   document.getElementById('friendsScreen').classList.add('hidden');
+  document.getElementById('chatScreen').classList.add('hidden');
   document.getElementById('insightsScreen').classList.remove('hidden');
 });
 
@@ -329,5 +332,67 @@ document.querySelectorAll('#insightsScreen .seg-btn').forEach((btn) => {
 });
 
 document.getElementById('refreshInsightBtn').addEventListener('click', loadInsight);
+
+// ---------- Чат с дневником ----------
+let chatHistory = []; // { role: 'user'|'assistant', content: '...' } — хранится только пока открыто приложение
+
+function renderChatMessages() {
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = '';
+  chatHistory.forEach((msg) => {
+    const div = document.createElement('div');
+    div.className = `chat-bubble ${msg.role === 'user' ? 'user' : 'assistant'}`;
+    div.textContent = msg.content;
+    container.appendChild(div);
+  });
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
+
+  chatHistory.push({ role: 'user', content: message });
+  renderChatMessages();
+  input.value = '';
+
+  const loadingBubble = document.createElement('div');
+  loadingBubble.className = 'chat-bubble assistant';
+  loadingBubble.textContent = '...';
+  document.getElementById('chatMessages').appendChild(loadingBubble);
+  document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+
+  try {
+    const { reply } = await api('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, history: chatHistory.slice(0, -1) }),
+    });
+    chatHistory.push({ role: 'assistant', content: reply || 'Не смог ответить, попробуй переформулировать.' });
+  } catch (err) {
+    console.error('Chat failed', err);
+    chatHistory.push({ role: 'assistant', content: 'Ошибка связи с сервером. Попробуй ещё раз.' });
+  }
+  renderChatMessages();
+}
+
+document.getElementById('chatBtn').addEventListener('click', () => {
+  document.getElementById('mainScreen').classList.add('hidden');
+  document.getElementById('profileScreen').classList.add('hidden');
+  document.getElementById('friendsScreen').classList.add('hidden');
+  document.getElementById('insightsScreen').classList.add('hidden');
+  document.getElementById('chatScreen').classList.remove('hidden');
+  renderChatMessages();
+});
+
+document.getElementById('chatBackBtn').addEventListener('click', () => {
+  document.getElementById('chatScreen').classList.add('hidden');
+  document.getElementById('mainScreen').classList.remove('hidden');
+});
+
+document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
+document.getElementById('chatInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendChatMessage();
+});
 
 init();
