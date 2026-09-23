@@ -9,6 +9,62 @@ let lastSavedWorkout = null;
 let sets = []; // { distance_m, reps, time_or_pace, rest_between }
 let selectedType = 'training';
 
+// Все мои записи (для календаря и подсказки «на эту дату уже есть запись»)
+let myWorkouts = [];
+let workoutsByDate = {}; // 'ГГГГ-ММ-ДД' -> запись
+
+// Дата, за которую сейчас заполняется форма на главном экране
+let entryDate = null;
+
+// ---------- Даты ----------
+const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+// Дата по часам телефона в формате 'ГГГГ-ММ-ДД'.
+// (Раньше тут был toISOString — он отдаёт дату по Гринвичу, и ночью по Москве «сегодня» было вчерашним днём.)
+function localDateStr(d = new Date()) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function parseDateStr(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function addDays(str, n) {
+  const d = parseDateStr(str);
+  d.setDate(d.getDate() + n);
+  return localDateStr(d);
+}
+
+function normDate(v) { return String(v).slice(0, 10); }
+
+// «19 сентября» (+ год, если он не текущий)
+function formatDayMonth(str) {
+  const d = parseDateStr(str);
+  const opts = { day: 'numeric', month: 'long' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('ru-RU', opts);
+}
+
+// «вт, 22 сентября»
+function formatWithWeekday(str) {
+  const d = parseDateStr(str);
+  const opts = { weekday: 'short', day: 'numeric', month: 'long' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('ru-RU', opts);
+}
+
+// «сегодня» / «вчера» / «19 сентября»
+function relativeDateLabel(str) {
+  const today = localDateStr();
+  if (str === today) return 'сегодня';
+  if (str === addDays(today, -1)) return 'вчера';
+  return formatDayMonth(str);
+}
+
 // ---------- Утилиты API ----------
 async function api(path, options = {}) {
   const res = await fetch(API_BASE + path, {
@@ -16,6 +72,7 @@ async function api(path, options = {}) {
     headers: {
       'Content-Type': 'application/json',
       'X-Telegram-Init-Data': tg?.initData || '',
+      'X-Client-Date': localDateStr(), // сервер узнаёт, какое «сегодня» у пользователя
       ...(options.headers || {}),
     },
   });
@@ -44,20 +101,43 @@ function showScreen(targetId) {
       el.classList.add('hidden');
     }
   });
+  window.scrollTo(0, 0);
 }
 
 // ---------- Инициализация ----------
 async function init() {
+  setEntryDate(localDateStr());
   try {
     const { user } = await api('/api/auth/login', { method: 'POST' });
     currentUser = user;
     updateAvatar();
     updateStreakBar();
+    await loadMyWorkouts();
+    updateExistingHint();
   } catch (err) {
     console.error('Login failed', err);
     document.getElementById('statusMsg').textContent =
       'Не удалось связаться с сервером. Проверь API_BASE в app.js.';
   }
+}
+
+async function loadMyWorkouts() {
+  const { workouts, streak } = await api('/api/workouts');
+  myWorkouts = workouts.map((w) => ({ ...w, date: normDate(w.date) }));
+  workoutsByDate = {};
+  myWorkouts.forEach((w) => { workoutsByDate[w.date] = w; });
+  if (currentUser && streak) {
+    currentUser.current_streak = streak.current;
+    currentUser.longest_streak = streak.longest;
+    updateStreakBar();
+  }
+}
+
+function applyStreak(streak) {
+  if (!currentUser || !streak) return;
+  currentUser.current_streak = streak.current;
+  currentUser.longest_streak = streak.longest;
+  updateStreakBar();
 }
 
 function updateAvatar() {
@@ -76,10 +156,68 @@ function updateStreakBar() {
   document.getElementById('streakBest').textContent = currentUser?.longest_streak ?? 0;
 }
 
+// ---------- Выбор даты записи ----------
+function setEntryDate(dateStr) {
+  const today = localDateStr();
+  if (!dateStr || dateStr > today) dateStr = today; // в будущее писать нельзя
+
+  entryDate = dateStr;
+
+  const input = document.getElementById('entryDate');
+  input.max = today;
+  input.value = dateStr;
+
+  document.getElementById('entryTitle').textContent = `Запись за ${relativeDateLabel(dateStr)}`;
+
+  document.querySelectorAll('.date-picker-row .chip').forEach((chip) => {
+    const chipDate = addDays(today, -Number(chip.dataset.shift));
+    chip.classList.toggle('active', chipDate === dateStr);
+  });
+
+  // сообщения от прошлого сохранения относятся к другой дате — прячем
+  document.getElementById('aiFeedbackBox').style.display = 'none';
+  document.getElementById('shareTodayBtn').style.display = 'none';
+  document.getElementById('statusMsg').textContent = '';
+
+  updateExistingHint();
+}
+
+function updateExistingHint() {
+  const hint = document.getElementById('existingHint');
+  const saveBtn = document.getElementById('saveBtn');
+  const existing = workoutsByDate[entryDate];
+
+  if (existing) {
+    const kind = existing.type === 'training' ? 'тренировка' : 'отдых';
+    document.getElementById('existingHintText').textContent =
+      `На ${relativeDateLabel(entryDate)} уже есть запись (${kind}). Если сохранить форму, она заменит старую.`;
+    hint.classList.remove('hidden');
+    saveBtn.textContent = 'Перезаписать запись';
+  } else {
+    hint.classList.add('hidden');
+    saveBtn.textContent = 'Сохранить запись';
+  }
+}
+
+document.querySelectorAll('.date-picker-row .chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    setEntryDate(addDays(localDateStr(), -Number(chip.dataset.shift)));
+  });
+});
+
+document.getElementById('entryDate').addEventListener('change', (e) => {
+  setEntryDate(e.target.value);
+});
+
+document.getElementById('openExistingBtn').addEventListener('click', () => {
+  const existing = workoutsByDate[entryDate];
+  if (existing) openEditScreen(existing.id, 'mainScreen');
+});
+
 // ---------- Переключатель тренировка/отдых ----------
 document.querySelectorAll('#mainScreen .seg-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.seg-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('#mainScreen .seg-btn').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
     selectedType = btn.dataset.type;
     document.getElementById('trainingFields').style.display =
@@ -135,10 +273,8 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   document.getElementById('shareTodayBtn').style.display = 'none';
   statusEl.textContent = 'Сохраняю...';
 
-  const today = new Date().toISOString().slice(0, 10);
-
   const payload = {
-    date: today,
+    date: entryDate,
     type: selectedType,
     warmup: document.getElementById('warmup').value,
     cooldown: document.getElementById('cooldown').value,
@@ -151,24 +287,22 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
   try {
     const result = await api('/api/workouts', { method: 'POST', body: JSON.stringify(payload) });
-    statusEl.textContent = 'Сохранено ✓';
+    statusEl.textContent = `Сохранено за ${relativeDateLabel(entryDate)} ✓`;
 
     if (result.workout?.ai_feedback) {
       document.getElementById('aiFeedbackText').textContent = result.workout.ai_feedback;
       aiBox.style.display = 'block';
     }
 
-    lastSavedWorkout = { ...result.workout, sets: payload.sets };
+    lastSavedWorkout = { ...result.workout, date: normDate(result.workout.date), sets: payload.sets };
     document.getElementById('shareTodayBtn').style.display = 'block';
 
-    // обновляем streak локально из свежего списка
-    const { streak } = await api('/api/workouts');
-    currentUser.current_streak = streak.current;
-    currentUser.longest_streak = streak.longest;
-    updateStreakBar();
+    applyStreak(result.streak);
+    // обновляем список записей (для календаря и подсказки)
+    await loadMyWorkouts();
   } catch (err) {
     console.error(err);
-    statusEl.textContent = 'Ошибка сохранения. Попробуй ещё раз.';
+    statusEl.textContent = err.data?.error || 'Ошибка сохранения. Попробуй ещё раз.';
   }
 });
 
@@ -176,34 +310,125 @@ document.getElementById('shareTodayBtn').addEventListener('click', () => {
   if (lastSavedWorkout) shareWorkout(lastSavedWorkout);
 });
 
-// ---------- Экран профиля ----------
-document.getElementById('profileBtn').addEventListener('click', async () => {
-  showScreen('profileScreen');
+// ---------- Экран профиля + календарь ----------
+let calMonth = new Date(); // какой месяц показывает календарь (любой день этого месяца)
 
+async function loadProfileScreen() {
   const tgUser = tg?.initDataUnsafe?.user;
   document.getElementById('profileAvatar').src = tgUser?.photo_url || '';
   document.getElementById('profileName').textContent =
     [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(' ') || 'Спортсмен';
   document.getElementById('profileUsername').textContent = tgUser?.username ? '@' + tgUser.username : '';
-  document.getElementById('profileStreak').textContent = currentUser?.current_streak ?? 0;
-  document.getElementById('profileBest').textContent = currentUser?.longest_streak ?? 0;
+
+  renderCalendar(); // сразу рисуем по тому, что уже загружено
+  renderHistory();
 
   try {
-    const { workouts } = await api('/api/workouts');
-    const historyList = document.getElementById('historyList');
-    historyList.innerHTML = '';
-    workouts.slice(0, 10).forEach((w) => {
-      const div = document.createElement('div');
-      div.className = 'history-item';
-      div.textContent = `${w.date} — ${w.type === 'training' ? 'тренировка' : 'отдых'}${
-        w.rpe ? `, RPE ${w.rpe}` : ''
-      }`;
-      div.addEventListener('click', () => openEditScreen(w.id));
-      historyList.appendChild(div);
-    });
+    await loadMyWorkouts();
+    renderCalendar();
+    renderHistory();
   } catch (err) {
     console.error('Failed to load history', err);
   }
+
+  document.getElementById('profileStreak').textContent = currentUser?.current_streak ?? 0;
+  document.getElementById('profileBest').textContent = currentUser?.longest_streak ?? 0;
+}
+
+function renderCalendar() {
+  const y = calMonth.getFullYear();
+  const m = calMonth.getMonth();
+  const today = localDateStr();
+  const now = new Date();
+
+  document.getElementById('calTitle').textContent = `${MONTHS[m]} ${y}`;
+  // в будущие месяцы листать незачем
+  document.getElementById('calNext').disabled =
+    y > now.getFullYear() || (y === now.getFullYear() && m >= now.getMonth());
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  const offset = (new Date(y, m, 1).getDay() + 6) % 7; // понедельник — первый день недели
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+  for (let i = 0; i < offset; i++) {
+    const empty = document.createElement('span');
+    empty.className = 'cal-cell empty';
+    grid.appendChild(empty);
+  }
+
+  let trainings = 0;
+  let rests = 0;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = localDateStr(new Date(y, m, d));
+    const w = workoutsByDate[ds];
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'cal-cell';
+    cell.textContent = d;
+
+    if (w) {
+      cell.classList.add(w.type === 'training' ? 'has-training' : 'has-rest');
+      if (w.type === 'training') trainings++; else rests++;
+    }
+    if (ds === today) cell.classList.add('today');
+
+    if (ds > today) {
+      cell.classList.add('future');
+      cell.disabled = true;
+    } else {
+      cell.addEventListener('click', () => {
+        if (w) {
+          openEditScreen(w.id, 'profileScreen');
+        } else {
+          // пустой день — открываем форму новой записи на эту дату
+          setEntryDate(ds);
+          showScreen('mainScreen');
+        }
+      });
+    }
+    grid.appendChild(cell);
+  }
+
+  document.getElementById('calSummary').textContent =
+    trainings + rests === 0
+      ? 'В этом месяце записей пока нет.'
+      : `За месяц: тренировок — ${trainings}, дней отдыха — ${rests}.`;
+}
+
+function renderHistory() {
+  const historyList = document.getElementById('historyList');
+  historyList.innerHTML = '';
+  if (myWorkouts.length === 0) {
+    historyList.innerHTML = '<div class="empty-hint">Записей пока нет.</div>';
+    return;
+  }
+  myWorkouts.slice(0, 10).forEach((w) => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.textContent = `${formatWithWeekday(w.date)} — ${w.type === 'training' ? 'тренировка' : 'отдых'}${
+      w.rpe && w.type === 'training' ? `, RPE ${w.rpe}` : ''
+    }`;
+    div.addEventListener('click', () => openEditScreen(w.id, 'profileScreen'));
+    historyList.appendChild(div);
+  });
+}
+
+document.getElementById('calPrev').addEventListener('click', () => {
+  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1);
+  renderCalendar();
+});
+document.getElementById('calNext').addEventListener('click', () => {
+  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1);
+  renderCalendar();
+});
+
+document.getElementById('profileBtn').addEventListener('click', () => {
+  calMonth = new Date(); // при каждом открытии — текущий месяц
+  showScreen('profileScreen');
+  loadProfileScreen();
 });
 
 document.getElementById('backBtn').addEventListener('click', () => {
@@ -313,6 +538,7 @@ async function loadInsight() {
     loadingEl.classList.add('hidden');
 
     if (!insight || workoutsCount === 0) {
+      emptyEl.textContent = 'Пока недостаточно записей за этот период.';
       emptyEl.classList.remove('hidden');
       return;
     }
@@ -345,7 +571,7 @@ document.querySelectorAll('#insightsScreen .seg-btn').forEach((btn) => {
 
 document.getElementById('refreshInsightBtn').addEventListener('click', loadInsight);
 
-// ---------- Чат с дневником ----------
+// ---------- Чат с Fom ----------
 let chatHistory = []; // { role: 'user'|'assistant', content: '...' } — хранится только пока открыто приложение
 
 function renderMarkdownBold(text) {
@@ -360,6 +586,11 @@ function renderMarkdownBold(text) {
 function renderChatMessages() {
   const container = document.getElementById('chatMessages');
   container.innerHTML = '';
+  if (chatHistory.length === 0) {
+    container.innerHTML =
+      '<div class="empty-hint">Привет! Я Fom, твой ИИ-тренер. Спроси меня про свои тренировки — например, «сколько я бегал на этой неделе?» или «не перегружаюсь ли я?»</div>';
+    return;
+  }
   chatHistory.forEach((msg) => {
     const div = document.createElement('div');
     div.className = `chat-bubble ${msg.role === 'user' ? 'user' : 'assistant'}`;
@@ -380,7 +611,7 @@ async function sendChatMessage() {
 
   const loadingBubble = document.createElement('div');
   loadingBubble.className = 'chat-bubble assistant';
-  loadingBubble.textContent = '...';
+  loadingBubble.textContent = 'Fom думает...';
   document.getElementById('chatMessages').appendChild(loadingBubble);
   document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
 
@@ -415,7 +646,7 @@ document.getElementById('chatInput').addEventListener('keydown', (e) => {
 function buildShareText(w) {
   const lines = [];
   lines.push(w.type === 'rest' ? '😴 День отдыха' : '🏃 Тренировка');
-  lines.push(`📅 ${w.date}`);
+  lines.push(`📅 ${formatWithWeekday(normDate(w.date))}`);
 
   if (w.type === 'training') {
     if (w.warmup) lines.push(`Разминка: ${w.warmup}`);
@@ -456,6 +687,7 @@ document.getElementById('editShareBtn').addEventListener('click', () => {
 // ---------- Экран редактирования записи ----------
 let currentEditWorkout = null;
 let editSets = [];
+let editReturnScreen = 'profileScreen'; // куда вернуться по кнопке «Назад»
 
 function renderEditSets() {
   const list = document.getElementById('editSetsList');
@@ -495,16 +727,18 @@ document.getElementById('editRpe').addEventListener('input', (e) => {
   document.getElementById('editRpeVal').textContent = e.target.value;
 });
 
-async function openEditScreen(workoutId) {
+async function openEditScreen(workoutId, returnTo = 'profileScreen') {
+  editReturnScreen = returnTo;
   showScreen('editScreen');
   document.getElementById('editStatusMsg').textContent = 'Загружаю...';
 
   try {
     const { workout } = await api(`/api/workouts/${workoutId}`);
+    workout.date = normDate(workout.date);
     currentEditWorkout = workout;
     editSets = Array.isArray(workout.sets) ? workout.sets : [];
 
-    document.getElementById('editDateLabel').textContent = workout.date;
+    document.getElementById('editDateLabel').textContent = formatWithWeekday(workout.date);
     document.getElementById('editWarmup').value = workout.warmup || '';
     document.getElementById('editCooldown').value = workout.cooldown || '';
     document.getElementById('editNotes').value = workout.notes || '';
@@ -523,9 +757,16 @@ async function openEditScreen(workoutId) {
   }
 }
 
-document.getElementById('editBackBtn').addEventListener('click', () => {
-  showScreen('profileScreen');
-});
+function leaveEditScreen() {
+  showScreen(editReturnScreen);
+  if (editReturnScreen === 'profileScreen') {
+    loadProfileScreen();
+  } else {
+    updateExistingHint();
+  }
+}
+
+document.getElementById('editBackBtn').addEventListener('click', leaveEditScreen);
 
 document.getElementById('editSaveBtn').addEventListener('click', async () => {
   if (!currentEditWorkout) return;
@@ -548,8 +789,9 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
-    currentEditWorkout = { ...result.workout, sets: payload.sets };
+    currentEditWorkout = { ...result.workout, date: normDate(result.workout.date), sets: payload.sets };
     statusEl.textContent = 'Сохранено ✓';
+    loadMyWorkouts().catch((e) => console.error(e));
   } catch (err) {
     console.error(err);
     statusEl.textContent = 'Ошибка сохранения. Попробуй ещё раз.';
@@ -563,8 +805,11 @@ document.getElementById('editDeleteBtn').addEventListener('click', async () => {
   const statusEl = document.getElementById('editStatusMsg');
   statusEl.textContent = 'Удаляю...';
   try {
-    await api(`/api/workouts/${currentEditWorkout.id}`, { method: 'DELETE' });
-    showScreen('profileScreen');
+    const result = await api(`/api/workouts/${currentEditWorkout.id}`, { method: 'DELETE' });
+    applyStreak(result.streak);
+    await loadMyWorkouts();
+    currentEditWorkout = null;
+    leaveEditScreen();
   } catch (err) {
     console.error(err);
     statusEl.textContent = 'Не удалось удалить запись.';
