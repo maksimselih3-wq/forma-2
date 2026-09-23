@@ -18,7 +18,13 @@ async function api(path, options = {}) {
       ...(options.headers || {}),
     },
   });
-  if (!res.ok) throw new Error(`API ${path} -> ${res.status}`);
+  if (!res.ok) {
+    let data = null;
+    try { data = await res.json(); } catch {}
+    const err = new Error(data?.error || `API ${path} -> ${res.status}`);
+    err.data = data;
+    throw err;
+  }
   return res.json();
 }
 
@@ -177,6 +183,95 @@ document.getElementById('profileBtn').addEventListener('click', async () => {
 document.getElementById('backBtn').addEventListener('click', () => {
   document.getElementById('profileScreen').classList.add('hidden');
   document.getElementById('mainScreen').classList.remove('hidden');
+});
+
+// ---------- Экран друзей ----------
+async function loadFriendsScreen() {
+  const statusEl = document.getElementById('friendRequestStatus');
+  statusEl.textContent = '';
+
+  try {
+    const [{ requests }, { friends }] = await Promise.all([
+      api('/api/friends/requests'),
+      api('/api/friends'),
+    ]);
+
+    const reqList = document.getElementById('incomingRequestsList');
+    const reqBlock = document.getElementById('incomingRequestsBlock');
+    reqList.innerHTML = '';
+    if (requests.length === 0) {
+      reqBlock.style.display = 'none';
+    } else {
+      reqBlock.style.display = 'block';
+      requests.forEach((r) => {
+        const div = document.createElement('div');
+        div.className = 'friend-request-item';
+        div.innerHTML = `
+          <span>${r.first_name || ''} ${r.username ? '@' + r.username : ''}</span>
+          <span class="actions">
+            <button class="accept-btn" data-id="${r.friendship_id}">Принять</button>
+            <button class="decline-btn" data-id="${r.friendship_id}">Отклонить</button>
+          </span>
+        `;
+        div.querySelector('.accept-btn').addEventListener('click', async () => {
+          await api('/api/friends/accept', { method: 'POST', body: JSON.stringify({ friendshipId: r.friendship_id }) });
+          loadFriendsScreen();
+        });
+        div.querySelector('.decline-btn').addEventListener('click', async () => {
+          await api('/api/friends/decline', { method: 'POST', body: JSON.stringify({ friendshipId: r.friendship_id }) });
+          loadFriendsScreen();
+        });
+        reqList.appendChild(div);
+      });
+    }
+
+    const friendsList = document.getElementById('friendsList');
+    friendsList.innerHTML = '';
+    if (friends.length === 0) {
+      friendsList.innerHTML = '<div class="empty-hint">Пока нет друзей — добавь кого-нибудь по username выше.</div>';
+    } else {
+      friends.forEach((f) => {
+        const div = document.createElement('div');
+        div.className = 'friend-item';
+        div.innerHTML = `
+          <span>${f.first_name || ''} ${f.username ? '@' + f.username : ''}</span>
+          <span class="friend-streak">🔥 ${f.current_streak}</span>
+        `;
+        friendsList.appendChild(div);
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load friends screen', err);
+    statusEl.textContent = 'Не удалось загрузить друзей.';
+  }
+}
+
+document.getElementById('friendsBtn').addEventListener('click', () => {
+  document.getElementById('mainScreen').classList.add('hidden');
+  document.getElementById('profileScreen').classList.add('hidden');
+  document.getElementById('friendsScreen').classList.remove('hidden');
+  loadFriendsScreen();
+});
+
+document.getElementById('friendsBackBtn').addEventListener('click', () => {
+  document.getElementById('friendsScreen').classList.add('hidden');
+  document.getElementById('mainScreen').classList.remove('hidden');
+});
+
+document.getElementById('sendRequestBtn').addEventListener('click', async () => {
+  const input = document.getElementById('friendUsernameInput');
+  const statusEl = document.getElementById('friendRequestStatus');
+  const username = input.value.trim();
+  if (!username) return;
+
+  statusEl.textContent = 'Отправляю...';
+  try {
+    await api('/api/friends/request', { method: 'POST', body: JSON.stringify({ username }) });
+    statusEl.textContent = 'Заявка отправлена ✓';
+    input.value = '';
+  } catch (err) {
+    statusEl.textContent = err.message || 'Не удалось отправить заявку.';
+  }
 });
 
 init();
