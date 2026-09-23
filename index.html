@@ -11,10 +11,13 @@
 
   <header class="topbar">
     <h1>Дневник спортсмена</h1>
-    <button id="profileBtn" class="avatar-btn" title="Мой аккаунт">
-      <img id="avatarImg" src="" alt="" style="display:none" />
-      <span id="avatarFallback">👤</span>
-    </button>
+    <div class="topbar-actions">
+      <button id="friendsBtn" class="icon-btn" title="Друзья">👥</button>
+      <button id="profileBtn" class="avatar-btn" title="Мой аккаунт">
+        <img id="avatarImg" src="" alt="" style="display:none" />
+        <span id="avatarFallback">👤</span>
+      </button>
+    </div>
   </header>
 
   <!-- ЭКРАН: ГЛАВНАЯ / ЗАПИСЬ ЗА СЕГОДНЯ -->
@@ -83,6 +86,26 @@
     </div>
     <h3>Последние записи</h3>
     <div id="historyList"></div>
+  </section>
+
+  <!-- ЭКРАН: ДРУЗЬЯ -->
+  <section id="friendsScreen" class="hidden">
+    <button id="friendsBackBtn" class="secondary-btn">← Назад</button>
+
+    <h2>Добавить друга</h2>
+    <div class="add-friend-row">
+      <input type="text" id="friendUsernameInput" placeholder="username без @" />
+      <button id="sendRequestBtn" class="primary-btn small-btn">Добавить</button>
+    </div>
+    <div id="friendRequestStatus" class="status-msg"></div>
+
+    <div id="incomingRequestsBlock">
+      <h3>Заявки в друзья</h3>
+      <div id="incomingRequestsList"></div>
+    </div>
+
+    <h3>Мои друзья</h3>
+    <div id="friendsList"></div>
   </section>
 
   <script src="app.js"></script>
