@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Дневник спортсмена</title>
-<link rel="stylesheet" href="style.css?v=7" />
+<link rel="stylesheet" href="style.css?v=8" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -70,6 +70,8 @@
       <div class="ai-box-title">🤖 Тренер-ИИ</div>
       <div id="aiFeedbackText"></div>
     </div>
+
+    <button id="shareTodayBtn" class="secondary-btn" style="display:none">📤 Поделиться этой записью</button>
 
     <div id="statusMsg" class="status-msg"></div>
   </main>
@@ -142,6 +144,47 @@
     </div>
   </section>
 
-<script src="app.js?v=7"></script>
+  <!-- ЭКРАН: РЕДАКТИРОВАНИЕ ЗАПИСИ -->
+  <section id="editScreen" class="hidden">
+    <button id="editBackBtn" class="secondary-btn">← Назад</button>
+    <h2>Запись за <span id="editDateLabel"></span></h2>
+
+    <div id="editTrainingFields">
+      <label>Разминка</label>
+      <textarea id="editWarmup" rows="2"></textarea>
+
+      <label>Основная работа</label>
+      <div id="editSetsList"></div>
+      <button id="addEditSetBtn" type="button" class="secondary-btn">+ Добавить повтор</button>
+
+      <label>Заминка</label>
+      <textarea id="editCooldown" rows="2"></textarea>
+
+      <div class="slider-row">
+        <label>Самочувствие: <span id="editFeelingVal">5</span>/10</label>
+        <input type="range" id="editFeeling" min="1" max="10" value="5" />
+      </div>
+
+      <div class="slider-row">
+        <label>RPE (нагрузка): <span id="editRpeVal">5</span>/10</label>
+        <input type="range" id="editRpe" min="1" max="10" value="5" />
+      </div>
+    </div>
+
+    <label>Заметки</label>
+    <textarea id="editNotes" rows="2"></textarea>
+
+    <div class="visibility-row">
+      <label><input type="checkbox" id="editVisibility" /> Показывать друзьям (публично)</label>
+    </div>
+
+    <button id="editSaveBtn" class="primary-btn">Сохранить изменения</button>
+    <button id="editShareBtn" class="secondary-btn">📤 Поделиться</button>
+    <button id="editDeleteBtn" class="secondary-btn danger-btn">🗑 Удалить запись</button>
+
+    <div id="editStatusMsg" class="status-msg"></div>
+  </section>
+
+  <script src="app.js?v=8"></script>
 </body>
 </html>
