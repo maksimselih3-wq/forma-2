@@ -289,6 +289,33 @@ textarea, input[type="text"], input[type="number"] {
 .send-btn svg { margin-left: 2px; } /* самолётик визуально по центру */
 .send-btn:active { opacity: 0.7; }
 
+/* ---------- Шапка экрана: круглая стрелка «назад» слева + заголовок ---------- */
+.screen-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+.screen-head h2 { margin: 0; font-size: 18px; }
+.back-btn {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--secondary-bg);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease;
+}
+.back-btn svg { margin-left: -2px; } /* стрелка визуально по центру */
+.back-btn:hover { transform: translateX(-2px); }
+.back-btn:active { opacity: 0.7; }
+
 /* ---------- Пульс ---------- */
 .hr-row {
   display: grid;
