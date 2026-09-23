@@ -82,6 +82,13 @@ body {
 .friend-streak { font-weight: 600; }
 .empty-hint { color: var(--hint); font-size: 13px; padding: 8px 0; }
 
+/* фикс: явно переопределяем ширину поля добавления друга, чтобы не съезжало */
+.add-friend-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
 main, section { padding: 0 16px 24px; }
 
 .streak-bar {
