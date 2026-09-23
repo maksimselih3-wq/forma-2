@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Дневник спортсмена</title>
-<link rel="stylesheet" href="style.css?v=3" />
+<link rel="stylesheet" href="style.css?v=5" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -12,6 +12,7 @@
   <header class="topbar">
     <h1>Дневник спортсмена</h1>
     <div class="topbar-actions">
+      <button id="chatBtn" class="icon-btn" title="Чат с дневником">💬</button>
       <button id="insightsBtn" class="icon-btn" title="Разбор нагрузки">📊</button>
       <button id="friendsBtn" class="icon-btn" title="Друзья">👥</button>
       <button id="profileBtn" class="avatar-btn" title="Мой аккаунт">
@@ -130,6 +131,17 @@
     </div>
   </section>
 
-  <script src="app.js?v=3"></script>
+  <!-- ЭКРАН: ЧАТ С ДНЕВНИКОМ -->
+  <section id="chatScreen" class="hidden chat-section">
+    <button id="chatBackBtn" class="secondary-btn">← Назад</button>
+    <h2>Чат с дневником</h2>
+    <div id="chatMessages" class="chat-messages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Спроси про свои тренировки..." />
+      <button id="chatSendBtn" class="primary-btn small-btn">Отправить</button>
+    </div>
+  </section>
+
+  <script src="app.js?v=5"></script>
 </body>
 </html>
