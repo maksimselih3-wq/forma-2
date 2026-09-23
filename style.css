@@ -187,7 +187,7 @@ textarea, input[type="text"], input[type="number"] {
 
 .status-msg { text-align: center; margin-top: 10px; font-size: 13px; color: var(--hint); }
 
-.hidden { display: none; }
+.hidden { display: none !important; }
 
 .profile-card {
   text-align: center;
