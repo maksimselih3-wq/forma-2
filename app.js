@@ -5,7 +5,7 @@ const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
 let currentUser = null;
-let lastSavedWorkout = null;
+let justSavedDate = null; // дата, которую только что сохранили (для заголовка «Запись сохранена»)
 let sets = []; // { distance_m, reps, time_or_pace, rest_between }
 let selectedType = 'training';
 
@@ -113,7 +113,7 @@ async function init() {
     updateAvatar();
     updateStreakBar();
     await loadMyWorkouts();
-    updateExistingHint();
+    renderEntryState();
   } catch (err) {
     console.error('Login failed', err);
     document.getElementById('statusMsg').textContent =
@@ -174,29 +174,58 @@ function setEntryDate(dateStr) {
     chip.classList.toggle('active', chipDate === dateStr);
   });
 
-  // сообщения от прошлого сохранения относятся к другой дате — прячем
-  document.getElementById('aiFeedbackBox').style.display = 'none';
-  document.getElementById('shareTodayBtn').style.display = 'none';
   document.getElementById('statusMsg').textContent = '';
+  if (dateStr !== justSavedDate) justSavedDate = null;
 
-  updateExistingHint();
+  renderEntryState();
 }
 
-function updateExistingHint() {
-  const hint = document.getElementById('existingHint');
-  const saveBtn = document.getElementById('saveBtn');
+// Главный экран в двух состояниях:
+//  - на выбранную дату записи ещё нет → показываем форму;
+//  - запись уже есть (или только что сохранена) → прячем форму и показываем карточку с итогом.
+function renderEntryState() {
   const existing = workoutsByDate[entryDate];
+  const form = document.getElementById('entryForm');
+  const done = document.getElementById('entryDone');
 
-  if (existing) {
-    const kind = existing.type === 'training' ? 'тренировка' : 'отдых';
-    document.getElementById('existingHintText').textContent =
-      `На ${relativeDateLabel(entryDate)} уже есть запись (${kind}). Если сохранить форму, она заменит старую.`;
-    hint.classList.remove('hidden');
-    saveBtn.textContent = 'Перезаписать запись';
-  } else {
-    hint.classList.add('hidden');
-    saveBtn.textContent = 'Сохранить запись';
+  if (!existing) {
+    done.classList.add('hidden');
+    form.classList.remove('hidden');
+    return;
   }
+
+  form.classList.add('hidden');
+  done.classList.remove('hidden');
+
+  const label = relativeDateLabel(entryDate);
+  document.getElementById('doneTitle').textContent =
+    justSavedDate === entryDate
+      ? `✅ Запись за ${label} сохранена`
+      : `✅ За ${label} запись уже есть`;
+
+  const lines = [existing.type === 'rest' ? '😴 День отдыха' : '🏃 Тренировка', ...buildDetailLines(existing)];
+  document.getElementById('doneSummary').textContent = lines.join('\n');
+
+  const fbBox = document.getElementById('doneFeedbackBox');
+  if (existing.ai_feedback) {
+    document.getElementById('doneFeedbackText').textContent = existing.ai_feedback;
+    fbBox.classList.remove('hidden');
+  } else {
+    fbBox.classList.add('hidden');
+  }
+}
+
+// Очистить форму после успешного сохранения
+function resetForm() {
+  ['warmup', 'cooldown', 'notes'].forEach((id) => { document.getElementById(id).value = ''; });
+  sets = [];
+  renderSets();
+  ['feeling', 'rpe'].forEach((id) => {
+    document.getElementById(id).value = 5;
+    document.getElementById(id + 'Val').textContent = 5;
+  });
+  // возвращаем переключатель на «Тренировка»
+  document.querySelector('#mainScreen .seg-btn[data-type="training"]').click();
 }
 
 document.querySelectorAll('.date-picker-row .chip').forEach((chip) => {
@@ -209,9 +238,14 @@ document.getElementById('entryDate').addEventListener('change', (e) => {
   setEntryDate(e.target.value);
 });
 
-document.getElementById('openExistingBtn').addEventListener('click', () => {
+document.getElementById('doneEditBtn').addEventListener('click', () => {
   const existing = workoutsByDate[entryDate];
   if (existing) openEditScreen(existing.id, 'mainScreen');
+});
+
+document.getElementById('doneShareBtn').addEventListener('click', () => {
+  const existing = workoutsByDate[entryDate];
+  if (existing) shareWorkout(existing);
 });
 
 // ---------- Переключатель тренировка/отдых ----------
@@ -268,10 +302,9 @@ document.getElementById('rpe').addEventListener('input', (e) => {
 // ---------- Сохранение записи ----------
 document.getElementById('saveBtn').addEventListener('click', async () => {
   const statusEl = document.getElementById('statusMsg');
-  const aiBox = document.getElementById('aiFeedbackBox');
-  aiBox.style.display = 'none';
-  document.getElementById('shareTodayBtn').style.display = 'none';
-  statusEl.textContent = 'Сохраняю...';
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;
+  statusEl.textContent = selectedType === 'training' ? 'Сохраняю, Fom смотрит тренировку...' : 'Сохраняю...';
 
   const payload = {
     date: entryDate,
@@ -287,27 +320,28 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
   try {
     const result = await api('/api/workouts', { method: 'POST', body: JSON.stringify(payload) });
-    statusEl.textContent = `Сохранено за ${relativeDateLabel(entryDate)} ✓`;
+    applyStreak(result.streak);
 
-    if (result.workout?.ai_feedback) {
-      document.getElementById('aiFeedbackText').textContent = result.workout.ai_feedback;
-      aiBox.style.display = 'block';
+    // обновляем список записей — из него рисуется карточка «сохранено» и календарь
+    try {
+      await loadMyWorkouts();
+    } catch (e) {
+      // если список не загрузился, покажем карточку хотя бы по ответу сервера
+      const w = { ...result.workout, date: normDate(result.workout.date), sets: payload.sets };
+      workoutsByDate[w.date] = w;
     }
 
-    lastSavedWorkout = { ...result.workout, date: normDate(result.workout.date), sets: payload.sets };
-    document.getElementById('shareTodayBtn').style.display = 'block';
-
-    applyStreak(result.streak);
-    // обновляем список записей (для календаря и подсказки)
-    await loadMyWorkouts();
+    statusEl.textContent = '';
+    justSavedDate = entryDate;
+    resetForm();
+    renderEntryState();
+    window.scrollTo(0, 0);
   } catch (err) {
     console.error(err);
     statusEl.textContent = err.data?.error || 'Ошибка сохранения. Попробуй ещё раз.';
+  } finally {
+    saveBtn.disabled = false;
   }
-});
-
-document.getElementById('shareTodayBtn').addEventListener('click', () => {
-  if (lastSavedWorkout) shareWorkout(lastSavedWorkout);
 });
 
 // ---------- Экран профиля + календарь ----------
@@ -643,11 +677,9 @@ document.getElementById('chatInput').addEventListener('keydown', (e) => {
 });
 
 // ---------- Поделиться записью ----------
-function buildShareText(w) {
+// Содержимое записи построчно (без заголовка) — для карточки на главном и для «Поделиться»
+function buildDetailLines(w) {
   const lines = [];
-  lines.push(w.type === 'rest' ? '😴 День отдыха' : '🏃 Тренировка');
-  lines.push(`📅 ${formatWithWeekday(normDate(w.date))}`);
-
   if (w.type === 'training') {
     if (w.warmup) lines.push(`Разминка: ${w.warmup}`);
     if (Array.isArray(w.sets) && w.sets.length > 0) {
@@ -666,7 +698,14 @@ function buildShareText(w) {
   }
   if (w.feeling) lines.push(`Самочувствие: ${w.feeling}/10`);
   if (w.notes) lines.push(`Заметка: ${w.notes}`);
+  return lines;
+}
 
+function buildShareText(w) {
+  const lines = [];
+  lines.push(w.type === 'rest' ? '😴 День отдыха' : '🏃 Тренировка');
+  lines.push(`📅 ${formatWithWeekday(normDate(w.date))}`);
+  lines.push(...buildDetailLines(w));
   return lines.join('\n');
 }
 
@@ -762,7 +801,7 @@ function leaveEditScreen() {
   if (editReturnScreen === 'profileScreen') {
     loadProfileScreen();
   } else {
-    updateExistingHint();
+    renderEntryState();
   }
 }
 
@@ -791,7 +830,7 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
     });
     currentEditWorkout = { ...result.workout, date: normDate(result.workout.date), sets: payload.sets };
     statusEl.textContent = 'Сохранено ✓';
-    loadMyWorkouts().catch((e) => console.error(e));
+    try { await loadMyWorkouts(); } catch (e) { console.error(e); }
   } catch (err) {
     console.error(err);
     statusEl.textContent = 'Ошибка сохранения. Попробуй ещё раз.';
