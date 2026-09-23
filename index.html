@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Дневник спортсмена</title>
+<link rel="stylesheet" href="style.css" />
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+
+  <header class="topbar">
+    <h1>Дневник спортсмена</h1>
+    <button id="profileBtn" class="avatar-btn" title="Мой аккаунт">
+      <img id="avatarImg" src="" alt="" style="display:none" />
+      <span id="avatarFallback">👤</span>
+    </button>
+  </header>
+
+  <!-- ЭКРАН: ГЛАВНАЯ / ЗАПИСЬ ЗА СЕГОДНЯ -->
+  <main id="mainScreen">
+    <div class="streak-bar">
+      🔥 Серия: <span id="streakCurrent">-</span> дн. (лучшая: <span id="streakBest">-</span>)
+    </div>
+
+    <h2>Запись за сегодня</h2>
+
+    <div class="segmented">
+      <button class="seg-btn active" data-type="training">Тренировка</button>
+      <button class="seg-btn" data-type="rest">Отдых</button>
+    </div>
+
+    <div id="trainingFields">
+      <label>Разминка</label>
+      <textarea id="warmup" rows="2" placeholder="Например: 15 мин бег трусцой + суставная"></textarea>
+
+      <label>Основная работа</label>
+      <div id="setsList"></div>
+      <button id="addSetBtn" type="button" class="secondary-btn">+ Добавить повтор</button>
+
+      <label>Заминка</label>
+      <textarea id="cooldown" rows="2" placeholder="Необязательно"></textarea>
+
+      <div class="slider-row">
+        <label>Самочувствие: <span id="feelingVal">5</span>/10</label>
+        <input type="range" id="feeling" min="1" max="10" value="5" />
+      </div>
+
+      <div class="slider-row">
+        <label>RPE (нагрузка): <span id="rpeVal">5</span>/10</label>
+        <input type="range" id="rpe" min="1" max="10" value="5" />
+      </div>
+    </div>
+
+    <label>Заметки</label>
+    <textarea id="notes" rows="2" placeholder="Как прошло, что заметил..."></textarea>
+
+    <div class="visibility-row">
+      <label><input type="checkbox" id="visibility" /> Показывать друзьям (публично)</label>
+    </div>
+
+    <button id="saveBtn" class="primary-btn">Сохранить запись</button>
+
+    <div id="aiFeedbackBox" class="ai-box" style="display:none">
+      <div class="ai-box-title">🤖 Тренер-ИИ</div>
+      <div id="aiFeedbackText"></div>
+    </div>
+
+    <div id="statusMsg" class="status-msg"></div>
+  </main>
+
+  <!-- ЭКРАН: ПРОФИЛЬ -->
+  <section id="profileScreen" class="hidden">
+    <button id="backBtn" class="secondary-btn">← Назад</button>
+    <div class="profile-card">
+      <img id="profileAvatar" src="" alt="" />
+      <h2 id="profileName">-</h2>
+      <p id="profileUsername" class="muted">-</p>
+      <div class="profile-stats">
+        <div><span id="profileStreak">-</span><br /><small>дней подряд</small></div>
+        <div><span id="profileBest">-</span><br /><small>лучший рекорд</small></div>
+      </div>
+    </div>
+    <h3>Последние записи</h3>
+    <div id="historyList"></div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
