@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Дневник спортсмена</title>
-<link rel="stylesheet" href="style.css?v=11" />
+<link rel="stylesheet" href="style.css?v=12" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -187,8 +187,13 @@
     <h2>Чат с Fom</h2>
     <div id="chatMessages" class="chat-messages"></div>
     <div class="chat-input-row">
-      <input type="text" id="chatInput" placeholder="Спроси Fom про свои тренировки..." />
-      <button id="chatSendBtn" class="primary-btn small-btn">Отправить</button>
+      <input type="text" id="chatInput" placeholder="Сообщение для Fom..." autocomplete="off" />
+      <!-- Круглая кнопка отправки со «самолётиком», как в Telegram -->
+      <button id="chatSendBtn" class="send-btn" type="button" title="Отправить" aria-label="Отправить">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M3.4 20.4 21.85 12.5a.55.55 0 0 0 0-1L3.4 3.6a.5.5 0 0 0-.7.6L5 11l9 1-9 1-2.3 6.8a.5.5 0 0 0 .7.6Z"/>
+        </svg>
+      </button>
     </div>
   </section>
 
@@ -241,6 +246,6 @@
     <div id="editStatusMsg" class="status-msg"></div>
   </section>
 
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>
