@@ -221,7 +221,7 @@ textarea, input[type="text"], input[type="number"] {
 .chat-section {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 60px); /* минус шапка сверху, чтобы строка ввода не уезжала за экран */
   padding-bottom: 16px;
 }
 .chat-messages {
@@ -252,8 +252,10 @@ textarea, input[type="text"], input[type="number"] {
   color: var(--text);
   border-bottom-left-radius: 4px;
 }
+/* Строка ввода в чате — как в мессенджере: длинное поле-«таблетка» и круглая кнопка справа */
 .chat-input-row {
   display: flex;
+  align-items: center;
   gap: 8px;
   padding-top: 8px;
 }
@@ -263,11 +265,29 @@ textarea, input[type="text"], input[type="number"] {
   width: 100%;
   border: 1px solid var(--secondary-bg);
   background: var(--secondary-bg);
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 14px;
+  border-radius: 20px;
+  padding: 10px 16px;
+  font-size: 15px;
   color: var(--text);
+  outline: none;
 }
+.chat-input-row input:focus { border-color: var(--button); }
+.send-btn {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--button);
+  color: var(--button-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.send-btn svg { margin-left: 2px; } /* самолётик визуально по центру */
+.send-btn:active { opacity: 0.7; }
 
 /* ---------- Пульс ---------- */
 .hr-row {
