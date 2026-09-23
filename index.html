@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Дневник спортсмена</title>
-<link rel="stylesheet" href="style.css?v=9" />
+<link rel="stylesheet" href="style.css?v=10" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -39,11 +39,23 @@
       </label>
     </div>
 
-    <div id="existingHint" class="existing-hint hidden">
-      <span id="existingHintText"></span>
-      <button type="button" id="openExistingBtn" class="link-btn">Открыть и изменить</button>
+    <!-- Карточка «запись уже есть / сохранена» — показывается вместо формы -->
+    <div id="entryDone" class="done-card hidden">
+      <div class="done-title" id="doneTitle">✅ Запись сохранена</div>
+      <div id="doneSummary" class="done-summary"></div>
+
+      <div id="doneFeedbackBox" class="ai-box hidden">
+        <div class="ai-box-title">🤖 Fom</div>
+        <div id="doneFeedbackText"></div>
+      </div>
+
+      <button type="button" id="doneShareBtn" class="secondary-btn">📤 Поделиться</button>
+      <button type="button" id="doneEditBtn" class="secondary-btn">✏️ Изменить запись</button>
+      <div class="muted done-hint">Чтобы добавить запись за другой день — выбери дату выше.</div>
     </div>
 
+    <!-- Форма новой записи -->
+    <div id="entryForm">
     <div class="segmented">
       <button class="seg-btn active" data-type="training">Тренировка</button>
       <button class="seg-btn" data-type="rest">Отдых</button>
@@ -80,14 +92,8 @@
 
     <button id="saveBtn" class="primary-btn">Сохранить запись</button>
 
-    <div id="aiFeedbackBox" class="ai-box" style="display:none">
-      <div class="ai-box-title">🤖 Fom</div>
-      <div id="aiFeedbackText"></div>
-    </div>
-
-    <button id="shareTodayBtn" class="secondary-btn" style="display:none">📤 Поделиться этой записью</button>
-
     <div id="statusMsg" class="status-msg"></div>
+    </div>
   </main>
 
   <!-- ЭКРАН: ПРОФИЛЬ + КАЛЕНДАРЬ -->
@@ -219,6 +225,6 @@
     <div id="editStatusMsg" class="status-msg"></div>
   </section>
 
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
