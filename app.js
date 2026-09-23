@@ -300,7 +300,7 @@ async function loadInsight() {
       return;
     }
 
-    document.getElementById('insightText').textContent = insight;
+    document.getElementById('insightText').innerHTML = renderMarkdownBold(insight);
     boxEl.classList.remove('hidden');
   } catch (err) {
     console.error('Failed to load insight', err);
@@ -336,13 +336,22 @@ document.getElementById('refreshInsightBtn').addEventListener('click', loadInsig
 // ---------- Чат с дневником ----------
 let chatHistory = []; // { role: 'user'|'assistant', content: '...' } — хранится только пока открыто приложение
 
+function renderMarkdownBold(text) {
+  // Простой рендер **жирного** текста без сторонних библиотек
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
 function renderChatMessages() {
   const container = document.getElementById('chatMessages');
   container.innerHTML = '';
   chatHistory.forEach((msg) => {
     const div = document.createElement('div');
     div.className = `chat-bubble ${msg.role === 'user' ? 'user' : 'assistant'}`;
-    div.textContent = msg.content;
+    div.innerHTML = renderMarkdownBold(msg.content);
     container.appendChild(div);
   });
   container.scrollTop = container.scrollHeight;
