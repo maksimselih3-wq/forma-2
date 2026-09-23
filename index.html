@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Дневник спортсмена</title>
-<link rel="stylesheet" href="style.css?v=10" />
+<link rel="stylesheet" href="style.css?v=11" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -81,6 +81,14 @@
         <label>RPE (нагрузка): <span id="rpeVal">5</span>/10</label>
         <input type="range" id="rpe" min="1" max="10" value="5" />
       </div>
+
+      <label>Пульс, уд/мин (необязательно)</label>
+      <div class="hr-row">
+        <label class="hr-field"><span>Средний</span><input type="number" inputmode="numeric" id="hrAvg" min="30" max="250" placeholder="—" /></label>
+        <label class="hr-field"><span>Макс.</span><input type="number" inputmode="numeric" id="hrMax" min="30" max="250" placeholder="—" /></label>
+        <label class="hr-field"><span>Мин. в паузах</span><input type="number" inputmode="numeric" id="hrMin" min="30" max="250" placeholder="—" /></label>
+      </div>
+      <div class="muted hr-hint">Мин. в паузах — насколько низко пульс опускался в отдыхе между отрезками. Чем ниже, тем лучше восстановление.</div>
     </div>
 
     <label>Заметки</label>
@@ -209,6 +217,14 @@
         <label>RPE (нагрузка): <span id="editRpeVal">5</span>/10</label>
         <input type="range" id="editRpe" min="1" max="10" value="5" />
       </div>
+
+      <label>Пульс, уд/мин (необязательно)</label>
+      <div class="hr-row">
+        <label class="hr-field"><span>Средний</span><input type="number" inputmode="numeric" id="editHrAvg" min="30" max="250" placeholder="—" /></label>
+        <label class="hr-field"><span>Макс.</span><input type="number" inputmode="numeric" id="editHrMax" min="30" max="250" placeholder="—" /></label>
+        <label class="hr-field"><span>Мин. в паузах</span><input type="number" inputmode="numeric" id="editHrMin" min="30" max="250" placeholder="—" /></label>
+      </div>
+      <div class="muted hr-hint">Мин. в паузах — насколько низко пульс опускался в отдыхе между отрезками. Чем ниже, тем лучше восстановление.</div>
     </div>
 
     <label>Заметки</label>
@@ -225,6 +241,6 @@
     <div id="editStatusMsg" class="status-msg"></div>
   </section>
 
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>
