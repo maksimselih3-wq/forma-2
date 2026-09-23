@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Дневник спортсмена</title>
-<link rel="stylesheet" href="style.css?v=12" />
+<link rel="stylesheet" href="style.css?v=13" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -106,7 +106,10 @@
 
   <!-- ЭКРАН: ПРОФИЛЬ + КАЛЕНДАРЬ -->
   <section id="profileScreen" class="hidden">
-    <button id="backBtn" class="secondary-btn">← Назад</button>
+    <div class="screen-head">
+      <button id="backBtn" class="back-btn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2>Профиль</h2>
+    </div>
     <div class="profile-card">
       <img id="profileAvatar" src="" alt="" />
       <h2 id="profileName">-</h2>
@@ -142,7 +145,10 @@
 
   <!-- ЭКРАН: ДРУЗЬЯ -->
   <section id="friendsScreen" class="hidden">
-    <button id="friendsBackBtn" class="secondary-btn">← Назад</button>
+    <div class="screen-head">
+      <button id="friendsBackBtn" class="back-btn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2>Друзья</h2>
+    </div>
 
     <h2>Добавить друга</h2>
     <div class="add-friend-row">
@@ -162,9 +168,10 @@
 
   <!-- ЭКРАН: РАЗБОР НАГРУЗКИ -->
   <section id="insightsScreen" class="hidden">
-    <button id="insightsBackBtn" class="secondary-btn">← Назад</button>
-
-    <h2>Разбор нагрузки</h2>
+    <div class="screen-head">
+      <button id="insightsBackBtn" class="back-btn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2>Разбор нагрузки</h2>
+    </div>
 
     <div class="segmented">
       <button class="seg-btn active" data-period="week">За неделю</button>
@@ -183,8 +190,10 @@
 
   <!-- ЭКРАН: ЧАТ С FOM -->
   <section id="chatScreen" class="hidden chat-section">
-    <button id="chatBackBtn" class="secondary-btn">← Назад</button>
-    <h2>Чат с Fom</h2>
+    <div class="screen-head">
+      <button id="chatBackBtn" class="back-btn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2>Чат с Fom</h2>
+    </div>
     <div id="chatMessages" class="chat-messages"></div>
     <div class="chat-input-row">
       <input type="text" id="chatInput" placeholder="Сообщение для Fom..." autocomplete="off" />
@@ -199,8 +208,10 @@
 
   <!-- ЭКРАН: РЕДАКТИРОВАНИЕ ЗАПИСИ -->
   <section id="editScreen" class="hidden">
-    <button id="editBackBtn" class="secondary-btn">← Назад</button>
-    <h2>Запись за <span id="editDateLabel"></span></h2>
+    <div class="screen-head">
+      <button id="editBackBtn" class="back-btn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <h2>Запись за <span id="editDateLabel"></span></h2>
+    </div>
 
     <div id="editTrainingFields">
       <label>Разминка</label>
@@ -246,6 +257,6 @@
     <div id="editStatusMsg" class="status-msg"></div>
   </section>
 
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>
