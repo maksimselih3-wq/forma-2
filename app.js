@@ -59,7 +59,7 @@ function updateStreakBar() {
 }
 
 // ---------- Переключатель тренировка/отдых ----------
-document.querySelectorAll('.seg-btn').forEach((btn) => {
+document.querySelectorAll('#mainScreen .seg-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.seg-btn').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
@@ -153,6 +153,8 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 // ---------- Экран профиля ----------
 document.getElementById('profileBtn').addEventListener('click', async () => {
   document.getElementById('mainScreen').classList.add('hidden');
+  document.getElementById('friendsScreen').classList.add('hidden');
+  document.getElementById('insightsScreen').classList.add('hidden');
   document.getElementById('profileScreen').classList.remove('hidden');
 
   const tgUser = tg?.initDataUnsafe?.user;
@@ -249,6 +251,7 @@ async function loadFriendsScreen() {
 document.getElementById('friendsBtn').addEventListener('click', () => {
   document.getElementById('mainScreen').classList.add('hidden');
   document.getElementById('profileScreen').classList.add('hidden');
+  document.getElementById('insightsScreen').classList.add('hidden');
   document.getElementById('friendsScreen').classList.remove('hidden');
   loadFriendsScreen();
 });
@@ -273,5 +276,58 @@ document.getElementById('sendRequestBtn').addEventListener('click', async () => 
     statusEl.textContent = err.message || 'Не удалось отправить заявку.';
   }
 });
+
+// ---------- Экран разбора нагрузки ----------
+let selectedInsightPeriod = 'week';
+
+async function loadInsight() {
+  const loadingEl = document.getElementById('insightLoading');
+  const emptyEl = document.getElementById('insightEmpty');
+  const boxEl = document.getElementById('insightBox');
+
+  loadingEl.classList.remove('hidden');
+  emptyEl.classList.add('hidden');
+  boxEl.classList.add('hidden');
+
+  try {
+    const { insight, workoutsCount } = await api(`/api/insights?period=${selectedInsightPeriod}`);
+    loadingEl.classList.add('hidden');
+
+    if (!insight || workoutsCount === 0) {
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
+    document.getElementById('insightText').textContent = insight;
+    boxEl.classList.remove('hidden');
+  } catch (err) {
+    console.error('Failed to load insight', err);
+    loadingEl.classList.add('hidden');
+    emptyEl.textContent = 'Не удалось получить разбор. Попробуй ещё раз.';
+    emptyEl.classList.remove('hidden');
+  }
+}
+
+document.getElementById('insightsBtn').addEventListener('click', () => {
+  document.getElementById('mainScreen').classList.add('hidden');
+  document.getElementById('profileScreen').classList.add('hidden');
+  document.getElementById('friendsScreen').classList.add('hidden');
+  document.getElementById('insightsScreen').classList.remove('hidden');
+});
+
+document.getElementById('insightsBackBtn').addEventListener('click', () => {
+  document.getElementById('insightsScreen').classList.add('hidden');
+  document.getElementById('mainScreen').classList.remove('hidden');
+});
+
+document.querySelectorAll('#insightsScreen .seg-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#insightsScreen .seg-btn').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedInsightPeriod = btn.dataset.period;
+  });
+});
+
+document.getElementById('refreshInsightBtn').addEventListener('click', loadInsight);
 
 init();
