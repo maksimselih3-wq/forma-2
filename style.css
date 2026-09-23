@@ -310,26 +310,22 @@ textarea, input[type="text"], input[type="number"] {
   font-family: inherit;
 }
 
-.existing-hint {
+/* ---------- Карточка «запись сохранена» на главном ---------- */
+.done-card {
   background: var(--secondary-bg);
-  border-left: 3px solid var(--button);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 13px;
-  line-height: 1.4;
-  margin-bottom: 8px;
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 8px;
 }
-.link-btn {
-  display: block;
-  margin-top: 6px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--link);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
+.done-title { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+.done-summary {
+  white-space: pre-line;
+  font-size: 14px;
+  line-height: 1.5;
 }
+.done-card .ai-box { background: var(--bg); }
+.done-card .secondary-btn { margin-top: 10px; }
+.done-hint { text-align: center; margin-top: 12px; font-size: 12px; }
 
 /* ---------- Календарь в профиле ---------- */
 .cal {
