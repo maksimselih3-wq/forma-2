@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Дневник спортсмена</title>
-<link rel="stylesheet" href="style.css?v=8" />
+<link rel="stylesheet" href="style.css?v=9" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -12,7 +12,7 @@
   <header class="topbar">
     <h1>Дневник спортсмена</h1>
     <div class="topbar-actions">
-      <button id="chatBtn" class="icon-btn" title="Чат с дневником">💬</button>
+      <button id="chatBtn" class="icon-btn" title="Чат с Fom">💬</button>
       <button id="insightsBtn" class="icon-btn" title="Разбор нагрузки">📊</button>
       <button id="friendsBtn" class="icon-btn" title="Друзья">👥</button>
       <button id="profileBtn" class="avatar-btn" title="Мой аккаунт">
@@ -22,13 +22,27 @@
     </div>
   </header>
 
-  <!-- ЭКРАН: ГЛАВНАЯ / ЗАПИСЬ ЗА СЕГОДНЯ -->
+  <!-- ЭКРАН: ГЛАВНАЯ / НОВАЯ ЗАПИСЬ -->
   <main id="mainScreen">
     <div class="streak-bar">
       🔥 Серия: <span id="streakCurrent">-</span> дн. (лучшая: <span id="streakBest">-</span>)
     </div>
 
-    <h2>Запись за сегодня</h2>
+    <h2 id="entryTitle">Запись за сегодня</h2>
+
+    <!-- Выбор даты: быстрые кнопки + календарь -->
+    <div class="date-picker-row">
+      <button type="button" class="chip" data-shift="0">Сегодня</button>
+      <button type="button" class="chip" data-shift="1">Вчера</button>
+      <label class="date-input-wrap">
+        📅 <input type="date" id="entryDate" />
+      </label>
+    </div>
+
+    <div id="existingHint" class="existing-hint hidden">
+      <span id="existingHintText"></span>
+      <button type="button" id="openExistingBtn" class="link-btn">Открыть и изменить</button>
+    </div>
 
     <div class="segmented">
       <button class="seg-btn active" data-type="training">Тренировка</button>
@@ -67,7 +81,7 @@
     <button id="saveBtn" class="primary-btn">Сохранить запись</button>
 
     <div id="aiFeedbackBox" class="ai-box" style="display:none">
-      <div class="ai-box-title">🤖 Тренер-ИИ</div>
+      <div class="ai-box-title">🤖 Fom</div>
       <div id="aiFeedbackText"></div>
     </div>
 
@@ -76,7 +90,7 @@
     <div id="statusMsg" class="status-msg"></div>
   </main>
 
-  <!-- ЭКРАН: ПРОФИЛЬ -->
+  <!-- ЭКРАН: ПРОФИЛЬ + КАЛЕНДАРЬ -->
   <section id="profileScreen" class="hidden">
     <button id="backBtn" class="secondary-btn">← Назад</button>
     <div class="profile-card">
@@ -88,6 +102,26 @@
         <div><span id="profileBest">-</span><br /><small>лучший рекорд</small></div>
       </div>
     </div>
+
+    <h3>Календарь</h3>
+    <div class="cal">
+      <div class="cal-header">
+        <button type="button" id="calPrev" class="cal-nav">‹</button>
+        <span id="calTitle"></span>
+        <button type="button" id="calNext" class="cal-nav">›</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+      </div>
+      <div id="calGrid" class="cal-grid"></div>
+      <div class="cal-legend">
+        <span><i class="dot dot-training"></i> тренировка</span>
+        <span><i class="dot dot-rest"></i> отдых</span>
+      </div>
+      <div id="calSummary" class="muted cal-summary"></div>
+      <div class="muted cal-help">Нажми на пустой день, чтобы добавить запись задним числом, или на отмеченный — чтобы открыть её.</div>
+    </div>
+
     <h3>Последние записи</h3>
     <div id="historyList"></div>
   </section>
@@ -125,21 +159,21 @@
 
     <button id="refreshInsightBtn" class="primary-btn">Обновить разбор</button>
 
-    <div id="insightLoading" class="status-msg hidden">Анализирую тренировки...</div>
+    <div id="insightLoading" class="status-msg hidden">Fom анализирует тренировки...</div>
     <div id="insightEmpty" class="empty-hint hidden">Пока недостаточно записей за этот период.</div>
     <div id="insightBox" class="ai-box hidden">
-      <div class="ai-box-title">📊 Разбор от тренера-ИИ</div>
+      <div class="ai-box-title">📊 Разбор от Fom</div>
       <div id="insightText"></div>
     </div>
   </section>
 
-  <!-- ЭКРАН: ЧАТ С ДНЕВНИКОМ -->
+  <!-- ЭКРАН: ЧАТ С FOM -->
   <section id="chatScreen" class="hidden chat-section">
     <button id="chatBackBtn" class="secondary-btn">← Назад</button>
-    <h2>Чат с дневником</h2>
+    <h2>Чат с Fom</h2>
     <div id="chatMessages" class="chat-messages"></div>
     <div class="chat-input-row">
-      <input type="text" id="chatInput" placeholder="Спроси про свои тренировки..." />
+      <input type="text" id="chatInput" placeholder="Спроси Fom про свои тренировки..." />
       <button id="chatSendBtn" class="primary-btn small-btn">Отправить</button>
     </div>
   </section>
@@ -185,6 +219,6 @@
     <div id="editStatusMsg" class="status-msg"></div>
   </section>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>
