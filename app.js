@@ -41,6 +41,16 @@ function addDays(str, n) {
 
 function normDate(v) { return String(v).slice(0, 10); }
 
+// Безопасно прочитать/записать значение поля (не падает, если поля нет на странице)
+function getVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+function setVal(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value ?? '';
+}
+
 // «19 сентября» (+ год, если он не текущий)
 function formatDayMonth(str) {
   const d = parseDateStr(str);
@@ -217,7 +227,7 @@ function renderEntryState() {
 
 // Очистить форму после успешного сохранения
 function resetForm() {
-  ['warmup', 'cooldown', 'notes'].forEach((id) => { document.getElementById(id).value = ''; });
+  ['warmup', 'cooldown', 'notes', 'hrAvg', 'hrMax', 'hrMin'].forEach((id) => setVal(id, ''));
   sets = [];
   renderSets();
   ['feeling', 'rpe'].forEach((id) => {
@@ -316,6 +326,9 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     notes: document.getElementById('notes').value,
     visibility: document.getElementById('visibility').checked ? 'public' : 'private',
     sets: selectedType === 'training' ? sets : [],
+    hr_avg: getVal('hrAvg'),
+    hr_max: getVal('hrMax'),
+    hr_min: getVal('hrMin'),
   };
 
   try {
@@ -694,6 +707,11 @@ function buildDetailLines(w) {
       });
     }
     if (w.cooldown) lines.push(`Заминка: ${w.cooldown}`);
+    const pulse = [];
+    if (w.hr_avg) pulse.push(`ср. ${w.hr_avg}`);
+    if (w.hr_max) pulse.push(`макс. ${w.hr_max}`);
+    if (w.hr_min) pulse.push(`мин. в паузах ${w.hr_min}`);
+    if (pulse.length) lines.push(`❤️ Пульс: ${pulse.join(' · ')} уд/мин`);
     if (w.rpe) lines.push(`RPE: ${w.rpe}/10`);
   }
   if (w.feeling) lines.push(`Самочувствие: ${w.feeling}/10`);
@@ -786,6 +804,9 @@ async function openEditScreen(workoutId, returnTo = 'profileScreen') {
     document.getElementById('editFeelingVal').textContent = workout.feeling || 5;
     document.getElementById('editRpe').value = workout.rpe || 5;
     document.getElementById('editRpeVal').textContent = workout.rpe || 5;
+    setVal('editHrAvg', workout.hr_avg);
+    setVal('editHrMax', workout.hr_max);
+    setVal('editHrMin', workout.hr_min);
     document.getElementById('editTrainingFields').style.display = workout.type === 'training' ? 'block' : 'none';
 
     renderEditSets();
@@ -821,6 +842,9 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
     notes: document.getElementById('editNotes').value,
     visibility: document.getElementById('editVisibility').checked ? 'public' : 'private',
     sets: currentEditWorkout.type === 'training' ? editSets : [],
+    hr_avg: getVal('editHrAvg'),
+    hr_max: getVal('editHrMax'),
+    hr_min: getVal('editHrMin'),
   };
 
   try {
