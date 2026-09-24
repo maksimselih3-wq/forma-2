@@ -3,129 +3,130 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Дневник спортсмена</title>
-<link rel="stylesheet" href="style.css?v=13" />
+<title>Forma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css?v=20" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
 
+  <!-- ШАПКА: логотип Forma, серия и аватар -->
   <header class="topbar">
-    <h1>Дневник спортсмена</h1>
-    <div class="topbar-actions">
-      <button id="chatBtn" class="icon-btn" title="Чат с Fom">💬</button>
-      <button id="insightsBtn" class="icon-btn" title="Разбор нагрузки">📊</button>
-      <button id="friendsBtn" class="icon-btn" title="Друзья">👥</button>
-      <button id="profileBtn" class="avatar-btn" title="Мой аккаунт">
-        <img id="avatarImg" src="" alt="" style="display:none" />
+    <div class="logo">Forma<span class="logo-dot"></span></div>
+    <div class="topbar-right">
+      <div class="streak-pill" title="Серия дней подряд">🔥 <span id="streakCurrent">0</span></div>
+      <button id="profileBtn" class="avatar-btn" type="button" title="Мой профиль">
+        <img id="avatarImg" src="" alt="" class="hidden" />
         <span id="avatarFallback">👤</span>
       </button>
     </div>
   </header>
 
-  <!-- ЭКРАН: ГЛАВНАЯ / НОВАЯ ЗАПИСЬ -->
-  <main id="mainScreen">
-    <div class="streak-bar">
-      🔥 Серия: <span id="streakCurrent">-</span> дн. (лучшая: <span id="streakBest">-</span>)
+  <!-- ===================== ГЛАВНАЯ: НОВАЯ ЗАПИСЬ ===================== -->
+  <main id="mainScreen" class="screen">
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-icon">🔥</div>
+        <div class="stat-num accent" id="statStreak">0</div>
+        <div class="stat-label">дней подряд</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon">🏆</div>
+        <div class="stat-num" id="streakBest">0</div>
+        <div class="stat-label">лучшая серия</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon">📅</div>
+        <div class="stat-num" id="statWeek">0</div>
+        <div class="stat-label">тренировок за неделю</div>
+      </div>
     </div>
 
-    <h2 id="entryTitle">Запись за сегодня</h2>
-
-    <!-- Выбор даты: быстрые кнопки + календарь -->
-    <div class="date-picker-row">
-      <button type="button" class="chip" data-shift="0">Сегодня</button>
-      <button type="button" class="chip" data-shift="1">Вчера</button>
-      <label class="date-input-wrap">
-        📅 <input type="date" id="entryDate" />
-      </label>
-    </div>
+    <section class="card card-hero">
+      <div class="eyebrow">Дневник</div>
+      <h2 class="title" id="entryTitle">Запись за сегодня</h2>
+      <!-- Выбор даты: быстрые кнопки + календарь -->
+      <div class="date-picker-row">
+        <button type="button" class="chip" data-shift="0">Сегодня</button>
+        <button type="button" class="chip" data-shift="1">Вчера</button>
+        <label class="date-input-wrap">
+          <span>📅</span><input type="date" id="entryDate" />
+        </label>
+      </div>
+    </section>
 
     <!-- Карточка «запись уже есть / сохранена» — показывается вместо формы -->
-    <div id="entryDone" class="done-card hidden">
+    <section id="entryDone" class="card done-card hidden">
       <div class="done-title" id="doneTitle">✅ Запись сохранена</div>
       <div id="doneSummary" class="done-summary"></div>
 
       <div id="doneFeedbackBox" class="ai-box hidden">
-        <div class="ai-box-title">🤖 Fom</div>
+        <div class="ai-box-title"><span class="fom-badge">F</span> Fom</div>
         <div id="doneFeedbackText"></div>
       </div>
 
-      <button type="button" id="doneShareBtn" class="secondary-btn">📤 Поделиться</button>
-      <button type="button" id="doneEditBtn" class="secondary-btn">✏️ Изменить запись</button>
+      <div class="btn-row">
+        <button type="button" id="doneShareBtn" class="ghost-btn">📤 Поделиться</button>
+        <button type="button" id="doneEditBtn" class="ghost-btn">✏️ Изменить</button>
+      </div>
       <div class="muted done-hint">Чтобы добавить запись за другой день — выбери дату выше.</div>
-    </div>
+    </section>
 
-    <!-- Форма новой записи -->
+    <!-- Форма новой записи (поля рисуются из app.js) -->
     <div id="entryForm">
-    <div class="segmented">
-      <button class="seg-btn active" data-type="training">Тренировка</button>
-      <button class="seg-btn" data-type="rest">Отдых</button>
-    </div>
-
-    <div id="trainingFields">
-      <label>Разминка</label>
-      <textarea id="warmup" rows="2" placeholder="Например: 15 мин бег трусцой + суставная"></textarea>
-
-      <label>Основная работа</label>
-      <div id="setsList"></div>
-      <button id="addSetBtn" type="button" class="secondary-btn">+ Добавить повтор</button>
-
-      <label>Заминка</label>
-      <textarea id="cooldown" rows="2" placeholder="Необязательно"></textarea>
-
-      <div class="slider-row">
-        <label>Самочувствие: <span id="feelingVal">5</span>/10</label>
-        <input type="range" id="feeling" min="1" max="10" value="5" />
-      </div>
-
-      <div class="slider-row">
-        <label>RPE (нагрузка): <span id="rpeVal">5</span>/10</label>
-        <input type="range" id="rpe" min="1" max="10" value="5" />
-      </div>
-
-      <label>Пульс, уд/мин (необязательно)</label>
-      <div class="hr-row">
-        <label class="hr-field"><span>Средний</span><input type="number" inputmode="numeric" id="hrAvg" min="30" max="250" placeholder="—" /></label>
-        <label class="hr-field"><span>Макс.</span><input type="number" inputmode="numeric" id="hrMax" min="30" max="250" placeholder="—" /></label>
-        <label class="hr-field"><span>Мин. в паузах</span><input type="number" inputmode="numeric" id="hrMin" min="30" max="250" placeholder="—" /></label>
-      </div>
-      <div class="muted hr-hint">Мин. в паузах — насколько низко пульс опускался в отдыхе между отрезками. Чем ниже, тем лучше восстановление.</div>
-    </div>
-
-    <label>Заметки</label>
-    <textarea id="notes" rows="2" placeholder="Как прошло, что заметил..."></textarea>
-
-    <div class="visibility-row">
-      <label><input type="checkbox" id="visibility" /> Показывать друзьям (публично)</label>
-    </div>
-
-    <button id="saveBtn" class="primary-btn">Сохранить запись</button>
-
-    <div id="statusMsg" class="status-msg"></div>
+      <div id="mainFormFields"></div>
+      <button id="saveBtn" class="primary-btn" type="button">Сохранить запись <span class="plus-ico">+</span></button>
+      <div id="statusMsg" class="status-msg"></div>
     </div>
   </main>
 
-  <!-- ЭКРАН: ПРОФИЛЬ + КАЛЕНДАРЬ -->
-  <section id="profileScreen" class="hidden">
-    <div class="screen-head">
-      <button id="backBtn" class="back-btn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <h2>Профиль</h2>
+  <!-- ===================== ПРОФИЛЬ + КАЛЕНДАРЬ ===================== -->
+  <section id="profileScreen" class="screen hidden">
+    <div class="profile-hero" id="profileHero">
+      <div class="profile-hero-shade"></div>
+      <div class="profile-hero-bottom">
+        <div>
+          <div class="eyebrow light">Твой профиль</div>
+          <div class="profile-name" id="profileName">Спортсмен</div>
+          <div class="profile-tags">
+            <span class="tag" id="profileUsername"></span>
+          </div>
+        </div>
+        <button type="button" class="photo-btn" id="photoBtn">Фото</button>
+      </div>
     </div>
-    <div class="profile-card">
-      <img id="profileAvatar" src="" alt="" />
-      <h2 id="profileName">-</h2>
-      <p id="profileUsername" class="muted">-</p>
-      <div class="profile-stats">
-        <div><span id="profileStreak">-</span><br /><small>дней подряд</small></div>
-        <div><span id="profileBest">-</span><br /><small>лучший рекорд</small></div>
+    <input type="file" id="photoInput" accept="image/*" class="hidden" />
+
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-icon">🔥</div>
+        <div class="stat-num accent" id="profileStreak">0</div>
+        <div class="stat-label">дней подряд</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon">🏆</div>
+        <div class="stat-num" id="profileBest">0</div>
+        <div class="stat-label">лучшая серия</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon">🏃</div>
+        <div class="stat-num" id="profileTotal">0</div>
+        <div class="stat-label">всего тренировок</div>
       </div>
     </div>
 
-    <h3>Календарь</h3>
-    <div class="cal">
+    <section class="card">
+      <div class="eyebrow">Календарь</div>
       <div class="cal-header">
-        <button type="button" id="calPrev" class="cal-nav">‹</button>
-        <span id="calTitle"></span>
-        <button type="button" id="calNext" class="cal-nav">›</button>
+        <button type="button" id="calPrev" class="round-btn" aria-label="Предыдущий месяц">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span id="calTitle" class="cal-title"></span>
+        <button type="button" id="calNext" class="round-btn" aria-label="Следующий месяц">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
       <div class="cal-weekdays">
         <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
@@ -136,63 +137,72 @@
         <span><i class="dot dot-rest"></i> отдых</span>
       </div>
       <div id="calSummary" class="muted cal-summary"></div>
-      <div class="muted cal-help">Нажми на пустой день, чтобы добавить запись задним числом, или на отмеченный — чтобы открыть её.</div>
-    </div>
+      <div class="muted cal-help">Нажми на пустой день — добавишь запись задним числом, на отмеченный — откроешь её.</div>
+    </section>
 
-    <h3>Последние записи</h3>
+    <h3 class="section-title">Последние записи</h3>
     <div id="historyList"></div>
   </section>
 
-  <!-- ЭКРАН: ДРУЗЬЯ -->
-  <section id="friendsScreen" class="hidden">
-    <div class="screen-head">
-      <button id="friendsBackBtn" class="back-btn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <h2>Друзья</h2>
+  <!-- Меню «Фото» (выезжает снизу) -->
+  <div id="photoSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title">Фото профиля</div>
+      <button type="button" class="sheet-btn" id="photoPickBtn">Выбрать новое фото</button>
+      <button type="button" class="sheet-btn" id="photoResetBtn">Вернуть фото из Telegram</button>
+      <button type="button" class="sheet-btn muted-btn" id="photoCancelBtn">Отмена</button>
     </div>
+  </div>
 
-    <h2>Добавить друга</h2>
-    <div class="add-friend-row">
-      <input type="text" id="friendUsernameInput" placeholder="username без @" />
-      <button id="sendRequestBtn" class="primary-btn small-btn">Добавить</button>
-    </div>
-    <div id="friendRequestStatus" class="status-msg"></div>
+  <!-- ===================== ДРУЗЬЯ ===================== -->
+  <section id="friendsScreen" class="screen hidden">
+    <h2 class="page-title">Друзья</h2>
+
+    <section class="card">
+      <div class="eyebrow">Добавить друга</div>
+      <div class="add-friend-row">
+        <input type="text" id="friendUsernameInput" placeholder="username без @" autocomplete="off" />
+        <button id="sendRequestBtn" class="small-btn" type="button">Добавить</button>
+      </div>
+      <div id="friendRequestStatus" class="status-msg"></div>
+    </section>
 
     <div id="incomingRequestsBlock">
-      <h3>Заявки в друзья</h3>
+      <h3 class="section-title">Заявки в друзья</h3>
       <div id="incomingRequestsList"></div>
     </div>
 
-    <h3>Мои друзья</h3>
+    <h3 class="section-title">Мои друзья</h3>
     <div id="friendsList"></div>
   </section>
 
-  <!-- ЭКРАН: РАЗБОР НАГРУЗКИ -->
-  <section id="insightsScreen" class="hidden">
-    <div class="screen-head">
-      <button id="insightsBackBtn" class="back-btn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <h2>Разбор нагрузки</h2>
-    </div>
+  <!-- ===================== РАЗБОР НАГРУЗКИ ===================== -->
+  <section id="insightsScreen" class="screen hidden">
+    <h2 class="page-title">Разбор нагрузки</h2>
 
     <div class="segmented">
-      <button class="seg-btn active" data-period="week">За неделю</button>
-      <button class="seg-btn" data-period="month">За месяц</button>
+      <button type="button" class="seg-btn active" data-period="week">За неделю</button>
+      <button type="button" class="seg-btn" data-period="month">За месяц</button>
     </div>
 
-    <button id="refreshInsightBtn" class="primary-btn">Обновить разбор</button>
+    <button id="refreshInsightBtn" class="primary-btn" type="button">Получить разбор от Fom</button>
 
     <div id="insightLoading" class="status-msg hidden">Fom анализирует тренировки...</div>
     <div id="insightEmpty" class="empty-hint hidden">Пока недостаточно записей за этот период.</div>
-    <div id="insightBox" class="ai-box hidden">
-      <div class="ai-box-title">📊 Разбор от Fom</div>
+    <div id="insightBox" class="card ai-box-big hidden">
+      <div class="ai-box-title"><span class="fom-badge">F</span> Разбор от Fom</div>
       <div id="insightText"></div>
     </div>
   </section>
 
-  <!-- ЭКРАН: ЧАТ С FOM -->
-  <section id="chatScreen" class="hidden chat-section">
-    <div class="screen-head">
-      <button id="chatBackBtn" class="back-btn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <h2>Чат с Fom</h2>
+  <!-- ===================== ЧАТ С FOM ===================== -->
+  <section id="chatScreen" class="screen hidden chat-section">
+    <div class="chat-head">
+      <span class="fom-badge big">F</span>
+      <div>
+        <div class="chat-head-name">Fom</div>
+        <div class="muted">ИИ-тренер · знает твой дневник</div>
+      </div>
     </div>
     <div id="chatMessages" class="chat-messages"></div>
     <div class="chat-input-row">
@@ -206,57 +216,51 @@
     </div>
   </section>
 
-  <!-- ЭКРАН: РЕДАКТИРОВАНИЕ ЗАПИСИ -->
-  <section id="editScreen" class="hidden">
+  <!-- ===================== РЕДАКТИРОВАНИЕ ЗАПИСИ ===================== -->
+  <section id="editScreen" class="screen hidden">
     <div class="screen-head">
-      <button id="editBackBtn" class="back-btn" type="button" title="Назад" aria-label="Назад"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <h2>Запись за <span id="editDateLabel"></span></h2>
+      <button id="editBackBtn" class="round-btn" type="button" title="Назад" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div>
+        <div class="eyebrow">Редактирование</div>
+        <h2 class="title small">Запись за <span id="editDateLabel"></span></h2>
+      </div>
     </div>
 
-    <div id="editTrainingFields">
-      <label>Разминка</label>
-      <textarea id="editWarmup" rows="2"></textarea>
+    <div id="editFormFields"></div>
 
-      <label>Основная работа</label>
-      <div id="editSetsList"></div>
-      <button id="addEditSetBtn" type="button" class="secondary-btn">+ Добавить повтор</button>
-
-      <label>Заминка</label>
-      <textarea id="editCooldown" rows="2"></textarea>
-
-      <div class="slider-row">
-        <label>Самочувствие: <span id="editFeelingVal">5</span>/10</label>
-        <input type="range" id="editFeeling" min="1" max="10" value="5" />
-      </div>
-
-      <div class="slider-row">
-        <label>RPE (нагрузка): <span id="editRpeVal">5</span>/10</label>
-        <input type="range" id="editRpe" min="1" max="10" value="5" />
-      </div>
-
-      <label>Пульс, уд/мин (необязательно)</label>
-      <div class="hr-row">
-        <label class="hr-field"><span>Средний</span><input type="number" inputmode="numeric" id="editHrAvg" min="30" max="250" placeholder="—" /></label>
-        <label class="hr-field"><span>Макс.</span><input type="number" inputmode="numeric" id="editHrMax" min="30" max="250" placeholder="—" /></label>
-        <label class="hr-field"><span>Мин. в паузах</span><input type="number" inputmode="numeric" id="editHrMin" min="30" max="250" placeholder="—" /></label>
-      </div>
-      <div class="muted hr-hint">Мин. в паузах — насколько низко пульс опускался в отдыхе между отрезками. Чем ниже, тем лучше восстановление.</div>
+    <button id="editSaveBtn" class="primary-btn" type="button">Сохранить изменения</button>
+    <div class="btn-row">
+      <button id="editShareBtn" class="ghost-btn" type="button">📤 Поделиться</button>
+      <button id="editDeleteBtn" class="ghost-btn danger" type="button">🗑 Удалить</button>
     </div>
-
-    <label>Заметки</label>
-    <textarea id="editNotes" rows="2"></textarea>
-
-    <div class="visibility-row">
-      <label><input type="checkbox" id="editVisibility" /> Показывать друзьям (публично)</label>
-    </div>
-
-    <button id="editSaveBtn" class="primary-btn">Сохранить изменения</button>
-    <button id="editShareBtn" class="secondary-btn">📤 Поделиться</button>
-    <button id="editDeleteBtn" class="secondary-btn danger-btn">🗑 Удалить запись</button>
-
     <div id="editStatusMsg" class="status-msg"></div>
   </section>
 
-  <script src="app.js?v=13"></script>
+  <!-- ===================== НИЖНЯЯ ПАНЕЛЬ (всегда на месте) ===================== -->
+  <nav class="bottom-nav">
+    <button type="button" class="nav-btn" data-screen="chatScreen" id="chatBtn">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6c-.5.4-1.3.1-1.3-.6V16A2.5 2.5 0 0 1 4 13.5v-8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Fom</span>
+    </button>
+    <button type="button" class="nav-btn" data-screen="insightsScreen" id="insightsBtn">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path d="M5 20V11M12 20V4M19 20v-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <span>Разбор</span>
+    </button>
+    <button type="button" class="nav-plus" data-screen="mainScreen" id="homeBtn" aria-label="Новая запись">
+      <svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+    </button>
+    <button type="button" class="nav-btn" data-screen="friendsScreen" id="friendsBtn">
+      <svg viewBox="0 0 24 24" width="24" height="24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16.5" cy="9" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 14c2.4 0 4 1.5 4.5 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Друзья</span>
+    </button>
+    <button type="button" class="nav-btn" data-screen="profileScreen" id="profileNavBtn">
+      <svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="8.5" r="3.8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c.9-3.8 3.9-6 7.5-6s6.6 2.2 7.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Профиль</span>
+    </button>
+  </nav>
+
+  <script src="app.js?v=20"></script>
 </body>
 </html>
