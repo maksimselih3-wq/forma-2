@@ -127,7 +127,13 @@ async function api(path, options = {}) {
 const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen'];
 // какая кнопка нижней панели подсвечивается на «вложенных» экранах
 const NAV_PARENT = { friendProfileScreen: 'friendsScreen' };
+const TAB_SCREENS = ['mainScreen', 'chatScreen', 'insightsScreen', 'friendsScreen', 'profileScreen'];
+const tabHistory = []; // какие вкладки открывались — чтобы жест «назад» вёл туда, откуда пришёл
 function showScreen(targetId) {
+  if (TAB_SCREENS.includes(targetId) && tabHistory[tabHistory.length - 1] !== targetId) {
+    tabHistory.push(targetId);
+    if (tabHistory.length > 20) tabHistory.shift();
+  }
   ALL_SCREENS.forEach((id) => {
     const el = $(id);
     if (el) el.classList.toggle('hidden', id !== targetId);
@@ -137,6 +143,7 @@ function showScreen(targetId) {
   });
   document.body.classList.toggle('chat-open', targetId === 'chatScreen');
   window.scrollTo(0, 0);
+  setTimeout(() => { try { updateMiniHead(); } catch (e) {} }, 0);
 }
 
 // =====================================================================
@@ -605,6 +612,14 @@ async function loadProfileScreen() {
   renderCalendar(); // сразу рисуем по тому, что уже загружено
   renderHistory();
 
+  // число друзей — метка в профиле, по нажатию открывается список друзей
+  api('/api/friends')
+    .then(({ friends }) => {
+      $('profileFriends').textContent = friendsLabel(friends.length);
+      $('profileFriends').classList.remove('hidden');
+    })
+    .catch((err) => console.error('Friends count failed', err));
+
   try {
     await loadMyWorkouts();
     renderCalendar();
@@ -741,48 +756,6 @@ $('photoResetBtn').addEventListener('click', async () => {
   }
 });
 
-// Сжимаем фото прямо на телефоне: квадрат 400×400, JPEG — чтобы быстро грузилось
-function imageToSquareJpeg(file, size = 400) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const side = Math.min(img.width, img.height);
-      const sx = (img.width - side) / 2;
-      const sy = (img.height - side) / 2;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      canvas.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, size, size);
-      URL.revokeObjectURL(url);
-      let quality = 0.85;
-      let data = canvas.toDataURL('image/jpeg', quality);
-      while (data.length > 90000 && quality > 0.3) {
-        quality -= 0.1;
-        data = canvas.toDataURL('image/jpeg', quality);
-      }
-      resolve(data);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не удалось открыть фото')); };
-    img.src = url;
-  });
-}
-
-$('photoInput').addEventListener('change', async (e) => {
-  const file = e.target.files?.[0];
-  e.target.value = '';
-  if (!file) return;
-  try {
-    const image = await imageToSquareJpeg(file);
-    const { avatar_data } = await api('/api/auth/avatar', { method: 'POST', body: JSON.stringify({ image }) });
-    currentUser.avatar_data = avatar_data;
-    updateAvatar();
-  } catch (err) {
-    console.error(err);
-    alertMsg(err.data?.error || 'Не удалось загрузить фото. Попробуй другое.');
-  }
-});
-
 function alertMsg(text) {
   if (tg?.showAlert) tg.showAlert(text); else alert(text);
 }
@@ -805,6 +778,15 @@ function timeAgo(iso) {
   const day = localDateStr(new Date(iso));
   if (day === addDays(localDateStr(), -1)) return 'вчера';
   return formatDayMonth(day);
+}
+
+// «1 друг», «3 друга», «12 друзей»
+function friendsLabel(n) {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return `👥 ${n} друг`;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `👥 ${n} друга`;
+  return `👥 ${n} друзей`;
 }
 
 function personName(u) {
@@ -1218,6 +1200,8 @@ async function openFriendProfile(userId, returnTo) {
     $('fpRecord').textContent = `🏆 рекорд ${u.longest_streak ?? 0} дн.`;
     $('fpRecord').classList.toggle('hidden', (u.longest_streak ?? 0) < 2);
     $('fpRemoveBtn').classList.toggle('hidden', isMe);
+    $('fpFriends').textContent = friendsLabel(fpData.stats?.friends ?? 0);
+    $('fpFriends').classList.toggle('hidden', fpData.stats?.friends == null);
 
     const src = avatarSrc(u);
     const hero = $('fpHero');
@@ -1329,6 +1313,11 @@ $('fpRemoveBtn').addEventListener('click', async () => {
 });
 
 // ---------- Приватность в своём профиле ----------
+$('profileFriends').addEventListener('click', () => {
+  showScreen('friendsScreen');
+  setFriendsTab('list');
+});
+
 $('shareCalendarToggle').addEventListener('change', async (e) => {
   const share = e.target.checked;
   try {
@@ -1617,5 +1606,258 @@ $('editDeleteBtn').addEventListener('click', async () => {
     statusEl.textContent = 'Не удалось удалить запись.';
   }
 });
+
+// ---------- Обрезка фото перед загрузкой ----------
+// Показываем фото в квадратном окне: двигаешь пальцем, увеличиваешь ползунком или двумя пальцами.
+// В профиль попадает ровно то, что видно в окне (квадрат 400×400).
+const crop = { img: null, url: '', w: 0, h: 0, view: 0, base: 1, zoom: 1, x: 0, y: 0, pointers: new Map(), pinch: null };
+
+function cropScale() { return crop.base * crop.zoom; }
+
+// Не даём фото «уехать» — окно всегда полностью закрыто картинкой
+function cropClamp() {
+  const s = cropScale();
+  crop.x = Math.min(0, Math.max(crop.view - crop.w * s, crop.x));
+  crop.y = Math.min(0, Math.max(crop.view - crop.h * s, crop.y));
+}
+
+function cropRender() {
+  cropClamp();
+  const s = cropScale();
+  const img = $('cropImg');
+  img.style.width = `${crop.w * s}px`;
+  img.style.height = `${crop.h * s}px`;
+  img.style.transform = `translate(${crop.x}px, ${crop.y}px)`;
+}
+
+// Меняем увеличение так, чтобы точка (cx, cy) внутри окна осталась на месте
+function cropSetZoom(z, cx = crop.view / 2, cy = crop.view / 2) {
+  const before = cropScale();
+  crop.zoom = Math.min(4, Math.max(1, z));
+  const after = cropScale();
+  crop.x = cx - ((cx - crop.x) * after) / before;
+  crop.y = cy - ((cy - crop.y) * after) / before;
+  $('cropZoom').value = crop.zoom;
+  cropRender();
+}
+
+function openCropper(file) {
+  const url = URL.createObjectURL(file);
+  const img = $('cropImg');
+  img.onload = () => {
+    crop.url = url;
+    crop.w = img.naturalWidth;
+    crop.h = img.naturalHeight;
+    $('cropSheet').classList.remove('hidden');
+    crop.view = $('cropView').clientWidth;
+    crop.base = crop.view / Math.min(crop.w, crop.h); // фото закрывает окно целиком
+    crop.zoom = 1;
+    crop.x = (crop.view - crop.w * crop.base) / 2;   // по центру
+    crop.y = (crop.view - crop.h * crop.base) / 2;
+    $('cropZoom').value = 1;
+    cropRender();
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    alertMsg('Не удалось открыть фото. Попробуй другое.');
+  };
+  img.src = url;
+}
+
+function closeCropper() {
+  $('cropSheet').classList.add('hidden');
+  if (crop.url) URL.revokeObjectURL(crop.url);
+  crop.url = '';
+  crop.pointers.clear();
+  crop.pinch = null;
+}
+
+// Вырезаем видимый квадрат в JPEG 400×400 (и ужимаем, пока не станет меньше ~90 КБ)
+function cropToJpeg(size = 400) {
+  const s = cropScale();
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  canvas.getContext('2d').drawImage($('cropImg'), -crop.x / s, -crop.y / s, crop.view / s, crop.view / s, 0, 0, size, size);
+  let quality = 0.85;
+  let data = canvas.toDataURL('image/jpeg', quality);
+  while (data.length > 90000 && quality > 0.3) {
+    quality -= 0.1;
+    data = canvas.toDataURL('image/jpeg', quality);
+  }
+  return data;
+}
+
+// Перетаскивание одним пальцем и «щипок» двумя
+const cropView = $('cropView');
+cropView.addEventListener('pointerdown', (e) => {
+  cropView.setPointerCapture(e.pointerId);
+  crop.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (crop.pointers.size === 2) {
+    const [a, b] = [...crop.pointers.values()];
+    crop.pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), zoom: crop.zoom };
+  }
+});
+cropView.addEventListener('pointermove', (e) => {
+  const prev = crop.pointers.get(e.pointerId);
+  if (!prev) return;
+  const cur = { x: e.clientX, y: e.clientY };
+  crop.pointers.set(e.pointerId, cur);
+  if (crop.pointers.size === 2 && crop.pinch) {
+    const [a, b] = [...crop.pointers.values()];
+    const rect = cropView.getBoundingClientRect();
+    const cx = (a.x + b.x) / 2 - rect.left;
+    const cy = (a.y + b.y) / 2 - rect.top;
+    cropSetZoom((crop.pinch.zoom * Math.hypot(a.x - b.x, a.y - b.y)) / crop.pinch.dist, cx, cy);
+  } else if (crop.pointers.size === 1) {
+    crop.x += cur.x - prev.x;
+    crop.y += cur.y - prev.y;
+    cropRender();
+  }
+});
+['pointerup', 'pointercancel'].forEach((ev) => cropView.addEventListener(ev, (e) => {
+  crop.pointers.delete(e.pointerId);
+  if (crop.pointers.size < 2) crop.pinch = null;
+}));
+$('cropZoom').addEventListener('input', (e) => cropSetZoom(Number(e.target.value)));
+$('cropCancelBtn').addEventListener('click', closeCropper);
+
+$('cropSaveBtn').addEventListener('click', async () => {
+  const btn = $('cropSaveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Сохраняю...';
+  try {
+    const image = cropToJpeg();
+    const { avatar_data } = await api('/api/auth/avatar', { method: 'POST', body: JSON.stringify({ image }) });
+    currentUser.avatar_data = avatar_data;
+    updateAvatar();
+    closeCropper();
+  } catch (err) {
+    console.error(err);
+    alertMsg(err.data?.error || 'Не удалось загрузить фото. Попробуй другое.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Готово';
+  }
+});
+
+$('photoInput').addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (file) openCropper(file);
+});
+
+// ---------- Компактная шапка профиля при прокрутке ----------
+// Листаешь профиль вниз — большое фото уезжает, а сверху появляется полоска:
+// имя и цифры слева, маленький кружок с фото справа.
+function miniHeadSource() {
+  const screen = document.querySelector('.screen:not(.hidden)')?.id;
+  if (screen === 'profileScreen') {
+    return {
+      hero: $('profileHero'),
+      name: $('profileName').innerHTML,
+      stats: `🔥 ${$('profileStreak').textContent} · 📅 ${$('profileMonth').textContent} · 🏃 ${$('profileTotal').textContent}`,
+      ava: getAvatarUrl(),
+      letter: (currentUser?.first_name || '?').slice(0, 1).toUpperCase(),
+    };
+  }
+  if (screen === 'friendProfileScreen' && fpData) {
+    return {
+      hero: $('fpHero'),
+      name: $('fpName').innerHTML,
+      stats: `🔥 ${$('fpStreak').textContent} · 📅 ${$('fpMonth').textContent} · 🏃 ${$('fpTotal').textContent}`,
+      ava: avatarSrc(fpData.user),
+      letter: personName(fpData.user).replace('@', '').slice(0, 1).toUpperCase(),
+    };
+  }
+  return null;
+}
+
+let miniHeadKey = '';
+function updateMiniHead() {
+  const head = $('miniHead');
+  const src = miniHeadSource();
+  if (!src) {
+    head.style.opacity = 0;
+    head.classList.remove('shown');
+    return;
+  }
+  const rect = src.hero.getBoundingClientRect();
+  // 0 — фото целиком на экране, 1 — фото уехало наверх
+  const p = Math.min(1, Math.max(0, (150 - rect.bottom) / 110));
+  head.style.opacity = p;
+  head.style.transform = `translateY(${(1 - p) * -14}px)`;
+  head.classList.toggle('shown', p > 0.5);
+  $('miniAva').style.transform = `scale(${0.5 + p * 0.5})`;
+
+  const key = src.name + src.stats + src.ava;
+  if (key !== miniHeadKey) {
+    miniHeadKey = key;
+    $('miniName').innerHTML = src.name;
+    $('miniStats').textContent = src.stats;
+    $('miniAva').innerHTML = src.ava ? `<img src="${esc(src.ava)}" alt="" onerror="this.remove()">` : esc(src.letter);
+  }
+}
+window.addEventListener('scroll', updateMiniHead, { passive: true });
+$('miniHead').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+// ---------- Жест «назад»: провести пальцем слева направо в любом месте экрана ----------
+// Короткое случайное движение не считается: нужно протянуть заметно (примерно треть экрана).
+function goBack() {
+  const screen = document.querySelector('.screen:not(.hidden)')?.id;
+  if (!$('cropSheet').classList.contains('hidden')) return closeCropper();
+  if (!$('photoSheet').classList.contains('hidden')) return $('photoSheet').classList.add('hidden');
+  if (screen === 'editScreen') return $('editBackBtn').click();
+  if (screen === 'friendProfileScreen') return $('fpBackBtn').click();
+  // обычные вкладки: возвращаемся на предыдущую, а если её нет — на главную
+  tabHistory.pop();
+  const prev = tabHistory.pop() || 'mainScreen';
+  if (prev === screen) return;
+  document.querySelector(`.bottom-nav [data-screen="${prev}"]`)?.click();
+}
+
+const swipe = { active: false, x: 0, y: 0, dx: 0, decided: false, horizontal: false };
+const SWIPE_BLOCKERS = 'input, textarea, .crop-view, .sheet';
+
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length !== 1 || e.target.closest(SWIPE_BLOCKERS)) { swipe.active = false; return; }
+  const t = e.touches[0];
+  Object.assign(swipe, { active: true, x: t.clientX, y: t.clientY, dx: 0, decided: false, horizontal: false });
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  if (!swipe.active) return;
+  const t = e.touches[0];
+  const dx = t.clientX - swipe.x;
+  const dy = t.clientY - swipe.y;
+  if (!swipe.decided && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) {
+    swipe.decided = true;
+    swipe.horizontal = dx > 0 && Math.abs(dx) > Math.abs(dy) * 1.5; // только вправо и почти горизонтально
+    if (!swipe.horizontal) swipe.active = false;
+  }
+  if (!swipe.horizontal) return;
+  swipe.dx = Math.max(0, dx);
+  const need = Math.max(90, window.innerWidth * 0.3);
+  const p = Math.min(1, swipe.dx / need);
+  const arrow = $('swipeBack');
+  arrow.style.opacity = p;
+  arrow.style.transform = `translate(${-40 + p * 56}px, -50%) scale(${0.7 + p * 0.3})`;
+  arrow.classList.toggle('ready', p >= 1);
+}, { passive: true });
+
+document.addEventListener('touchend', () => {
+  if (!swipe.active || !swipe.horizontal) { swipe.active = false; return; }
+  swipe.active = false;
+  const need = Math.max(90, window.innerWidth * 0.3);
+  const arrow = $('swipeBack');
+  arrow.style.opacity = 0;
+  arrow.style.transform = 'translate(-40px, -50%) scale(0.7)';
+  arrow.classList.remove('ready');
+  if (swipe.dx >= need) {
+    haptic();
+    goBack();
+  }
+});
+
 
 init();
