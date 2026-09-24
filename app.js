@@ -416,6 +416,7 @@ async function init() {
     const { user } = await api('/api/auth/login', { method: 'POST' });
     currentUser = user;
     $('shareCalendarToggle').checked = user.share_calendar !== false;
+    renderMySport();
     updateAvatar();
     updateFriendsBadge();
     setInterval(updateFriendsBadge, 60000); // раз в минуту проверяем новые реакции и заявки
@@ -1139,7 +1140,7 @@ async function loadFriendsList() {
         btn.innerHTML = `
           ${avatarHtml(fr)}
           <span class="friend-name">${nameHtml(fr)}
-            <span class="friend-sub">${esc(lastTrainingLabel(fr.last_training))}</span>
+            <span class="friend-sub">${fr.sport ? esc(sportLabel(fr, { short: true })) + ' · ' : ''}${esc(lastTrainingLabel(fr.last_training))}</span>
           </span>
           <span class="friend-streak">🔥 ${esc(fr.current_streak ?? 0)}</span>
           <span class="history-arrow">›</span>`;
@@ -1200,6 +1201,8 @@ async function openFriendProfile(userId, returnTo) {
     $('fpRecord').textContent = `🏆 рекорд ${u.longest_streak ?? 0} дн.`;
     $('fpRecord').classList.toggle('hidden', (u.longest_streak ?? 0) < 2);
     $('fpRemoveBtn').classList.toggle('hidden', isMe);
+    $('fpSport').textContent = sportLabel(u);
+    $('fpSport').classList.toggle('hidden', !u.sport);
     $('fpFriends').textContent = friendsLabel(fpData.stats?.friends ?? 0);
     $('fpFriends').classList.toggle('hidden', fpData.stats?.friends == null);
 
@@ -1807,6 +1810,7 @@ function goBack() {
   const screen = document.querySelector('.screen:not(.hidden)')?.id;
   if (!$('cropSheet').classList.contains('hidden')) return closeCropper();
   if (!$('photoSheet').classList.contains('hidden')) return $('photoSheet').classList.add('hidden');
+  if (!$('sportSheet').classList.contains('hidden')) return closeSportSheet();
   if (screen === 'editScreen') return $('editBackBtn').click();
   if (screen === 'friendProfileScreen') return $('fpBackBtn').click();
   // обычные вкладки: возвращаемся на предыдущую, а если её нет — на главную
@@ -1858,6 +1862,119 @@ document.addEventListener('touchend', () => {
     goBack();
   }
 });
+
+
+// ---------- Вид спорта в профиле ----------
+const SPORTS = {
+  athletics: ['🏃', 'Лёгкая атлетика'],
+  running: ['👟', 'Бег'],
+  football: ['⚽', 'Футбол'],
+  basketball: ['🏀', 'Баскетбол'],
+  volleyball: ['🏐', 'Волейбол'],
+  hockey: ['🏒', 'Хоккей'],
+  swimming: ['🏊', 'Плавание'],
+  cycling: ['🚴', 'Велоспорт'],
+  triathlon: ['🏅', 'Триатлон'],
+  combat: ['🥊', 'Единоборства'],
+  tennis: ['🎾', 'Теннис'],
+  fitness: ['🏋️', 'Фитнес'],
+  other: ['✨', 'Другое'],
+};
+// Подсказки дисциплин (можно выбрать или написать свою)
+const DISCIPLINES = {
+  athletics: ['Спринт', 'Барьерный бег', 'Средние дистанции', 'Длинные дистанции', 'Прыжки', 'Метания', 'Многоборье', 'Спортивная ходьба'],
+  running: ['5–10 км', 'Полумарафон', 'Марафон', 'Трейл'],
+  swimming: ['Спринт', 'Длинные дистанции', 'Открытая вода'],
+  football: ['Вратарь', 'Защитник', 'Полузащитник', 'Нападающий'],
+  combat: ['Бокс', 'Борьба', 'ММА', 'Дзюдо', 'Карате'],
+};
+
+// «🏃 Лёгкая атлетика · Спринт» или пусто, если вид спорта не выбран
+function sportLabel(u, { short = false } = {}) {
+  const s = SPORTS[u?.sport];
+  if (!s) return '';
+  if (short) return u.discipline ? `${s[0]} ${u.discipline}` : `${s[0]} ${s[1]}`;
+  return `${s[0]} ${s[1]}${u.discipline ? ' · ' + u.discipline : ''}`;
+}
+
+function renderMySport() {
+  const tag = $('profileSport');
+  const label = sportLabel(currentUser);
+  tag.textContent = label || '＋ Вид спорта';
+  tag.classList.toggle('empty', !label);
+}
+
+let sportDraft = { sport: null, discipline: '' };
+
+function renderSportSheet() {
+  const grid = $('sportGrid');
+  grid.innerHTML = '';
+  Object.entries(SPORTS).forEach(([key, [emoji, name]]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sport-chip' + (sportDraft.sport === key ? ' active' : '');
+    b.innerHTML = `<span>${emoji}</span>${esc(name)}`;
+    b.addEventListener('click', () => {
+      if (sportDraft.sport !== key) sportDraft.discipline = '';
+      sportDraft.sport = key;
+      $('disciplineInput').value = sportDraft.discipline;
+      haptic();
+      renderSportSheet();
+    });
+    grid.appendChild(b);
+  });
+
+  $('disciplineBlock').classList.toggle('hidden', !sportDraft.sport);
+  const chips = $('disciplineChips');
+  chips.innerHTML = '';
+  (DISCIPLINES[sportDraft.sport] || []).forEach((d) => {
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.className = 'chip' + (sportDraft.discipline === d ? ' active' : '');
+    c.textContent = d;
+    c.addEventListener('click', () => {
+      sportDraft.discipline = sportDraft.discipline === d ? '' : d;
+      $('disciplineInput').value = sportDraft.discipline;
+      renderSportSheet();
+    });
+    chips.appendChild(c);
+  });
+  $('sportClearBtn').classList.toggle('hidden', !currentUser?.sport);
+}
+
+function openSportSheet() {
+  sportDraft = { sport: currentUser?.sport || null, discipline: currentUser?.discipline || '' };
+  $('disciplineInput').value = sportDraft.discipline;
+  renderSportSheet();
+  $('sportSheet').classList.remove('hidden');
+}
+function closeSportSheet() { $('sportSheet').classList.add('hidden'); }
+
+async function saveSport(sport, discipline) {
+  try {
+    const res = await api('/api/auth/sport', { method: 'POST', body: JSON.stringify({ sport, discipline }) });
+    currentUser.sport = res.sport;
+    currentUser.discipline = res.discipline;
+    renderMySport();
+    closeSportSheet();
+  } catch (err) {
+    console.error(err);
+    alertMsg(err.data?.error || 'Не удалось сохранить. Попробуй ещё раз.');
+  }
+}
+
+$('profileSport').addEventListener('click', openSportSheet);
+$('sportCancelBtn').addEventListener('click', closeSportSheet);
+$('sportSheet').addEventListener('click', (e) => { if (e.target === $('sportSheet')) closeSportSheet(); });
+$('disciplineInput').addEventListener('input', (e) => {
+  sportDraft.discipline = e.target.value;
+  $('disciplineChips').querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c.textContent === e.target.value.trim()));
+});
+$('sportSaveBtn').addEventListener('click', () => {
+  if (!sportDraft.sport) return alertMsg('Выбери вид спорта 🙂');
+  saveSport(sportDraft.sport, sportDraft.discipline.trim());
+});
+$('sportClearBtn').addEventListener('click', () => saveSport(null, null));
 
 
 init();
