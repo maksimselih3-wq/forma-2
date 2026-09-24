@@ -512,8 +512,28 @@ input[type="range"]::-moz-range-thumb {
 }
 .profile-hero-bottom {
   position: absolute; left: 16px; right: 16px; bottom: 16px;
-  display: flex; align-items: flex-end; justify-content: space-between; gap: 10px;
+  display: flex; flex-direction: column; align-items: flex-start;
 }
+/* вид спорта — строка над именем */
+.hero-sport {
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #d9c8ff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  text-align: left;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+button.hero-sport { cursor: pointer; }
+.hero-sport.empty { color: rgba(255, 255, 255, 0.75); text-decoration: underline dashed rgba(255, 255, 255, 0.4); text-underline-offset: 4px; }
 .profile-name {
   font-family: var(--font-head);
   font-weight: 700;
@@ -523,7 +543,9 @@ input[type="range"]::-moz-range-thumb {
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   word-break: break-word;
 }
-.profile-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.profile-tags { display: flex; gap: 6px; flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.profile-tags::-webkit-scrollbar { display: none; }
+.profile-tags .tag { flex: 0 0 auto; white-space: nowrap; }
 
 /* фирменная синяя галочка */
 .verified { width: 0.8em; height: 0.8em; margin-left: 6px; vertical-align: -0.06em; flex: 0 0 auto; }
@@ -539,16 +561,21 @@ input[type="range"]::-moz-range-thumb {
   backdrop-filter: blur(8px);
 }
 .photo-btn {
-  flex: 0 0 auto;
-  padding: 9px 18px;
-  border-radius: 999px;
-  border: none;
-  background: #fff;
-  color: #0b0d10;
-  font-weight: 700;
-  font-size: 14px;
+  position: absolute;
+  top: 12px; right: 12px;
+  z-index: 2;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
   cursor: pointer;
 }
+.photo-btn:active { transform: scale(0.94); }
 
 /* ---------- Меню «Фото» ---------- */
 .sheet-backdrop {
@@ -1045,8 +1072,6 @@ input[type="range"]::-moz-range-thumb {
 .swipe-back.ready { background: var(--grad-lime); color: #0b0d10; border-color: transparent; }
 
 /* ---------- Вид спорта ---------- */
-.tag.tag-sport { border-color: rgba(155, 107, 255, 0.7); color: #d9c8ff; }
-.tag.tag-sport.empty { border-style: dashed; color: rgba(255, 255, 255, 0.7); border-color: rgba(255, 255, 255, 0.35); }
 .sport-sheet { max-height: 86vh; overflow-y: auto; }
 .sport-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
 .sport-chip {
