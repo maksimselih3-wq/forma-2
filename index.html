@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=25" />
+<link rel="stylesheet" href="style.css?v=26" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -93,6 +93,7 @@
           <div class="profile-tags">
             <span class="tag" id="profileUsername"></span>
             <span class="tag tag-soft hidden" id="profileRecord"></span>
+            <button type="button" class="tag tag-soft tag-btn hidden" id="profileFriends"></button>
           </div>
         </div>
         <button type="button" class="photo-btn" id="photoBtn">Фото</button>
@@ -166,6 +167,41 @@
     </div>
   </div>
 
+  <!-- Обрезка фото: двигай пальцем, увеличивай ползунком или двумя пальцами -->
+  <div id="cropSheet" class="sheet-backdrop crop-backdrop hidden">
+    <div class="sheet crop-sheet">
+      <div class="sheet-title">Выбери, что будет на фото</div>
+      <div class="crop-view" id="cropView">
+        <img id="cropImg" alt="" draggable="false" />
+        <div class="crop-guide"></div>
+      </div>
+      <div class="crop-zoom-row">
+        <span>−</span>
+        <input type="range" id="cropZoom" class="crop-zoom" min="1" max="4" step="0.01" value="1" />
+        <span>+</span>
+      </div>
+      <div class="muted crop-hint">Двигай фото пальцем, увеличивай ползунком или двумя пальцами.</div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="cropCancelBtn">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="cropSaveBtn">Готово</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Компактная шапка профиля: появляется, когда листаешь профиль вниз -->
+  <div class="mini-head" id="miniHead" aria-hidden="true">
+    <div class="mini-main">
+      <div class="mini-name" id="miniName"></div>
+      <div class="mini-stats" id="miniStats"></div>
+    </div>
+    <span class="mini-ava" id="miniAva"></span>
+  </div>
+
+  <!-- Стрелка, которая выезжает слева при жесте «назад» -->
+  <div class="swipe-back" id="swipeBack" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+
   <!-- ===================== ДРУЗЬЯ: ЛЕНТА + СПИСОК ===================== -->
   <section id="friendsScreen" class="screen hidden">
     <h2 class="page-title">Друзья</h2>
@@ -228,7 +264,7 @@
         <div>
           <div class="eyebrow light" id="fpEyebrow">Спортсмен</div>
           <div class="profile-name" id="fpName"></div>
-          <div class="profile-tags"><span class="tag" id="fpUsername"></span><span class="tag tag-soft hidden" id="fpRecord"></span></div>
+          <div class="profile-tags"><span class="tag" id="fpUsername"></span><span class="tag tag-soft hidden" id="fpRecord"></span><span class="tag tag-soft hidden" id="fpFriends"></span></div>
         </div>
       </div>
     </div>
@@ -373,6 +409,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=25"></script>
+  <script src="app.js?v=26"></script>
 </body>
 </html>
