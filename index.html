@@ -4,13 +4,63 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Forma</title>
+<meta name="theme-color" content="#0a0c11" />
+<!-- Заставка: стили прямо здесь, чтобы она появилась мгновенно, ещё до загрузки остального -->
+<style>
+  html, body { background: #0a0c11; }
+  #splash {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    background: #0a0c11;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  #splash.hide { opacity: 0; transform: scale(1.04); pointer-events: none; }
+  #splash svg { width: min(64vw, 300px); height: auto; overflow: visible; }
+  #splash path {
+    fill: none; stroke: #f3f5f8; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: var(--len); stroke-dashoffset: var(--len);
+    animation: splash-draw var(--dur) cubic-bezier(0.45, 0, 0.35, 1) var(--delay) forwards;
+  }
+  #splash circle {
+    fill: #b4f53c;
+    transform-box: fill-box; transform-origin: center;
+    transform: scale(0);
+    filter: drop-shadow(0 0 6px rgba(180, 245, 60, 0.9));
+    animation: splash-dot 0.38s cubic-bezier(0.3, 1.7, 0.5, 1) 1.05s forwards;
+  }
+  @keyframes splash-draw { to { stroke-dashoffset: 0; } }
+  @keyframes splash-dot { to { transform: scale(1); } }
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=27" />
+<link rel="stylesheet" href="style.css?v=28" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+
+  <!-- ЗАСТАВКА: «Forma» пишется от руки, в конце загорается зелёная точка -->
+  <div id="splash" aria-hidden="true">
+    <svg viewBox="0 0 240 110">
+      <path d="M22 38 C20 26, 40 20, 60 24 S 95 22, 104 18" />
+      <path d="M62 24 C60 45, 54 70, 44 88 C40 95, 30 96, 28 88" />
+      <path d="M46 58 C56 55, 66 55, 76 56" />
+      <path d="M92 64 C84 64, 80 76, 86 80 C92 84, 100 76, 98 68 C97 64, 94 63, 92 64 C100 66, 104 66, 108 64 C110 60, 113 60, 114 64 C116 70, 115 78, 116 82 C118 72, 124 64, 132 66 C133 72, 132 78, 133 82 C135 70, 145 62, 148 70 C149 74, 149 78, 150 82 C152 70, 162 62, 165 70 C166 75, 166 79, 168 82 C172 84, 176 80, 180 74 C182 66, 192 62, 196 68 C188 62, 178 70, 180 78 C182 84, 192 82, 196 70 C195 76, 196 82, 202 82 C206 82, 208 78, 210 76" />
+      <circle cx="222" cy="80" r="5" />
+    </svg>
+  </div>
+  <script>
+    // Буквы «пишутся» по очереди: F (три штриха), затем «orma» одним росчерком — всего около секунды
+    (function () {
+      var timing = [[0, 0.2], [0.18, 0.22], [0.38, 0.1], [0.46, 0.55]];
+      document.querySelectorAll('#splash path').forEach(function (p, i) {
+        p.style.setProperty('--len', p.getTotalLength() + 1);
+        p.style.setProperty('--delay', timing[i][0] + 's');
+        p.style.setProperty('--dur', timing[i][1] + 's');
+      });
+      window.__splashStart = Date.now();
+    })();
+  </script>
 
   <!-- ШАПКА: логотип Forma, серия и аватар -->
   <header class="topbar">
@@ -86,18 +136,19 @@
   <section id="profileScreen" class="screen hidden">
     <div class="profile-hero" id="profileHero">
       <div class="profile-hero-shade"></div>
+      <!-- смена фото — маленькая круглая кнопка в углу -->
+      <button type="button" class="photo-btn" id="photoBtn" aria-label="Сменить фото" title="Сменить фото">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.6l1.2-1.7c.3-.4.7-.6 1.2-.6h3c.5 0 .9.2 1.2.6L15.9 6h1.6A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
       <div class="profile-hero-bottom">
-        <div>
-          <div class="eyebrow light">Твой профиль</div>
-          <div class="profile-name" id="profileName">Спортсмен</div>
-          <div class="profile-tags">
-            <span class="tag" id="profileUsername"></span>
-            <button type="button" class="tag tag-sport tag-btn" id="profileSport">＋ Вид спорта</button>
-            <span class="tag tag-soft hidden" id="profileRecord"></span>
-            <button type="button" class="tag tag-soft tag-btn hidden" id="profileFriends"></button>
-          </div>
+        <!-- вид спорта — строкой над именем, нажми, чтобы изменить -->
+        <button type="button" class="hero-sport empty" id="profileSport">＋ Укажи вид спорта</button>
+        <div class="profile-name" id="profileName">Спортсмен</div>
+        <div class="profile-tags">
+          <span class="tag" id="profileUsername"></span>
+          <span class="tag tag-soft hidden" id="profileRecord"></span>
+          <button type="button" class="tag tag-soft tag-btn hidden" id="profileFriends"></button>
         </div>
-        <button type="button" class="photo-btn" id="photoBtn">Фото</button>
       </div>
     </div>
     <input type="file" id="photoInput" accept="image/*" class="hidden" />
@@ -280,11 +331,9 @@
     <div class="profile-hero no-photo" id="fpHero">
       <div class="profile-hero-shade"></div>
       <div class="profile-hero-bottom">
-        <div>
-          <div class="eyebrow light" id="fpEyebrow">Спортсмен</div>
-          <div class="profile-name" id="fpName"></div>
-          <div class="profile-tags"><span class="tag" id="fpUsername"></span><span class="tag tag-sport hidden" id="fpSport"></span><span class="tag tag-soft hidden" id="fpRecord"></span><span class="tag tag-soft hidden" id="fpFriends"></span></div>
-        </div>
+        <div class="hero-sport" id="fpEyebrow">Спортсмен</div>
+        <div class="profile-name" id="fpName"></div>
+        <div class="profile-tags"><span class="tag" id="fpUsername"></span><span class="tag tag-soft hidden" id="fpRecord"></span><span class="tag tag-soft hidden" id="fpFriends"></span></div>
       </div>
     </div>
 
@@ -428,6 +477,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=27"></script>
+  <script src="app.js?v=28"></script>
 </body>
 </html>
