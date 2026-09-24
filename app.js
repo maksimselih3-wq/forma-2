@@ -1994,4 +1994,53 @@ $('sportSaveBtn').addEventListener('click', () => {
 $('sportClearBtn').addEventListener('click', () => saveSport(null, null));
 
 
+// ---------- Синяя галочка: по нажатию всплывает подпись ----------
+const VERIFIED_TIP = 'Ряльный 2ko5';
+let badgeTipTimer = null;
+
+function showBadgeTip(badge) {
+  let tip = document.getElementById('badgeTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'badgeTip';
+    tip.className = 'badge-tip';
+    document.body.appendChild(tip);
+  }
+  tip.textContent = VERIFIED_TIP;
+  tip.classList.remove('show');
+  const r = badge.getBoundingClientRect();
+  // ставим над галочкой, но не даём вылезти за края экрана
+  tip.style.visibility = 'hidden';
+  tip.style.display = 'block';
+  const w = tip.offsetWidth;
+  const h = tip.offsetHeight;
+  const left = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2));
+  const above = r.top - h - 10 > 8;
+  tip.style.left = `${left}px`;
+  tip.style.top = `${above ? r.top - h - 10 : r.bottom + 10}px`;
+  tip.style.setProperty('--arrow-x', `${r.left + r.width / 2 - left}px`);
+  tip.classList.toggle('below', !above);
+  tip.style.visibility = '';
+  void tip.offsetWidth;
+  tip.classList.add('show');
+  haptic();
+  clearTimeout(badgeTipTimer);
+  badgeTipTimer = setTimeout(hideBadgeTip, 2200);
+}
+function hideBadgeTip() {
+  document.getElementById('badgeTip')?.classList.remove('show');
+}
+// Ловим нажатие раньше всех, чтобы тап по галочке не открывал профиль или запись
+document.addEventListener('click', (e) => {
+  const badge = e.target.closest?.('.verified');
+  if (badge) {
+    e.preventDefault();
+    e.stopPropagation();
+    showBadgeTip(badge);
+  } else {
+    hideBadgeTip();
+  }
+}, true);
+window.addEventListener('scroll', hideBadgeTip, { passive: true });
+
 init();
