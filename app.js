@@ -807,8 +807,10 @@ function friendsLabel(n) {
   return `👥 ${n} друзей`;
 }
 
+// Имя полностью: имя + фамилия из Telegram (если фамилии нет — только имя, если и его нет — @username)
 function personName(u) {
-  return u?.first_name || (u?.username ? '@' + u.username : 'Спортсмен');
+  const full = [u?.first_name, u?.last_name].filter(Boolean).join(' ');
+  return full || (u?.username ? '@' + u.username : 'Спортсмен');
 }
 
 // Имя + синяя галочка (если положена)
