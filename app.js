@@ -141,6 +141,14 @@ function showScreen(targetId) {
 //  ФОРМА ЗАПИСИ — одна и та же для «новой записи» и «редактирования»
 // =====================================================================
 const FORM_TEMPLATE = `
+  <section class="card smart-card">
+    <div class="card-label">✨ Умный ввод</div>
+    <div class="card-hint smart-hint">Опиши тренировку своими словами — Fom сам разложит всё по полям ниже.</div>
+    <textarea data-f="smartText" rows="3" placeholder="Например: разминка 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, присед 5×5 80 кг, пульс ср 150 макс 182, в паузах до 110. Было тяжело."></textarea>
+    <button type="button" class="smart-btn" data-f="smartBtn">✨ Разложить по полям</button>
+    <div class="status-msg" data-f="smartStatus"></div>
+  </section>
+
   <div class="segmented" data-f="typeSwitch">
     <button type="button" class="seg-btn active" data-type="training">🏃 Тренировка</button>
     <button type="button" class="seg-btn" data-type="rest">😴 Отдых</button>
@@ -296,6 +304,52 @@ function createWorkoutForm(root) {
     paintSlider(k);
   }
 
+  // --- умный ввод: текст → Fom → поля формы ---
+  function applyParsed(p) {
+    setType(p.type);
+    if (p.warmup) f('warmup').value = p.warmup;
+    if (p.cooldown) f('cooldown').value = p.cooldown;
+    if (p.notes) f('notes').value = f('notes').value ? `${f('notes').value}\n${p.notes}` : p.notes;
+    if (p.rpe) setSlider('rpe', p.rpe);
+    if (p.feeling) setSlider('feeling', p.feeling);
+    if (p.hr_avg) f('hrAvg').value = p.hr_avg;
+    if (p.hr_max) f('hrMax').value = p.hr_max;
+    if (p.hr_min) f('hrMin').value = p.hr_min;
+    if (Array.isArray(p.sets) && p.sets.length) {
+      sets = p.sets.map((s) => ({
+        distance_m: s.distance_m ?? '', reps: s.reps ?? '', time_or_pace: s.time_or_pace ?? '', rest_between: s.rest_between ?? '',
+      }));
+      renderSets();
+    }
+    if (Array.isArray(p.exercises) && p.exercises.length) {
+      exercises = p.exercises.map((e) => ({
+        name: e.name ?? '', sets: e.sets ?? '', reps: e.reps ?? '', weight: e.weight ?? '',
+      }));
+      renderExercises();
+    }
+  }
+
+  f('smartBtn').addEventListener('click', async () => {
+    const text = f('smartText').value.trim();
+    const status = f('smartStatus');
+    if (!text) {
+      status.textContent = 'Сначала напиши, как прошла тренировка 🙂';
+      return;
+    }
+    f('smartBtn').disabled = true;
+    status.textContent = 'Fom разбирает текст...';
+    try {
+      const { parsed } = await api('/api/workouts/parse', { method: 'POST', body: JSON.stringify({ text }) });
+      applyParsed(parsed);
+      status.textContent = '✅ Готово! Проверь поля ниже и сохрани запись.';
+    } catch (err) {
+      console.error(err);
+      status.textContent = err.data?.error || 'Не получилось разобрать. Попробуй ещё раз.';
+    } finally {
+      f('smartBtn').disabled = false;
+    }
+  });
+
   return {
     get type() { return type; },
     getPayload() {
@@ -336,6 +390,8 @@ function createWorkoutForm(root) {
     },
     reset() {
       this.setData({ type: 'training', visibility: f('visibility').checked ? 'public' : 'private' });
+      f('smartText').value = '';
+      f('smartStatus').textContent = '';
     },
   };
 }
