@@ -752,3 +752,25 @@ input[type="range"]::-moz-range-thumb {
 }
 .nav-plus:active { transform: translateY(-14px) scale(0.94); }
 .nav-plus.active { box-shadow: 0 6px 28px rgba(155, 107, 255, 0.6), 0 0 26px rgba(180, 245, 60, 0.6); }
+/* ---------- Умный ввод ---------- */
+.smart-card {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(180deg, var(--card-top), var(--card-bottom)) padding-box,
+    linear-gradient(120deg, rgba(180, 245, 60, 0.7), rgba(155, 107, 255, 0.7)) border-box;
+}
+.smart-hint { margin: -4px 0 10px; }
+.smart-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(90deg, #9b6bff, #6f8bff);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(155, 107, 255, 0.3);
+}
+.smart-btn:disabled { opacity: 0.6; }
