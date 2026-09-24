@@ -34,7 +34,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=30" />
+<link rel="stylesheet" href="style.css?v=31" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -93,6 +93,16 @@
         <div class="stat-label">тренировок за месяц</div>
       </div>
     </div>
+
+    <!-- Розыгрыши подарков за честную серию -->
+    <section class="card gift-card hidden" id="giftCard">
+      <div class="gift-head">
+        <div class="card-label">🎁 Розыгрыши</div>
+        <button type="button" class="gift-rules-btn" id="giftRulesBtn">Правила</button>
+      </div>
+      <div class="muted gift-sub" id="giftStreak"></div>
+      <div id="giftRows"></div>
+    </section>
 
     <section class="card card-hero">
       <div class="eyebrow">Дневник</div>
@@ -216,6 +226,22 @@
       <button type="button" class="sheet-btn" id="photoPickBtn">Выбрать новое фото</button>
       <button type="button" class="sheet-btn" id="photoResetBtn">Вернуть фото из Telegram</button>
       <button type="button" class="sheet-btn muted-btn" id="photoCancelBtn">Отмена</button>
+    </div>
+  </div>
+
+  <!-- Правила розыгрышей и последние победители -->
+  <div id="giftSheet" class="sheet-backdrop hidden">
+    <div class="sheet gift-sheet">
+      <div class="sheet-title">🎁 Розыгрыши Forma</div>
+      <div class="gift-rules">
+        <p><b>🔥 Каждую неделю</b> — прикольные подарки. Участвуют все, у кого честная серия <b>от 7 дней</b>. Итоги в воскресенье в 20:00 (МСК).</p>
+        <p><b>💎 Каждый месяц</b> — подарки покруче. Нужна честная серия <b>от 30 дней</b>. Итоги в последний день месяца в 20:00 (МСК).</p>
+        <p><b>Честная серия</b> — дни подряд, где запись сделана в тот же день или не позже следующего. Дни, заполненные задним числом, в розыгрыше не считаются.</p>
+        <p><b>Билеты:</b> чем длиннее серия, тем больше шансов. В неделе — 1 билет за каждые 7 дней (до 5), в месяце — 1 билет за каждые 30 дней (до 3).</p>
+        <p>Победители выбираются случайно, бот напишет им в Telegram, а подарок придёт прямо туда.</p>
+      </div>
+      <div id="giftWinners"></div>
+      <button type="button" class="sheet-btn muted-btn" id="giftCloseBtn">Понятно</button>
     </div>
   </div>
 
@@ -477,6 +503,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=30"></script>
+  <script src="app.js?v=31"></script>
 </body>
 </html>
