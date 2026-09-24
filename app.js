@@ -124,14 +124,16 @@ async function api(path, options = {}) {
 }
 
 // ---------- Переключение экранов + подсветка нижней панели ----------
-const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'insightsScreen', 'chatScreen', 'editScreen'];
+const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen'];
+// какая кнопка нижней панели подсвечивается на «вложенных» экранах
+const NAV_PARENT = { friendProfileScreen: 'friendsScreen' };
 function showScreen(targetId) {
   ALL_SCREENS.forEach((id) => {
     const el = $(id);
     if (el) el.classList.toggle('hidden', id !== targetId);
   });
   document.querySelectorAll('.bottom-nav [data-screen]').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.screen === targetId);
+    btn.classList.toggle('active', btn.dataset.screen === (NAV_PARENT[targetId] || targetId));
   });
   document.body.classList.toggle('chat-open', targetId === 'chatScreen');
   window.scrollTo(0, 0);
@@ -406,7 +408,10 @@ async function init() {
   try {
     const { user } = await api('/api/auth/login', { method: 'POST' });
     currentUser = user;
+    $('shareCalendarToggle').checked = user.share_calendar !== false;
     updateAvatar();
+    updateFriendsBadge();
+    setInterval(updateFriendsBadge, 60000); // раз в минуту проверяем новые реакции и заявки
     updateStats();
     await loadMyWorkouts();
     renderEntryState();
@@ -442,14 +447,21 @@ function updateStats() {
   const monday = mondayOf(localDateStr());
   const weekTrainings = myWorkouts.filter((w) => w.type === 'training' && w.date >= monday).length;
   const total = myWorkouts.filter((w) => w.type === 'training').length;
+  const monthStart = localDateStr().slice(0, 8) + '01';
+  const monthTrainings = myWorkouts.filter((w) => w.type === 'training' && w.date >= monthStart).length;
+  const from30 = addDays(localDateStr(), -29);
+  const last30 = myWorkouts.filter((w) => w.type === 'training' && w.date >= from30).length;
 
   $('streakCurrent').textContent = cur;
   $('statStreak').textContent = cur;
-  $('streakBest').textContent = best;
   $('statWeek').textContent = weekTrainings;
+  $('statMonth').textContent = monthTrainings;
   $('profileStreak').textContent = cur;
-  $('profileBest').textContent = best;
+  $('profileMonth').textContent = last30;
   $('profileTotal').textContent = total;
+  // рекорд серии — не отдельной плиткой, а маленькой меткой в профиле
+  $('profileRecord').textContent = `🏆 рекорд ${best} дн.`;
+  $('profileRecord').classList.toggle('hidden', best < 2);
 }
 
 // ---------- Аватар: своё фото → фото из Telegram → значок ----------
@@ -775,8 +787,331 @@ function alertMsg(text) {
   if (tg?.showAlert) tg.showAlert(text); else alert(text);
 }
 
-// ---------- Друзья ----------
-async function loadFriendsScreen() {
+// =====================================================================
+//  ДРУЗЬЯ: лента, профиль друга, реакции, комментарии, активность
+// =====================================================================
+const REACTIONS = ['🔥', '👏', '💪', '🚀'];
+
+function haptic(kind = 'light') {
+  try { tg?.HapticFeedback?.impactOccurred(kind); } catch (e) {}
+}
+
+// «только что», «5 мин», «3 ч», «вчера», «19 сентября»
+function timeAgo(iso) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return 'только что';
+  if (diff < 3600) return `${Math.floor(diff / 60)} мин`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ч`;
+  const day = localDateStr(new Date(iso));
+  if (day === addDays(localDateStr(), -1)) return 'вчера';
+  return formatDayMonth(day);
+}
+
+function personName(u) {
+  return u?.first_name || (u?.username ? '@' + u.username : 'Спортсмен');
+}
+
+// Имя + синяя галочка (если положена)
+function nameHtml(u) {
+  return esc(personName(u)) + (isVerified(u?.username) ? VERIFIED_BADGE : '');
+}
+
+// Ссылка на фото человека (своё — сразу, друга — через сервер с проверкой, что вы друзья)
+function avatarSrc(u) {
+  if (!u) return '';
+  if (currentUser && u.id === currentUser.id) return getAvatarUrl();
+  if (!u.avatar_v) return '';
+  return `${API_BASE}/api/friends/avatar/${u.id}?v=${u.avatar_v}&auth=${encodeURIComponent(tg?.initData || '')}`;
+}
+
+// Кружок с фото; если фото нет или не загрузилось — первая буква имени
+function avatarHtml(u, extra = '') {
+  const letter = esc(personName(u).replace('@', '').slice(0, 1).toUpperCase());
+  const src = avatarSrc(u);
+  return `<span class="friend-ava ${extra}">${letter}${src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+}
+
+// «тренировался сегодня / вчера / 3 дн. назад»
+function lastTrainingLabel(date) {
+  if (!date) return 'пока без тренировок';
+  const d = normDate(date);
+  const today = localDateStr();
+  if (d === today) return 'тренировался сегодня 💪';
+  if (d === addDays(today, -1)) return 'тренировался вчера';
+  const days = Math.round((parseDateStr(today) - parseDateStr(d)) / 86400000);
+  return days < 30 ? `тренировался ${days} дн. назад` : `последняя тренировка ${formatDayMonth(d)}`;
+}
+
+// ---------- Карточка тренировки (лента и профиль друга) ----------
+function buildWorkoutCard(w, { showAuthor = true } = {}) {
+  const card = document.createElement('article');
+  card.className = 'card wk-card';
+  card.id = 'wk-' + w.id;
+  const isMine = currentUser && w.user_id === currentUser.id;
+  // RPE и самочувствие показываем цветными значками, поэтому в тексте их не повторяем
+  const lines = buildDetailLines(w).filter((l) => !l.startsWith('Самочувствие') && !l.startsWith('RPE'));
+  const chips = [];
+  if (w.rpe) chips.push(`<span class="wk-chip" style="color:${scaleColor(w.rpe, true)}">RPE ${esc(w.rpe)}</span>`);
+  if (w.feeling) chips.push(`<span class="wk-chip" style="color:${scaleColor(w.feeling)}">😊 ${esc(w.feeling)}/10</span>`);
+
+  card.innerHTML = `
+    <div class="wk-head">
+      ${showAuthor ? avatarHtml(w.author) : ''}
+      <div class="wk-head-main">
+        ${showAuthor ? `<button type="button" class="wk-author">${nameHtml(w.author)}${isMine ? ' <span class="muted">· ты</span>' : ''}</button>` : ''}
+        <div class="wk-date">${esc(formatWithWeekday(normDate(w.date)))} · ${w.type === 'rest' ? '😴 Отдых' : '🏃 Тренировка'}</div>
+      </div>
+    </div>
+    ${chips.length ? `<div class="wk-chips">${chips.join('')}</div>` : ''}
+    ${lines.length ? `<div class="wk-body">${esc(lines.join('\n'))}</div>` : ''}`;
+
+  const authorBtn = card.querySelector('.wk-author');
+  if (authorBtn) authorBtn.addEventListener('click', () => (isMine ? openProfile() : openFriendProfile(w.user_id)));
+  card.appendChild(buildSocial(w));
+  return card;
+}
+
+// ---------- Реакции + комментарии под тренировкой ----------
+function buildSocial(w, { openThread = false } = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'social';
+  wrap.innerHTML = `<div class="react-bar"></div><div class="thread hidden"></div>`;
+  const bar = wrap.querySelector('.react-bar');
+  const thread = wrap.querySelector('.thread');
+
+  function renderBar() {
+    bar.innerHTML = '';
+    REACTIONS.forEach((emoji) => {
+      const n = w.reactions?.[emoji] || 0;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'react-btn' + (w.my_reaction === emoji ? ' mine' : '') + (n ? ' has' : '');
+      b.innerHTML = `<span class="react-emoji">${emoji}</span>${n ? `<b>${n}</b>` : ''}`;
+      b.addEventListener('click', () => toggleReaction(emoji, b));
+      bar.appendChild(b);
+    });
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.className = 'react-btn comment-btn' + (thread.classList.contains('hidden') ? '' : ' mine');
+    c.innerHTML = `<span class="react-emoji">💬</span>${w.comments_count ? `<b>${w.comments_count}</b>` : ''}`;
+    c.addEventListener('click', () => {
+      thread.classList.toggle('hidden');
+      renderBar();
+      if (!thread.classList.contains('hidden')) loadThread();
+    });
+    bar.appendChild(c);
+  }
+
+  async function toggleReaction(emoji, btn) {
+    haptic();
+    const before = { reactions: { ...(w.reactions || {}) }, my_reaction: w.my_reaction };
+    // сразу показываем результат, не дожидаясь сервера
+    const r = { ...(w.reactions || {}) };
+    if (w.my_reaction) r[w.my_reaction] = Math.max(0, (r[w.my_reaction] || 1) - 1);
+    if (w.my_reaction === emoji) {
+      w.my_reaction = null;
+    } else {
+      r[emoji] = (r[emoji] || 0) + 1;
+      w.my_reaction = emoji;
+    }
+    Object.keys(r).forEach((k) => { if (!r[k]) delete r[k]; });
+    w.reactions = r;
+    renderBar();
+    if (w.my_reaction === emoji) bar.children[REACTIONS.indexOf(emoji)]?.classList.add('pop');
+    try {
+      const res = await api(`/api/friends/workouts/${w.id}/react`, { method: 'POST', body: JSON.stringify({ emoji }) });
+      w.reactions = res.reactions;
+      w.my_reaction = res.my_reaction;
+      renderBar();
+      if (!thread.classList.contains('hidden')) loadThread();
+    } catch (err) {
+      console.error(err);
+      Object.assign(w, before);
+      renderBar();
+    }
+  }
+
+  async function loadThread() {
+    thread.innerHTML = '<div class="muted thread-loading">Загружаю...</div>';
+    try {
+      const { reactions, comments } = await api(`/api/friends/workouts/${w.id}/social`);
+      w.comments_count = comments.length;
+      renderBar();
+      thread.innerHTML = '';
+
+      if (reactions.length) {
+        const who = document.createElement('div');
+        who.className = 'who-reacted';
+        who.innerHTML = reactions.map((r) => `<span>${r.emoji} ${nameHtml(r)}</span>`).join('');
+        thread.appendChild(who);
+      }
+
+      comments.forEach((c) => {
+        const row = document.createElement('div');
+        row.className = 'comment';
+        row.innerHTML = `
+          ${avatarHtml(c, 'small')}
+          <div class="comment-main">
+            <div class="comment-top"><b>${nameHtml(c)}</b><span class="muted">${esc(timeAgo(c.created_at))}</span></div>
+            <div class="comment-text">${esc(c.text)}</div>
+          </div>
+          ${c.can_delete ? '<button type="button" class="comment-del" aria-label="Удалить">✕</button>' : ''}`;
+        row.querySelector('.comment-del')?.addEventListener('click', async () => {
+          if (!confirm('Удалить комментарий?')) return;
+          try {
+            await api(`/api/friends/comments/${c.comment_id}`, { method: 'DELETE' });
+            loadThread();
+          } catch (err) { console.error(err); }
+        });
+        thread.appendChild(row);
+      });
+
+      if (!reactions.length && !comments.length) {
+        const empty = document.createElement('div');
+        empty.className = 'muted thread-empty';
+        empty.textContent = 'Пока тихо. Напиши первым 👇';
+        thread.appendChild(empty);
+      }
+
+      const form = document.createElement('div');
+      form.className = 'comment-form';
+      form.innerHTML = `
+        <input type="text" maxlength="500" placeholder="Комментарий..." autocomplete="off" />
+        <button type="button" class="send-btn small" aria-label="Отправить">
+          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21.85 12.5a.55.55 0 0 0 0-1L3.4 3.6a.5.5 0 0 0-.7.6L5 11l9 1-9 1-2.3 6.8a.5.5 0 0 0 .7.6Z"/></svg>
+        </button>`;
+      const input = form.querySelector('input');
+      const send = async () => {
+        const text = input.value.trim();
+        if (!text) return;
+        input.disabled = true;
+        try {
+          await api(`/api/friends/workouts/${w.id}/comments`, { method: 'POST', body: JSON.stringify({ text }) });
+          haptic();
+          await loadThread();
+        } catch (err) {
+          console.error(err);
+          input.disabled = false;
+        }
+      };
+      form.querySelector('button').addEventListener('click', send);
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+      thread.appendChild(form);
+    } catch (err) {
+      console.error(err);
+      thread.innerHTML = '<div class="muted thread-loading">Не удалось загрузить комментарии.</div>';
+    }
+  }
+
+  if (openThread) thread.classList.remove('hidden');
+  renderBar();
+  if (openThread) loadThread();
+  return wrap;
+}
+
+// ---------- Значок на кнопке «Друзья»: новые реакции, комментарии, заявки ----------
+async function updateFriendsBadge() {
+  try {
+    const { unread, requests } = await api('/api/friends/activity/count');
+    const total = unread + requests;
+    const badge = $('friendsBadge');
+    badge.textContent = total > 9 ? '9+' : total;
+    badge.classList.toggle('hidden', total === 0);
+    const rb = $('requestsBadge');
+    rb.textContent = requests;
+    rb.classList.toggle('hidden', requests === 0);
+  } catch (err) {
+    console.error('Badge failed', err);
+  }
+}
+
+// ---------- Экран «Друзья»: вкладки ----------
+let friendsTab = 'feed';
+let feedCursor = null;
+
+function setFriendsTab(tab) {
+  friendsTab = tab;
+  document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  $('feedTab').classList.toggle('hidden', tab !== 'feed');
+  $('listTab').classList.toggle('hidden', tab !== 'list');
+  if (tab === 'feed') loadFeedTab();
+  else loadFriendsList();
+}
+document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.addEventListener('click', () => setFriendsTab(b.dataset.tab)));
+
+$('friendsBtn').addEventListener('click', () => {
+  showScreen('friendsScreen');
+  setFriendsTab(friendsTab);
+});
+
+// ---------- Лента ----------
+async function loadFeedTab() {
+  loadActivity();
+  feedCursor = null;
+  $('feedList').innerHTML = '';
+  await loadFeedPage();
+}
+
+async function loadFeedPage() {
+  const status = $('feedStatus');
+  const more = $('feedMoreBtn');
+  status.textContent = 'Загружаю ленту...';
+  more.classList.add('hidden');
+  try {
+    const qs = feedCursor ? `?before_date=${feedCursor.date}&before_id=${feedCursor.id}` : '';
+    const { workouts } = await api('/api/friends/feed' + qs);
+    status.textContent = '';
+    workouts.forEach((w) => $('feedList').appendChild(buildWorkoutCard(w)));
+    if (workouts.length) {
+      const last = workouts[workouts.length - 1];
+      feedCursor = { date: normDate(last.date), id: last.id };
+    }
+    more.classList.toggle('hidden', workouts.length < 15);
+    if (!$('feedList').children.length) {
+      $('feedList').innerHTML = `
+        <div class="card empty-feed">
+          <div class="empty-feed-ico">👟</div>
+          <div class="empty-feed-title">Лента пока пустая</div>
+          <div class="muted">Здесь появляются открытые тренировки — твои и друзей. Включи «Показывать друзьям» в записи, а друзей добавь во вкладке «Друзья».</div>
+        </div>`;
+    }
+  } catch (err) {
+    console.error(err);
+    status.textContent = 'Не удалось загрузить ленту.';
+  }
+}
+$('feedMoreBtn').addEventListener('click', loadFeedPage);
+
+// ---------- Активность: реакции и комментарии к моим тренировкам ----------
+async function loadActivity() {
+  try {
+    const { items } = await api('/api/friends/activity');
+    const card = $('activityCard');
+    const list = $('activityList');
+    list.innerHTML = '';
+    card.classList.toggle('hidden', items.length === 0);
+    items.slice(0, 8).forEach((a) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'activity-item' + (a.unread ? ' unread' : '');
+      const what = a.kind === 'reaction'
+        ? `поставил(а) ${a.emoji} твоей тренировке за ${esc(formatDayMonth(normDate(a.date)))}`
+        : `: «${esc(a.text.length > 80 ? a.text.slice(0, 80) + '…' : a.text)}»`;
+      row.innerHTML = `
+        ${avatarHtml(a, 'small')}
+        <span class="activity-text"><b>${nameHtml(a)}</b>${a.kind === 'reaction' ? ' ' : ''}${what}</span>
+        <span class="muted activity-time">${esc(timeAgo(a.created_at))}</span>`;
+      row.addEventListener('click', () => openEditScreen(a.workout_id, 'friendsScreen'));
+      list.appendChild(row);
+    });
+    updateFriendsBadge(); // после просмотра новые события считаются прочитанными
+  } catch (err) {
+    console.error('Activity failed', err);
+  }
+}
+
+// ---------- Список друзей и заявки ----------
+async function loadFriendsList() {
   const statusEl = $('friendRequestStatus');
   statusEl.textContent = '';
 
@@ -784,26 +1119,28 @@ async function loadFriendsScreen() {
     const [{ requests }, { friends }] = await Promise.all([api('/api/friends/requests'), api('/api/friends')]);
 
     const reqList = $('incomingRequestsList');
-    const reqBlock = $('incomingRequestsBlock');
     reqList.innerHTML = '';
-    reqBlock.classList.toggle('hidden', requests.length === 0);
+    $('incomingRequestsBlock').classList.toggle('hidden', requests.length === 0);
     requests.forEach((r) => {
       const div = document.createElement('div');
       div.className = 'friend-item';
       div.innerHTML = `
-        <span class="friend-ava">${esc((r.first_name || r.username || '?').slice(0, 1).toUpperCase())}</span>
-        <span class="friend-name">${esc(r.first_name || '')}${isVerified(r.username) ? VERIFIED_BADGE : ''} <span class="muted">${r.username ? '@' + esc(r.username) : ''}</span></span>
+        ${avatarHtml(r)}
+        <span class="friend-name">${nameHtml(r)} <span class="muted">${r.username ? '@' + esc(r.username) : ''}</span></span>
         <span class="friend-actions">
           <button class="mini-btn accept" type="button">Принять</button>
           <button class="mini-btn decline" type="button">✕</button>
         </span>`;
       div.querySelector('.accept').addEventListener('click', async () => {
+        haptic('medium');
         await api('/api/friends/accept', { method: 'POST', body: JSON.stringify({ friendshipId: r.friendship_id }) });
-        loadFriendsScreen();
+        loadFriendsList();
+        updateFriendsBadge();
       });
       div.querySelector('.decline').addEventListener('click', async () => {
         await api('/api/friends/decline', { method: 'POST', body: JSON.stringify({ friendshipId: r.friendship_id }) });
-        loadFriendsScreen();
+        loadFriendsList();
+        updateFriendsBadge();
       });
       reqList.appendChild(div);
     });
@@ -814,25 +1151,25 @@ async function loadFriendsScreen() {
       friendsList.innerHTML = '<div class="empty-hint">Пока нет друзей — добавь кого-нибудь по username выше.</div>';
     } else {
       friends.forEach((fr) => {
-        const div = document.createElement('div');
-        div.className = 'friend-item';
-        div.innerHTML = `
-          <span class="friend-ava">${esc((fr.first_name || fr.username || '?').slice(0, 1).toUpperCase())}</span>
-          <span class="friend-name">${esc(fr.first_name || '')}${isVerified(fr.username) ? VERIFIED_BADGE : ''} <span class="muted">${fr.username ? '@' + esc(fr.username) : ''}</span></span>
-          <span class="friend-streak">🔥 ${esc(fr.current_streak ?? 0)}</span>`;
-        friendsList.appendChild(div);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'friend-item clickable';
+        btn.innerHTML = `
+          ${avatarHtml(fr)}
+          <span class="friend-name">${nameHtml(fr)}
+            <span class="friend-sub">${esc(lastTrainingLabel(fr.last_training))}</span>
+          </span>
+          <span class="friend-streak">🔥 ${esc(fr.current_streak ?? 0)}</span>
+          <span class="history-arrow">›</span>`;
+        btn.addEventListener('click', () => openFriendProfile(fr.id));
+        friendsList.appendChild(btn);
       });
     }
   } catch (err) {
-    console.error('Failed to load friends screen', err);
+    console.error('Failed to load friends', err);
     statusEl.textContent = 'Не удалось загрузить друзей.';
   }
 }
-
-$('friendsBtn').addEventListener('click', () => {
-  showScreen('friendsScreen');
-  loadFriendsScreen();
-});
 
 $('sendRequestBtn').addEventListener('click', async () => {
   const input = $('friendUsernameInput');
@@ -848,6 +1185,163 @@ $('sendRequestBtn').addEventListener('click', async () => {
   } catch (err) {
     statusEl.textContent = err.message || 'Не удалось отправить заявку.';
   }
+});
+
+// ---------- Профиль друга ----------
+let fpData = null;       // что пришло с сервера
+let fpMonth = new Date(); // какой месяц показывает календарь друга
+let fpReturnScreen = 'friendsScreen';
+
+async function openFriendProfile(userId, returnTo) {
+  fpReturnScreen = returnTo || (document.querySelector('.screen:not(.hidden)')?.id === 'profileScreen' ? 'profileScreen' : 'friendsScreen');
+  showScreen('friendProfileScreen');
+  fpData = null;
+  fpMonth = new Date();
+  $('fpWorkouts').innerHTML = '';
+  $('fpStatus').textContent = 'Загружаю профиль...';
+  $('fpName').textContent = '';
+  $('fpHeadName').textContent = '';
+  $('fpCalGrid').innerHTML = '';
+
+  try {
+    fpData = await api(`/api/friends/${userId}/profile`);
+    const u = fpData.user;
+    const isMe = currentUser && u.id === currentUser.id;
+    $('fpStatus').textContent = '';
+    $('fpHeadName').innerHTML = nameHtml(u);
+    $('fpName').innerHTML = nameHtml(u);
+    $('fpEyebrow').textContent = isMe ? 'Так тебя видят друзья' : 'Друг';
+    $('fpUsername').textContent = u.username ? '@' + u.username : 'спортсмен';
+    $('fpStreak').textContent = u.current_streak ?? 0;
+    $('fpMonth').textContent = fpData.stats?.last30 ?? 0;
+    $('fpTotal').textContent = fpData.stats?.total ?? 0;
+    $('fpRecord').textContent = `🏆 рекорд ${u.longest_streak ?? 0} дн.`;
+    $('fpRecord').classList.toggle('hidden', (u.longest_streak ?? 0) < 2);
+    $('fpRemoveBtn').classList.toggle('hidden', isMe);
+
+    const src = avatarSrc(u);
+    const hero = $('fpHero');
+    hero.style.backgroundImage = src ? `url("${src}")` : '';
+    hero.classList.toggle('no-photo', !src);
+
+    $('fpCalHelp').textContent = u.share_calendar === false && !isMe
+      ? 'Отмечены только открытые тренировки. Нажми на день — покажем её.'
+      : 'Нажми на отмеченный день — покажем тренировку. Закрытые дни видны без подробностей.';
+
+    renderFpCalendar();
+
+    const list = $('fpWorkouts');
+    if (!fpData.workouts.length) {
+      list.innerHTML = `<div class="empty-hint">${isMe ? 'У тебя пока нет открытых тренировок.' : 'Открытых тренировок пока нет.'}</div>`;
+    } else {
+      fpData.workouts.forEach((w) => list.appendChild(buildWorkoutCard(w, { showAuthor: false })));
+    }
+  } catch (err) {
+    console.error(err);
+    $('fpStatus').textContent = err.data?.error || 'Не удалось загрузить профиль.';
+  }
+}
+
+function renderFpCalendar() {
+  if (!fpData) return;
+  const byDate = {};
+  fpData.days.forEach((d) => { byDate[normDate(d.date)] = d; });
+
+  const y = fpMonth.getFullYear();
+  const m = fpMonth.getMonth();
+  const today = localDateStr();
+  const now = new Date();
+  $('fpCalTitle').textContent = `${MONTHS[m]} ${y}`;
+  $('fpCalNext').disabled = y > now.getFullYear() || (y === now.getFullYear() && m >= now.getMonth());
+
+  const grid = $('fpCalGrid');
+  grid.innerHTML = '';
+  const offset = (new Date(y, m, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  for (let i = 0; i < offset; i++) {
+    const empty = document.createElement('span');
+    empty.className = 'cal-cell empty';
+    grid.appendChild(empty);
+  }
+
+  let trainings = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = localDateStr(new Date(y, m, d));
+    const day = byDate[ds];
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'cal-cell readonly';
+    cell.textContent = d;
+    if (day) {
+      cell.classList.add(day.type === 'training' ? 'has-training' : 'has-rest');
+      if (day.type === 'training') trainings++;
+      if (!day.public) cell.classList.add('locked');
+    }
+    if (ds === today) cell.classList.add('today');
+    if (ds > today) cell.classList.add('future');
+
+    if (day?.public && day.id) {
+      cell.addEventListener('click', () => {
+        const target = $('wk-' + day.id);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          target.classList.remove('flash');
+          void target.offsetWidth;
+          target.classList.add('flash');
+        }
+      });
+    } else {
+      cell.disabled = true;
+    }
+    grid.appendChild(cell);
+  }
+  $('fpCalSummary').textContent = trainings ? `Тренировок за месяц: ${trainings}` : 'В этом месяце тренировок не видно.';
+}
+
+$('fpCalPrev').addEventListener('click', () => {
+  fpMonth = new Date(fpMonth.getFullYear(), fpMonth.getMonth() - 1, 1);
+  renderFpCalendar();
+});
+$('fpCalNext').addEventListener('click', () => {
+  fpMonth = new Date(fpMonth.getFullYear(), fpMonth.getMonth() + 1, 1);
+  renderFpCalendar();
+});
+
+$('fpBackBtn').addEventListener('click', () => {
+  if (fpReturnScreen === 'profileScreen') openProfile();
+  else {
+    showScreen('friendsScreen');
+    setFriendsTab(friendsTab);
+  }
+});
+
+$('fpRemoveBtn').addEventListener('click', async () => {
+  if (!fpData) return;
+  if (!confirm(`Удалить ${personName(fpData.user)} из друзей?`)) return;
+  try {
+    await api(`/api/friends/${fpData.user.id}`, { method: 'DELETE' });
+    showScreen('friendsScreen');
+    setFriendsTab('list');
+  } catch (err) {
+    console.error(err);
+    $('fpStatus').textContent = 'Не удалось удалить.';
+  }
+});
+
+// ---------- Приватность в своём профиле ----------
+$('shareCalendarToggle').addEventListener('change', async (e) => {
+  const share = e.target.checked;
+  try {
+    await api('/api/friends/settings', { method: 'POST', body: JSON.stringify({ share_calendar: share }) });
+    if (currentUser) currentUser.share_calendar = share;
+  } catch (err) {
+    console.error(err);
+    e.target.checked = !share;
+    alertMsg('Не удалось сохранить настройку.');
+  }
+});
+$('previewProfileBtn').addEventListener('click', () => {
+  if (currentUser) openFriendProfile(currentUser.id, 'profileScreen');
 });
 
 // ---------- Разбор нагрузки ----------
@@ -1028,9 +1522,35 @@ function shareWorkout(w) {
 let currentEditWorkout = null;
 let editReturnScreen = 'profileScreen'; // куда вернуться по стрелке «назад»
 
+// Реакции и комментарии друзей под своей записью (если запись открыта друзьям или под ней уже что-то есть)
+async function renderEditSocial(workout) {
+  const card = $('editSocialCard');
+  const box = $('editSocial');
+  box.innerHTML = '';
+  card.classList.add('hidden');
+  try {
+    const { reactions, comments } = await api(`/api/friends/workouts/${workout.id}/social`);
+    if (workout.visibility !== 'public' && !reactions.length && !comments.length) return;
+    const counts = {};
+    let mine = null;
+    reactions.forEach((r) => {
+      counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+      if (r.id === currentUser?.id) mine = r.emoji;
+    });
+    box.appendChild(buildSocial(
+      { id: workout.id, user_id: workout.user_id, reactions: counts, my_reaction: mine, comments_count: comments.length },
+      { openThread: true }
+    ));
+    card.classList.remove('hidden');
+  } catch (err) {
+    console.error('Social failed', err);
+  }
+}
+
 async function openEditScreen(workoutId, returnTo = 'profileScreen') {
   editReturnScreen = returnTo;
   showScreen('editScreen');
+  $('editSocialCard').classList.add('hidden');
   $('editStatusMsg').textContent = 'Загружаю...';
 
   try {
@@ -1040,6 +1560,7 @@ async function openEditScreen(workoutId, returnTo = 'profileScreen') {
     $('editDateLabel').textContent = formatWithWeekday(workout.date);
     editForm.setData(workout);
     $('editStatusMsg').textContent = '';
+    renderEditSocial(workout);
   } catch (err) {
     console.error('Failed to load workout', err);
     $('editStatusMsg').textContent = 'Не удалось загрузить запись.';
@@ -1049,6 +1570,7 @@ async function openEditScreen(workoutId, returnTo = 'profileScreen') {
 function leaveEditScreen() {
   showScreen(editReturnScreen);
   if (editReturnScreen === 'profileScreen') loadProfileScreen();
+  else if (editReturnScreen === 'friendsScreen') setFriendsTab(friendsTab);
   else renderEntryState();
 }
 
@@ -1066,6 +1588,7 @@ $('editSaveBtn').addEventListener('click', async () => {
     });
     currentEditWorkout = { ...currentEditWorkout, ...result.workout, date: normDate(result.workout.date) };
     statusEl.textContent = 'Сохранено ✓';
+    renderEditSocial(currentEditWorkout);
     try { await loadMyWorkouts(); } catch (e) { console.error(e); }
   } catch (err) {
     console.error(err);
