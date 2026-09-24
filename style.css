@@ -1090,3 +1090,39 @@ button.hero-sport { cursor: pointer; }
 .sport-sub { margin-bottom: 8px; }
 .discipline-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 #disciplineInput { width: 100%; margin-bottom: 4px; }
+
+/* ---------- Подпись у синей галочки ---------- */
+.verified { cursor: pointer; }
+.badge-tip {
+  position: fixed;
+  z-index: 80;
+  display: none;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: #2AABEE;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(42, 171, 238, 0.45);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px) scale(0.85);
+  transform-origin: var(--arrow-x, 50%) 100%;
+  transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.badge-tip.below { transform-origin: var(--arrow-x, 50%) 0; transform: translateY(-6px) scale(0.85); }
+.badge-tip.show { opacity: 1; transform: none; }
+/* хвостик-стрелочка к галочке */
+.badge-tip::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  bottom: -5px;
+  width: 10px; height: 10px;
+  margin-left: -5px;
+  background: #2AABEE;
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+.badge-tip.below::after { bottom: auto; top: -5px; }
