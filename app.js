@@ -31,6 +31,21 @@ function esc(v) {
     .replace(/"/g, '&quot;');
 }
 
+// Цвет по шкале 1–10: красный → жёлтый → зелёный (или наоборот, если reverse)
+function scaleColor(v, reverse = false) {
+  const t = (Math.min(Math.max(v, 1), 10) - 1) / 9;
+  const hue = Math.round((reverse ? 1 - t : t) * 110);
+  return `hsl(${hue}, 85%, 60%)`;
+}
+
+// Фирменная синяя галочка — только у этих аккаунтов (username без @, маленькими буквами)
+const VERIFIED_USERNAMES = ['maksimshelikh'];
+const VERIFIED_BADGE =
+  '<svg class="verified" viewBox="0 0 24 24" aria-label="Подтверждённый аккаунт"><path fill="#2AABEE" d="M12 1.5l2.4 1.9 3-.4 1.1 2.8 2.8 1.1-.4 3 1.9 2.4-1.9 2.4.4 3-2.8 1.1-1.1 2.8-3-.4L12 22.5l-2.4-1.9-3 .4-1.1-2.8-2.8-1.1.4-3L1.2 12l1.9-2.4-.4-3 2.8-1.1 1.1-2.8 3 .4z"/><path d="M7.6 12.4l3 3 5.9-6.1" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function isVerified(username) {
+  return !!username && VERIFIED_USERNAMES.includes(String(username).toLowerCase().replace(/^@/, ''));
+}
+
 // ---------- Даты ----------
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
@@ -163,12 +178,15 @@ const FORM_TEMPLATE = `
     <section class="card">
       <div class="card-label">Как прошло</div>
       <div class="slider-row">
-        <div class="slider-top"><span>Самочувствие</span><b><span data-f="feelingVal">5</span>/10</b></div>
-        <input type="range" data-f="feeling" min="1" max="10" value="5" />
+        <div class="slider-top"><span>Самочувствие</span><b data-f="feelingNum"><span data-f="feelingVal">5</span>/10</b></div>
+        <input type="range" class="range-good" data-f="feeling" min="1" max="10" value="5" />
+        <div class="slider-scale"><span>плохо</span><span>отлично</span></div>
       </div>
       <div class="slider-row">
-        <div class="slider-top"><span>RPE (нагрузка)</span><b><span data-f="rpeVal">5</span>/10</b></div>
-        <input type="range" data-f="rpe" min="1" max="10" value="5" />
+        <div class="slider-top"><span>Нагрузка (RPE)</span><b data-f="rpeNum"><span data-f="rpeVal">5</span>/10</b></div>
+        <input type="range" class="range-load" data-f="rpe" min="1" max="10" value="5" />
+        <div class="slider-scale"><span>очень легко</span><span>на пределе</span></div>
+        <div class="muted slider-hint">RPE — насколько тяжело далась тренировка по твоим ощущениям.</div>
       </div>
     </section>
 
@@ -262,13 +280,20 @@ function createWorkoutForm(root) {
   });
 
   // --- ползунки ---
+  // цвет цифры: самочувствие — чем выше, тем зеленее; нагрузка — чем выше, тем краснее
+  function paintSlider(k) {
+    const v = Number(f(k).value);
+    f(k + 'Val').textContent = v;
+    f(k + 'Num').style.color = scaleColor(v, k === 'rpe');
+  }
   ['feeling', 'rpe'].forEach((k) => {
-    f(k).addEventListener('input', () => { f(k + 'Val').textContent = f(k).value; });
+    f(k).addEventListener('input', () => paintSlider(k));
+    paintSlider(k);
   });
 
   function setSlider(k, v) {
     f(k).value = v || 5;
-    f(k + 'Val').textContent = v || 5;
+    paintSlider(k);
   }
 
   return {
@@ -503,9 +528,9 @@ let calMonth = new Date(); // какой месяц показывает кал�
 
 async function loadProfileScreen() {
   const tgUser = tg?.initDataUnsafe?.user;
-  $('profileName').textContent =
-    [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(' ') || currentUser?.first_name || 'Спортсмен';
+  const name = [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(' ') || currentUser?.first_name || 'Спортсмен';
   const uname = tgUser?.username || currentUser?.username;
+  $('profileName').innerHTML = esc(name) + (isVerified(uname) ? VERIFIED_BADGE : '');
   $('profileUsername').textContent = uname ? '@' + uname : 'спортсмен';
   updateAvatar();
 
@@ -711,7 +736,7 @@ async function loadFriendsScreen() {
       div.className = 'friend-item';
       div.innerHTML = `
         <span class="friend-ava">${esc((r.first_name || r.username || '?').slice(0, 1).toUpperCase())}</span>
-        <span class="friend-name">${esc(r.first_name || '')} <span class="muted">${r.username ? '@' + esc(r.username) : ''}</span></span>
+        <span class="friend-name">${esc(r.first_name || '')}${isVerified(r.username) ? VERIFIED_BADGE : ''} <span class="muted">${r.username ? '@' + esc(r.username) : ''}</span></span>
         <span class="friend-actions">
           <button class="mini-btn accept" type="button">Принять</button>
           <button class="mini-btn decline" type="button">✕</button>
@@ -737,7 +762,7 @@ async function loadFriendsScreen() {
         div.className = 'friend-item';
         div.innerHTML = `
           <span class="friend-ava">${esc((fr.first_name || fr.username || '?').slice(0, 1).toUpperCase())}</span>
-          <span class="friend-name">${esc(fr.first_name || '')} <span class="muted">${fr.username ? '@' + esc(fr.username) : ''}</span></span>
+          <span class="friend-name">${esc(fr.first_name || '')}${isVerified(fr.username) ? VERIFIED_BADGE : ''} <span class="muted">${fr.username ? '@' + esc(fr.username) : ''}</span></span>
           <span class="friend-streak">🔥 ${esc(fr.current_streak ?? 0)}</span>`;
         friendsList.appendChild(div);
       });
