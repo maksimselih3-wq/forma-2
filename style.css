@@ -1126,3 +1126,56 @@ button.hero-sport { cursor: pointer; }
   border-radius: 2px;
 }
 .badge-tip.below::after { bottom: auto; top: -5px; }
+
+/* ---------- Розыгрыши ---------- */
+.gift-card {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(180deg, var(--card-top), var(--card-bottom)) padding-box,
+    linear-gradient(120deg, rgba(255, 196, 77, 0.75), rgba(155, 107, 255, 0.7)) border-box;
+}
+.gift-head { display: flex; justify-content: space-between; align-items: center; }
+.gift-head .card-label { margin-bottom: 0; }
+.gift-rules-btn {
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+}
+.gift-sub { margin: 4px 0 10px; }
+.gift-row {
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  margin-top: 8px;
+}
+.gift-row.month { background: linear-gradient(135deg, rgba(155, 107, 255, 0.16), rgba(255, 196, 77, 0.08)); border-color: rgba(155, 107, 255, 0.35); }
+.gift-row.in { border-color: rgba(180, 245, 60, 0.55); }
+.gift-row-top { display: flex; align-items: center; gap: 10px; }
+.gift-emoji { font-size: 24px; }
+.gift-row-main { flex: 1; min-width: 0; }
+.gift-title { font-weight: 800; font-size: 14px; }
+.gift-title .muted { font-weight: 600; font-size: 12px; }
+.gift-when { font-size: 12px; color: #ffc44d; font-weight: 700; margin-top: 2px; }
+.gift-badge {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(180, 245, 60, 0.14);
+  border: 1px solid rgba(180, 245, 60, 0.6);
+  color: var(--lime);
+  font-size: 12px; font-weight: 800;
+}
+.gift-bar { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); margin-top: 10px; overflow: hidden; }
+.gift-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #ffc44d, var(--lime)); }
+.gift-row.month .gift-bar i { background: linear-gradient(90deg, var(--purple), #ffc44d); }
+.gift-status { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.gift-status.ok { color: var(--lime); font-weight: 700; }
+.gift-sheet { max-height: 86vh; overflow-y: auto; }
+.gift-rules p { font-size: 14px; line-height: 1.45; color: #d9dde6; margin: 0 0 10px; }
+.gift-winners { margin: 12px 0 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+.gift-winner { font-size: 14px; padding: 4px 0; }
