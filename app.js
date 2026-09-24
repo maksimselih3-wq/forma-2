@@ -439,6 +439,7 @@ async function init() {
     updateStats();
     await loadMyWorkouts();
     renderEntryState();
+    loadGiveaway();
   } catch (err) {
     console.error('Login failed', err);
     $('statusMsg').textContent = 'Не удалось связаться с сервером. Попробуй открыть приложение ещё раз.';
@@ -605,6 +606,7 @@ $('saveBtn').addEventListener('click', async () => {
 
     statusEl.textContent = '';
     justSavedDate = entryDate;
+    loadGiveaway(); // серия могла вырасти — обновим статус розыгрышей
     mainForm.reset();
     renderEntryState();
     window.scrollTo(0, 0);
@@ -1828,6 +1830,7 @@ function goBack() {
   if (!$('cropSheet').classList.contains('hidden')) return closeCropper();
   if (!$('photoSheet').classList.contains('hidden')) return $('photoSheet').classList.add('hidden');
   if (!$('sportSheet').classList.contains('hidden')) return closeSportSheet();
+  if (!$('giftSheet').classList.contains('hidden')) return $('giftSheet').classList.add('hidden');
   if (screen === 'editScreen') return $('editBackBtn').click();
   if (screen === 'friendProfileScreen') return $('fpBackBtn').click();
   // обычные вкладки: возвращаемся на предыдущую, а если её нет — на главную
@@ -2042,5 +2045,87 @@ document.addEventListener('click', (e) => {
   }
 }, true);
 window.addEventListener('scroll', hideBadgeTip, { passive: true });
+
+// ---------- Розыгрыши подарков ----------
+let giftData = null;
+
+// «1 билет», «2 билета», «5 билетов»
+function ticketsLabel(n) {
+  const m10 = n % 10, m100 = n % 100;
+  const w = m10 === 1 && m100 !== 11 ? 'билет' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'билета' : 'билетов';
+  return `🎟 ${n} ${w}`;
+}
+
+// «через 2 дн 5 ч», «через 3 ч», «через 25 мин»
+function untilLabel(iso) {
+  const ms = new Date(iso) - Date.now();
+  if (ms <= 0) return 'подводим итоги…';
+  const h = Math.floor(ms / 3600000);
+  const d = Math.floor(h / 24);
+  if (d >= 1) return `итоги через ${d} дн ${h % 24} ч`;
+  if (h >= 1) return `итоги через ${h} ч`;
+  return `итоги через ${Math.max(1, Math.floor(ms / 60000))} мин`;
+}
+
+function winnerName(w) {
+  return [w.first_name, w.last_name].filter(Boolean).join(' ') || (w.username ? '@' + w.username : 'Спортсмен');
+}
+
+function renderGiveaway() {
+  if (!giftData) return;
+  $('giftCard').classList.remove('hidden');
+  $('giftStreak').textContent = `Твоя честная серия: ${giftData.honest_streak} дн. 🔥`;
+  const rows = $('giftRows');
+  rows.innerHTML = '';
+  ['week', 'month'].forEach((kind) => {
+    const g = giftData[kind];
+    if (!g) return;
+    const progress = Math.min(100, Math.round((giftData.honest_streak / g.min_streak) * 100));
+    const row = document.createElement('div');
+    row.className = `gift-row ${kind}` + (g.eligible ? ' in' : '');
+    row.innerHTML = `
+      <div class="gift-row-top">
+        <span class="gift-emoji">${g.emoji}</span>
+        <div class="gift-row-main">
+          <div class="gift-title">${esc(kind === 'week' ? 'Неделя' : 'Месяц')} <span class="muted">· ${esc(g.prize)}</span></div>
+          <div class="gift-when">${esc(untilLabel(g.draw_at))}</div>
+        </div>
+        ${g.eligible ? `<span class="gift-badge">${esc(ticketsLabel(g.tickets))}</span>` : ''}
+      </div>
+      ${g.eligible
+        ? '<div class="gift-status ok">✅ Ты участвуешь</div>'
+        : `<div class="gift-bar"><i style="width:${progress}%"></i></div>
+           <div class="gift-status">Ещё ${g.need_days} дн. честной серии — и ты в игре</div>`}`;
+    rows.appendChild(row);
+  });
+}
+
+async function loadGiveaway() {
+  try {
+    giftData = await api('/api/bot/giveaway');
+    renderGiveaway();
+  } catch (err) {
+    console.error('Giveaway failed', err);
+  }
+}
+
+function openGiftSheet() {
+  const box = $('giftWinners');
+  box.innerHTML = '';
+  ['week', 'month'].forEach((kind) => {
+    const g = giftData?.[kind];
+    if (!g?.last_winners?.length) return;
+    const block = document.createElement('div');
+    block.className = 'gift-winners';
+    block.innerHTML = `<div class="card-label">${g.emoji} Последние победители · ${kind === 'week' ? 'неделя' : 'месяц'}</div>` +
+      g.last_winners.map((w) => `<div class="gift-winner">🏆 ${esc(winnerName(w))}${w.username ? ` <span class="muted">@${esc(w.username)}</span>` : ''} <span class="muted">· серия ${esc(w.streak)} дн.</span></div>`).join('');
+    box.appendChild(block);
+  });
+  $('giftSheet').classList.remove('hidden');
+}
+$('giftRulesBtn').addEventListener('click', openGiftSheet);
+$('giftCloseBtn').addEventListener('click', () => $('giftSheet').classList.add('hidden'));
+$('giftSheet').addEventListener('click', (e) => { if (e.target === $('giftSheet')) $('giftSheet').classList.add('hidden'); });
+setInterval(renderGiveaway, 60000); // обновляем «итоги через…»
 
 init();
