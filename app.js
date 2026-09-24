@@ -408,6 +408,22 @@ function createWorkoutForm(root) {
 const mainForm = createWorkoutForm($('mainFormFields'));
 const editForm = createWorkoutForm($('editFormFields'));
 
+// ---------- Заставка ----------
+// Убираем заставку, когда надпись дописана (~1.4 c) и данные загрузились (но не дольше 4 c)
+let splashGone = false;
+function hideSplash() {
+  if (splashGone) return;
+  const el = document.getElementById('splash');
+  if (!el) return;
+  const wait = Math.max(0, 1400 - (Date.now() - (window.__splashStart || 0)));
+  splashGone = true;
+  setTimeout(() => {
+    el.classList.add('hide');
+    setTimeout(() => el.remove(), 400);
+  }, wait);
+}
+setTimeout(hideSplash, 4000); // запасной вариант, если сервер долго отвечает
+
 // ---------- Инициализация ----------
 async function init() {
   setEntryDate(localDateStr());
@@ -427,6 +443,7 @@ async function init() {
     console.error('Login failed', err);
     $('statusMsg').textContent = 'Не удалось связаться с сервером. Попробуй открыть приложение ещё раз.';
   }
+  hideSplash();
 }
 
 async function loadMyWorkouts() {
@@ -1193,7 +1210,7 @@ async function openFriendProfile(userId, returnTo) {
     $('fpStatus').textContent = '';
     $('fpHeadName').innerHTML = nameHtml(u);
     $('fpName').innerHTML = nameHtml(u);
-    $('fpEyebrow').textContent = isMe ? 'Так тебя видят друзья' : 'Друг';
+    $('fpEyebrow').textContent = sportLabel(u) || (isMe ? 'Так тебя видят друзья' : 'Друг');
     $('fpUsername').textContent = u.username ? '@' + u.username : 'спортсмен';
     $('fpStreak').textContent = u.current_streak ?? 0;
     $('fpMonth').textContent = fpData.stats?.last30 ?? 0;
@@ -1201,8 +1218,6 @@ async function openFriendProfile(userId, returnTo) {
     $('fpRecord').textContent = `🏆 рекорд ${u.longest_streak ?? 0} дн.`;
     $('fpRecord').classList.toggle('hidden', (u.longest_streak ?? 0) < 2);
     $('fpRemoveBtn').classList.toggle('hidden', isMe);
-    $('fpSport').textContent = sportLabel(u);
-    $('fpSport').classList.toggle('hidden', !u.sport);
     $('fpFriends').textContent = friendsLabel(fpData.stats?.friends ?? 0);
     $('fpFriends').classList.toggle('hidden', fpData.stats?.friends == null);
 
@@ -1900,7 +1915,7 @@ function sportLabel(u, { short = false } = {}) {
 function renderMySport() {
   const tag = $('profileSport');
   const label = sportLabel(currentUser);
-  tag.textContent = label || '＋ Вид спорта';
+  tag.textContent = label || '＋ Укажи вид спорта';
   tag.classList.toggle('empty', !label);
 }
 
