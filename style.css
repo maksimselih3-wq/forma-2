@@ -302,6 +302,12 @@ input[type="range"] {
   background: linear-gradient(90deg, #ff5a4f, #ffc14d 50%, var(--lime));
   outline: none;
 }
+/* самочувствие: плохо (красный) → отлично (зелёный) */
+input[type="range"].range-good { background: linear-gradient(90deg, #ff5a4f, #ffc14d 50%, var(--lime)); }
+/* нагрузка: легко (зелёный) → на пределе (красный) */
+input[type="range"].range-load { background: linear-gradient(90deg, var(--lime), #ffc14d 50%, #ff5a4f); }
+.slider-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 6px; }
+.slider-hint { font-size: 12px; margin-top: 6px; }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 22px; height: 22px;
@@ -453,11 +459,24 @@ input[type="range"]::-moz-range-thumb {
   height: 300px;
   border-radius: 24px;
   overflow: hidden;
+  isolation: isolate;
   margin-bottom: 12px;
   background-color: var(--card-solid);
   background-size: cover;
   background-position: center;
-  border: 1px solid var(--border-strong);
+  /* тонкая аккуратная рамка тенью — без яркой полосы по краю фото */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+/* мягкая «мутность» снизу фото — под именем */
+.profile-hero::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 48%;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 65%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 65%);
 }
 .profile-hero.no-photo {
   background-image:
@@ -465,8 +484,8 @@ input[type="range"]::-moz-range-thumb {
     radial-gradient(circle at 80% 70%, rgba(155, 107, 255, 0.55), transparent 55%);
 }
 .profile-hero-shade {
-  position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.75) 100%);
+  position: absolute; inset: -2px;
+  background: linear-gradient(180deg, rgba(10, 12, 17, 0) 42%, rgba(10, 12, 17, 0.45) 70%, rgba(10, 12, 17, 0.88) 100%);
 }
 .profile-hero-bottom {
   position: absolute; left: 16px; right: 16px; bottom: 16px;
@@ -482,6 +501,10 @@ input[type="range"]::-moz-range-thumb {
   word-break: break-word;
 }
 .profile-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* фирменная синяя галочка */
+.verified { width: 0.8em; height: 0.8em; margin-left: 6px; vertical-align: -0.06em; flex: 0 0 auto; }
+.friend-name .verified { width: 16px; height: 16px; margin-left: 4px; vertical-align: -3px; }
 .tag {
   padding: 5px 10px;
   border-radius: 999px;
