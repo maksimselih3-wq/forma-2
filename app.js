@@ -191,6 +191,7 @@ function showScreen(targetId) {
     btn.classList.toggle('active', btn.dataset.screen === (NAV_PARENT[targetId] || targetId));
   });
   document.body.classList.toggle('chat-open', targetId === 'chatScreen');
+  try { moveNavIndicator(targetId); animateScreenIn(targetId); } catch (e) {}
   document.body.dataset.screen = targetId; // для стилей: например, в своём профиле прячем огонёк и аватарку в шапке
   window.scrollTo(0, 0);
   setTimeout(() => { try { updateMiniHead(); } catch (e) {} }, 0);
@@ -199,6 +200,29 @@ function showScreen(targetId) {
 // =====================================================================
 //  ФОРМА ЗАПИСИ — одна и та же для «новой записи» и «редактирования»
 // =====================================================================
+// ---------- Дистанция: можно писать «10 км» ----------
+// «400» → 400, «10 км» → 10000, «1,5 км» → 1500, «10k» → 10000
+function parseDistance(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return v > 0 ? Math.round(v) : null;
+  const t = String(v).toLowerCase().replace(',', '.').replace(/\s+/g, '');
+  const n = parseFloat(t);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(/км|km|k$/.test(t) ? n * 1000 : n);
+}
+// Для поля ввода: 10000 → «10 км», 1500 → «1,5 км», 400 → «400»
+function distInput(v) {
+  if (v === '' || v == null) return '';
+  if (typeof v === 'string' && !/^\d+$/.test(v.trim())) return v; // человек уже написал «10 км»
+  const m = Number(v);
+  return m >= 1000 && m % 100 === 0 ? `${String(m / 1000).replace('.', ',')} км` : String(m);
+}
+// Для текста записи: 10000 → «10 км», 400 → «400м»
+function distLabel(m) {
+  m = Number(m);
+  return m >= 1000 && m % 100 === 0 ? `${String(m / 1000).replace('.', ',')} км` : `${m}м`;
+}
+
 // ---------- Старты и личные рекорды ----------
 const COMP_DISCIPLINES = ['60 м', '100 м', '200 м', '400 м', '800 м', '1500 м', '3000 м', '5000 м', '10 000 м',
   '60 м с/б', '100 м с/б', '110 м с/б', '400 м с/б', '3000 м с/п', 'Полумарафон', 'Марафон',
@@ -258,8 +282,13 @@ const FORM_TEMPLATE = `
   <section class="card smart-card">
     <div class="card-label">${ico('sparkle')}Умный ввод</div>
     <div class="card-hint smart-hint">Опиши тренировку своими словами — Fom сам разложит всё по полям ниже.</div>
-    <textarea data-f="smartText" rows="3" placeholder="Например: разминка 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, присед 5×5 80 кг, пульс ср 150 макс 182, в паузах до 110. Было тяжело."></textarea>
+    <textarea data-f="smartText" rows="4" placeholder="Например: разминка 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, присед 5×5 80 кг, пульс ср 150 макс 182, в паузах до 110. Было тяжело."></textarea>
     <button type="button" class="smart-btn" data-f="smartBtn">Разложить по полям</button>
+    <div class="watch-row">
+      <button type="button" class="watch-btn" data-f="watchBtn">⌚ Загрузить с часов</button>
+      <button type="button" class="watch-help" data-f="watchHelp" aria-label="Как выгрузить файл с часов">?</button>
+      <input type="file" data-f="watchFile" class="hidden" />
+    </div>
     <div class="status-msg" data-f="smartStatus"></div>
   </section>
 
@@ -350,7 +379,7 @@ const FORM_TEMPLATE = `
   </section>
 `;
 
-function createWorkoutForm(root) {
+function createWorkoutForm(root, { getDate = () => null } = {}) {
   root.innerHTML = FORM_TEMPLATE;
   const f = (name) => root.querySelector(`[data-f="${name}"]`);
 
@@ -403,7 +432,7 @@ function createWorkoutForm(root) {
       const row = document.createElement('div');
       row.className = 'set-row';
       row.innerHTML = `
-        <input type="number" inputmode="numeric" placeholder="Метры" value="${esc(s.distance_m)}" data-k="distance_m" />
+        <input type="text" inputmode="decimal" placeholder="м / км" value="${esc(distInput(s.distance_m))}" data-k="distance_m" />
         <input type="number" inputmode="numeric" placeholder="Кол-во" value="${esc(s.reps)}" data-k="reps" />
         <input type="text" placeholder="Время" value="${esc(s.time_or_pace)}" data-k="time_or_pace" />
         <input type="text" placeholder="Отдых" value="${esc(s.rest_between)}" data-k="rest_between" />
@@ -489,6 +518,40 @@ function createWorkoutForm(root) {
     }
   }
 
+  // --- файл с часов: читаем в телефоне → сводку кругов отдаём Fom → он раскладывает по полям ---
+  f('watchHelp').addEventListener('click', openWatchHelp);
+  f('watchBtn').addEventListener('click', () => f('watchFile').click());
+  f('watchFile').addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const status = f('smartStatus');
+    f('watchBtn').disabled = true;
+    status.textContent = 'Читаю файл с часов...';
+    try {
+      const w = await readWatchFile(file);
+      status.textContent = 'Fom раскладывает круги по полям...';
+      const { parsed } = await api('/api/workouts/parse', { method: 'POST', body: JSON.stringify({ text: w.text, source: 'watch' }) });
+      applyParsed({ ...parsed, type: 'training' });
+      setType(mode === 'competition' ? 'competition' : 'training');
+      // пульс берём прямо из файла — он точнее
+      if (w.hrAvg) f('hrAvg').value = w.hrAvg;
+      if (w.hrMax) f('hrMax').value = w.hrMax;
+      if (w.hrMin) f('hrMin').value = w.hrMin;
+      growAll(root);
+      const d = getDate();
+      status.textContent = 'Готово! Проверь поля и добавь самочувствие и RPE.' +
+        (w.date && d && w.date !== d ? ` Внимание: файл от ${formatDayMonth(w.date)}, а запись — за ${formatDayMonth(d)}.` : '');
+      haptic('success');
+    } catch (err) {
+      console.error(err);
+      status.textContent = err.data?.error || err.message || 'Не получилось прочитать файл.';
+      haptic('error');
+    } finally {
+      f('watchBtn').disabled = false;
+    }
+  });
+
   f('smartBtn').addEventListener('click', async () => {
     const text = f('smartText').value.trim();
     const status = f('smartStatus');
@@ -557,7 +620,7 @@ function createWorkoutForm(root) {
         rpe: Number(f('rpe').value),
         notes: f('notes').value,
         visibility: f('visibility').checked ? 'public' : 'private',
-        sets: type === 'training' ? sets : [],
+        sets: type === 'training' ? sets.map((x) => ({ ...x, distance_m: parseDistance(x.distance_m) })) : [],
         exercises: type === 'training' ? exercises : [],
         hr_avg: f('hrAvg').value,
         hr_max: f('hrMax').value,
@@ -574,8 +637,8 @@ function createWorkoutForm(root) {
   };
 }
 
-const mainForm = createWorkoutForm($('mainFormFields'));
-const editForm = createWorkoutForm($('editFormFields'));
+const mainForm = createWorkoutForm($('mainFormFields'), { getDate: () => entryDate });
+const editForm = createWorkoutForm($('editFormFields'), { getDate: () => currentEditWorkout?.date });
 
 // ---------- Заставка ----------
 // Убираем заставку, когда надпись дописана (~1.4 c) и данные загрузились (но не дольше 4 c)
@@ -1763,7 +1826,7 @@ function buildDetailLines(w) {
     const setLines = (Array.isArray(w.sets) ? w.sets : [])
       .map((s) => {
         const parts = [];
-        if (s.distance_m) parts.push(`${s.distance_m}м`);
+        if (s.distance_m) parts.push(distLabel(s.distance_m));
         if (s.reps) parts.push(`x${s.reps}`);
         if (s.time_or_pace) parts.push(s.time_or_pace);
         if (s.rest_between) parts.push(`отдых ${s.rest_between}`);
@@ -2125,6 +2188,7 @@ function goBack() {
   const screen = document.querySelector('.screen:not(.hidden)')?.id;
   if (dialogOpen()) return closeDialog();
   if (!$('tour').classList.contains('hidden')) return;
+  if (!$('watchSheet').classList.contains('hidden')) return closeWatchHelp();
   if (!$('repeatSheet').classList.contains('hidden')) return closeRepeatSheet();
   if (!$('cropSheet').classList.contains('hidden')) return closeCropper();
   if (!$('photoSheet').classList.contains('hidden')) return $('photoSheet').classList.add('hidden');
@@ -3074,6 +3138,314 @@ $('chartsTableBtn').addEventListener('click', () => {
   t.classList.toggle('hidden');
   $('chartsTableBtn').textContent = t.classList.contains('hidden') ? 'Таблица' : 'Скрыть';
 });
+
+// =====================================================================
+//  ФАЙЛ С ЧАСОВ (Garmin .zip / .FIT, а также .GPX и .TCX)
+// =====================================================================
+// Файл читается прямо в телефоне — на сервер уходит только короткая сводка по кругам,
+// а Fom раскладывает её по полям формы (разминка, отрезки, отдых, заминка, пульс).
+
+// ---------- ZIP (Garmin «Экспорт оригинала» отдаёт .zip, внутри — .fit) ----------
+async function unzipFirst(buf, wanted = /\.(fit|gpx|tcx)$/i) {
+  const dv = new DataView(buf);
+  // конец центрального каталога — ищем с конца файла
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 66000); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('Не получилось открыть архив');
+  const count = dv.getUint16(eocd + 10, true);
+  let p = dv.getUint32(eocd + 16, true);
+  for (let k = 0; k < count; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true);
+    const compSize = dv.getUint32(p + 20, true);
+    const nameLen = dv.getUint16(p + 28, true);
+    const extraLen = dv.getUint16(p + 30, true);
+    const commentLen = dv.getUint16(p + 32, true);
+    const local = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(new Uint8Array(buf, p + 46, nameLen));
+    p += 46 + nameLen + extraLen + commentLen;
+    if (!wanted.test(name)) continue;
+    const start = local + 30 + dv.getUint16(local + 26, true) + dv.getUint16(local + 28, true);
+    const data = new Uint8Array(buf, start, compSize);
+    if (method === 0) return { name, buf: data.slice().buffer };
+    if (method === 8) {
+      if (typeof DecompressionStream === 'undefined') throw new Error('Телефон не умеет открывать .zip — распакуй архив и выбери .fit');
+      const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return { name, buf: await new Response(stream).arrayBuffer() };
+    }
+    throw new Error('Неизвестный формат архива');
+  }
+  throw new Error('В архиве нет файла тренировки (.fit)');
+}
+
+// ---------- FIT (формат Garmin) ----------
+// Берём только нужное: сессию (итоги), круги и точки пульса.
+const FIT_EPOCH = Date.UTC(1989, 11, 31) / 1000; // FIT считает время от 31.12.1989
+function parseFit(buf) {
+  const dv = new DataView(buf);
+  const headerSize = dv.getUint8(0);
+  if (String.fromCharCode(dv.getUint8(8), dv.getUint8(9), dv.getUint8(10), dv.getUint8(11)) !== '.FIT') {
+    throw new Error('Это не файл тренировки .FIT');
+  }
+  const end = Math.min(buf.byteLength, headerSize + dv.getUint32(4, true));
+  const defs = {};
+  const out = { session: null, laps: [], records: [] };
+  let p = headerSize;
+  let lastTs = 0;
+
+  // значение поля; «пустые» значения FIT (0xFF, 0xFFFF…) → null
+  function readField(off, size, baseType, little) {
+    const t = baseType & 0x1f;
+    try {
+      switch (t) {
+        case 0: case 2: case 10: case 13: { const v = dv.getUint8(off); return v === 0xff || (t === 10 && v === 0) ? null : v; }
+        case 1: { const v = dv.getInt8(off); return v === 0x7f ? null : v; }
+        case 3: { if (size < 2) return null; const v = dv.getInt16(off, little); return v === 0x7fff ? null : v; }
+        case 4: case 11: { if (size < 2) return null; const v = dv.getUint16(off, little); return v === 0xffff || (t === 11 && v === 0) ? null : v; }
+        case 5: { if (size < 4) return null; const v = dv.getInt32(off, little); return v === 0x7fffffff ? null : v; }
+        case 6: case 12: { if (size < 4) return null; const v = dv.getUint32(off, little); return v === 0xffffffff || (t === 12 && v === 0) ? null : v; }
+        case 8: { if (size < 4) return null; const v = dv.getFloat32(off, little); return Number.isFinite(v) ? v : null; }
+        default: return null;
+      }
+    } catch (e) { return null; }
+  }
+
+  while (p < end) {
+    const h = dv.getUint8(p); p += 1;
+    if (h & 0x80) {
+      // короткий заголовок со сжатым временем
+      const def = defs[(h >> 5) & 0x3];
+      if (!def) break;
+      const offset = h & 0x1f;
+      lastTs = (lastTs & ~0x1f) + offset + (offset < (lastTs & 0x1f) ? 0x20 : 0);
+      p = readData(def, p, lastTs);
+      continue;
+    }
+    const local = h & 0x0f;
+    if (h & 0x40) {
+      // описание сообщения
+      const little = dv.getUint8(p + 1) === 0;
+      const num = dv.getUint16(p + 2, little);
+      const n = dv.getUint8(p + 4);
+      const fields = [];
+      let q = p + 5;
+      for (let i = 0; i < n; i++, q += 3) fields.push({ num: dv.getUint8(q), size: dv.getUint8(q + 1), type: dv.getUint8(q + 2) });
+      let devSize = 0;
+      if (h & 0x20) {
+        const nd = dv.getUint8(q); q += 1;
+        for (let i = 0; i < nd; i++, q += 3) devSize += dv.getUint8(q + 1);
+      }
+      defs[local] = { num, little, fields, devSize };
+      p = q;
+    } else {
+      const def = defs[local];
+      if (!def) break;
+      p = readData(def, p, null);
+    }
+  }
+
+  function readData(def, start, compressedTs) {
+    let q = start;
+    const v = {};
+    for (const f of def.fields) {
+      v[f.num] = readField(q, f.size, f.type, def.little);
+      q += f.size;
+    }
+    q += def.devSize;
+    if (v[253] != null) lastTs = v[253];
+    const ts = compressedTs ?? v[253];
+    if (def.num === 18 && !out.session) {
+      out.session = {
+        start: v[2], sport: v[5], elapsed: v[7] != null ? v[7] / 1000 : null, timer: v[8] != null ? v[8] / 1000 : null,
+        distance: v[9] != null ? v[9] / 100 : null, hrAvg: v[16], hrMax: v[17],
+      };
+    } else if (def.num === 19) {
+      out.laps.push({
+        start: v[2], end: ts, timer: v[8] != null ? v[8] / 1000 : (v[7] != null ? v[7] / 1000 : null),
+        distance: v[9] != null ? v[9] / 100 : null, hrAvg: v[15], hrMax: v[16], intensity: v[23],
+      });
+    } else if (def.num === 20 && ts != null && v[3] != null) {
+      out.records.push({ t: ts, hr: v[3] });
+    }
+    return q;
+  }
+
+  if (!out.session && !out.laps.length) throw new Error('В файле нет тренировки');
+  return out;
+}
+
+// ---------- GPX и TCX (другие часы и Strava) ----------
+function haversine(a, b) {
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+function parseXmlWorkout(text) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  const byTag = (el, tag) => [...el.getElementsByTagName('*')].filter((x) => x.localName === tag);
+  const num = (el, tag) => { const x = byTag(el, tag)[0]; return x ? Number(x.textContent) : null; };
+  const out = { session: null, laps: [], records: [] };
+  const tcxLaps = byTag(doc, 'Lap');
+  if (tcxLaps.length) {
+    // TCX: круги уже есть
+    tcxLaps.forEach((l) => {
+      const avg = byTag(l, 'AverageHeartRateBpm')[0], max = byTag(l, 'MaximumHeartRateBpm')[0];
+      const inten = byTag(l, 'Intensity')[0]?.textContent;
+      out.laps.push({
+        start: Date.parse(l.getAttribute('StartTime')) / 1000 - FIT_EPOCH,
+        timer: num(l, 'TotalTimeSeconds'), distance: num(l, 'DistanceMeters'),
+        hrAvg: avg ? num(avg, 'Value') : null, hrMax: max ? num(max, 'Value') : null,
+        intensity: inten === 'Resting' ? 1 : 0,
+      });
+    });
+    byTag(doc, 'Trackpoint').forEach((tp) => {
+      const hr = byTag(tp, 'HeartRateBpm')[0];
+      const time = byTag(tp, 'Time')[0];
+      if (hr && time) out.records.push({ t: Date.parse(time.textContent) / 1000 - FIT_EPOCH, hr: num(hr, 'Value') });
+    });
+  } else {
+    // GPX: только точки — сами режем на отрезки по 1 км
+    const pts = byTag(doc, 'trkpt').map((tp) => ({
+      lat: Number(tp.getAttribute('lat')), lon: Number(tp.getAttribute('lon')),
+      t: Date.parse(byTag(tp, 'time')[0]?.textContent) / 1000 - FIT_EPOCH,
+      hr: (() => { const x = byTag(tp, 'hr')[0]; return x ? Number(x.textContent) : null; })(),
+    })).filter((x) => Number.isFinite(x.lat) && Number.isFinite(x.t));
+    if (pts.length < 2) throw new Error('В файле нет точек тренировки');
+    let dist = 0, lapStart = pts[0], lapDist = 0, lapHr = [];
+    for (let i = 1; i < pts.length; i++) {
+      const d = haversine(pts[i - 1], pts[i]);
+      dist += d; lapDist += d;
+      if (pts[i].hr) { lapHr.push(pts[i].hr); out.records.push({ t: pts[i].t, hr: pts[i].hr }); }
+      if (lapDist >= 1000 || i === pts.length - 1) {
+        out.laps.push({
+          start: lapStart.t, timer: pts[i].t - lapStart.t, distance: lapDist,
+          hrAvg: lapHr.length ? Math.round(lapHr.reduce((a, b) => a + b, 0) / lapHr.length) : null,
+          hrMax: lapHr.length ? Math.max(...lapHr) : null, intensity: 0,
+        });
+        lapStart = pts[i]; lapDist = 0; lapHr = [];
+      }
+    }
+    out.session = { start: pts[0].t, timer: pts[pts.length - 1].t - pts[0].t, distance: dist };
+  }
+  if (!out.session && out.laps.length) {
+    out.session = {
+      start: out.laps[0].start,
+      timer: out.laps.reduce((a, l) => a + (l.timer || 0), 0),
+      distance: out.laps.reduce((a, l) => a + (l.distance || 0), 0),
+    };
+  }
+  const hrs = out.records.map((r) => r.hr).filter(Boolean);
+  if (out.session && hrs.length) {
+    out.session.hrAvg ??= Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length);
+    out.session.hrMax ??= Math.max(...hrs);
+  }
+  return out;
+}
+
+// ---------- Сводка для Fom ----------
+function fmtDur(sec) {
+  if (sec == null) return '';
+  const s = Math.round(sec);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  return h ? `${h}:${pad2(m)}:${pad2(r)}` : `${m}:${pad2(r)}`;
+}
+function fmtDist(m) {
+  if (!m) return '';
+  return m >= 1000 ? `${String(Math.round(m / 10) / 100).replace('.', ',')} км` : `${Math.round(m)} м`;
+}
+function fmtPace(sec, m) {
+  if (!sec || !m || m < 100) return '';
+  const perKm = Math.round(sec / (m / 1000));
+  return perKm >= 100 && perKm <= 1200 ? `${Math.floor(perKm / 60)}:${pad2(perKm % 60)}/км` : '';
+}
+const LAP_KIND = { 0: 'работа', 1: 'отдых', 2: 'разминка', 3: 'заминка', 4: 'восстановление', 5: 'интервал', 6: 'другое' };
+
+// Минимальный пульс в кругах отдыха (насколько опускался пульс в паузах)
+function restMinHr(w) {
+  const rest = w.laps.filter((l) => l.intensity === 1 || l.intensity === 4);
+  if (!rest.length || !w.records.length) return null;
+  const mins = rest.map((l) => {
+    const endT = l.end ?? (l.start + (l.timer || 0));
+    const hr = w.records.filter((r) => r.t >= l.start && r.t <= endT).map((r) => r.hr);
+    return hr.length ? Math.min(...hr) : null;
+  }).filter(Boolean);
+  return mins.length ? Math.round(mins.reduce((a, b) => a + b, 0) / mins.length) : null;
+}
+
+function watchSummary(w, source) {
+  const s = w.session || {};
+  const date = s.start ? new Date((s.start + FIT_EPOCH) * 1000) : null;
+  const lines = [];
+  lines.push(`Тренировка из файла часов (${source})${date ? `, ${localDateStr(date)}` : ''}.`);
+  const total = [fmtDist(s.distance), s.timer ? `за ${fmtDur(s.timer)}` : '', fmtPace(s.timer, s.distance)].filter(Boolean).join(' ');
+  const hr = [s.hrAvg && `пульс ср ${s.hrAvg}`, s.hrMax && `макс ${s.hrMax}`].filter(Boolean).join(' ');
+  lines.push(`Итого: ${[total, hr].filter(Boolean).join(', ')}.`);
+  const hrMin = restMinHr(w);
+  if (hrMin) lines.push(`Пульс в паузах: ${hrMin}.`);
+  const hasKinds = w.laps.some((l) => l.intensity && l.intensity !== 0);
+  if (w.laps.length > 1) {
+    lines.push('Круги по порядку:');
+    w.laps.slice(0, 60).forEach((l, i) => {
+      const bits = [
+        hasKinds ? LAP_KIND[l.intensity ?? 0] || 'работа' : '',
+        fmtDist(l.distance), fmtDur(l.timer),
+        l.distance >= 600 ? `(${fmtPace(l.timer, l.distance)})` : '',
+        l.hrAvg ? `пульс ${l.hrAvg}${l.hrMax ? '/' + l.hrMax : ''}` : '',
+      ].filter(Boolean);
+      lines.push(`${i + 1}. ${bits.join(' ')}`);
+    });
+  }
+  return { text: lines.join('\n'), date: date ? localDateStr(date) : null, hrAvg: s.hrAvg || null, hrMax: s.hrMax || null, hrMin };
+}
+
+// Прочитать выбранный файл → сводка
+async function readWatchFile(file) {
+  let buf = await file.arrayBuffer();
+  let name = file.name || '';
+  if (/\.zip$/i.test(name) || new DataView(buf).getUint32(0, true) === 0x04034b50) {
+    ({ buf, name } = await unzipFirst(buf));
+  }
+  if (/\.(gpx|tcx)$/i.test(name)) {
+    return watchSummary(parseXmlWorkout(new TextDecoder().decode(buf)), /\.tcx$/i.test(name) ? 'TCX' : 'GPX');
+  }
+  return watchSummary(parseFit(buf), 'Garmin');
+}
+
+function openWatchHelp() { $('watchSheet').classList.remove('hidden'); }
+function closeWatchHelp() { $('watchSheet').classList.add('hidden'); }
+$('watchHelpClose').addEventListener('click', closeWatchHelp);
+$('watchSheet').addEventListener('click', (e) => { if (e.target === $('watchSheet')) closeWatchHelp(); });
+
+// =====================================================================
+//  ПЛАВНЫЙ ПЕРЕХОД ПО НИЖНЕЙ ПАНЕЛИ
+// =====================================================================
+// Светящаяся полоска переезжает под активную вкладку, а экран въезжает с той стороны, куда идёшь.
+const NAV_ORDER = ['chatScreen', 'insightsScreen', 'mainScreen', 'friendsScreen', 'profileScreen'];
+let navPrevIndex = NAV_ORDER.indexOf('mainScreen');
+function moveNavIndicator(targetId) {
+  const ind = $('navIndicator');
+  const key = NAV_PARENT[targetId] || targetId;
+  const btn = document.querySelector(`.bottom-nav [data-screen="${key}"]`);
+  if (!ind || !btn || btn.classList.contains('nav-plus')) { if (ind) ind.classList.add('off'); return; }
+  const nav = btn.parentElement.getBoundingClientRect();
+  const r = btn.getBoundingClientRect();
+  ind.classList.remove('off');
+  ind.style.transform = `translateX(${r.left - nav.left + r.width / 2 - 14}px)`;
+}
+function animateScreenIn(targetId) {
+  const idx = NAV_ORDER.indexOf(NAV_PARENT[targetId] || targetId);
+  const el = $(targetId);
+  if (!el || REDUCED_MOTION) return;
+  const dir = idx < 0 || idx === navPrevIndex ? 0 : idx > navPrevIndex ? 1 : -1;
+  if (idx >= 0) navPrevIndex = idx;
+  el.classList.remove('screen-in', 'from-left', 'from-right');
+  void el.offsetWidth; // перезапуск анимации
+  el.classList.add('screen-in', dir > 0 ? 'from-right' : dir < 0 ? 'from-left' : 'from-none');
+}
+window.addEventListener('resize', () => moveNavIndicator(document.querySelector('.screen:not(.hidden)')?.id));
 
 hydrateIcons();
 
