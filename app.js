@@ -173,9 +173,9 @@ async function api(path, options = {}) {
 }
 
 // ---------- Переключение экранов + подсветка нижней панели ----------
-const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen'];
+const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen', 'groupScreen', 'memberScreen'];
 // какая кнопка нижней панели подсвечивается на «вложенных» экранах
-const NAV_PARENT = { friendProfileScreen: 'friendsScreen' };
+const NAV_PARENT = { friendProfileScreen: 'friendsScreen', groupScreen: 'friendsScreen', memberScreen: 'friendsScreen' };
 const TAB_SCREENS = ['mainScreen', 'chatScreen', 'insightsScreen', 'friendsScreen', 'profileScreen'];
 const tabHistory = []; // какие вкладки открывались — чтобы жест «назад» вёл туда, откуда пришёл
 function showScreen(targetId) {
@@ -657,7 +657,8 @@ async function init() {
   setEntryDate(localDateStr());
   showScreen('mainScreen');
   try {
-    const { user } = await api('/api/auth/login', { method: 'POST' });
+    // start_param — если приложение открыли по ссылке-приглашению
+    const { user } = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ start_param: tg?.initDataUnsafe?.start_param || '' }) });
     currentUser = user;
     $('shareCalendarToggle').checked = user.share_calendar !== false;
     $('reminderToggle').checked = user.remind_enabled !== false;
@@ -676,6 +677,9 @@ async function init() {
     setTimeout(() => { achievementsReady = true; renderAchievements(); }, 2500);
     // новичку — короткое знакомство с приложением
     if (!myWorkouts.length && !tourStorage()) setTimeout(openTour, 1500);
+    // открыли по ссылке-приглашению в группу — предложим вступить
+    const joinCode = pendingJoinCode();
+    if (joinCode) setTimeout(() => joinGroupFlow(joinCode), 1700);
   } catch (err) {
     console.error('Login failed', err);
     $('statusMsg').textContent = 'Не удалось связаться с сервером. Попробуй открыть приложение ещё раз.';
@@ -1383,7 +1387,9 @@ function setFriendsTab(tab) {
   document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   $('feedTab').classList.toggle('hidden', tab !== 'feed');
   $('listTab').classList.toggle('hidden', tab !== 'list');
+  $('groupsTab').classList.toggle('hidden', tab !== 'groups');
   if (tab === 'feed') loadFeedTab();
+  else if (tab === 'groups') loadGroupsTab();
   else loadFriendsList();
 }
 document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.addEventListener('click', () => setFriendsTab(b.dataset.tab)));
@@ -2232,6 +2238,10 @@ function goBack() {
   if (!$('giftSheet').classList.contains('hidden')) return $('giftSheet').classList.add('hidden');
   if (!$('athleteSheet').classList.contains('hidden')) return closeAthleteSheet();
   if (screen === 'editScreen') return $('editBackBtn').click();
+  if (!$('groupCreateSheet').classList.contains('hidden')) return $('groupCreateSheet').classList.add('hidden');
+  if (!$('groupJoinSheet').classList.contains('hidden')) return $('groupJoinSheet').classList.add('hidden');
+  if (screen === 'memberScreen') return $('memberBackBtn').click();
+  if (screen === 'groupScreen') return $('groupBackBtn').click();
   if (screen === 'friendProfileScreen') return $('fpBackBtn').click();
   // обычные вкладки: возвращаемся на предыдущую, а если её нет — на главную
   tabHistory.pop();
@@ -4164,6 +4174,269 @@ $('exportBtn').addEventListener('click', async () => {
     alertMsg('Не получилось выгрузить. Попробуй ещё раз.');
   }
 });
+
+// =====================================================================
+//  ГРУППЫ (команды и тренерские) + ПРИГЛАШЕНИЯ ДРУЗЕЙ
+// =====================================================================
+let myGroups = [];
+let currentGroup = null;   // { group, members }
+let currentMember = null;  // спортсмен, дневник которого смотрит тренер
+let inviteInfo = null;
+
+function shareLink(url, text) {
+  const u = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+  if (tg?.openTelegramLink) tg.openTelegramLink(u); else window.open(u, '_blank');
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch (e) { return false; }
+}
+
+async function loadGroupsTab() {
+  const list = $('groupsList');
+  list.innerHTML = '<div class="empty-hint">Загружаю...</div>';
+  try {
+    const [g, inv] = await Promise.all([api('/api/friends/groups'), api('/api/friends/invite')]);
+    myGroups = g.groups || [];
+    inviteInfo = inv;
+  } catch (err) {
+    list.innerHTML = '<div class="empty-hint">Не удалось загрузить группы.</div>';
+    return;
+  }
+  // приглашения
+  const i = inviteInfo;
+  $('inviteStats').innerHTML = i.invited
+    ? `Пришли по твоей ссылке: <b>${i.invited}</b> · засчитано: <b>${i.qualified}</b> · бонус: <b>+${i.bonus} ${i.bonus === 1 ? 'билет' : 'билета'}</b>`
+    : 'Пока никто не пришёл по твоей ссылке — отправь её друзьям 👇';
+  // группы
+  if (!myGroups.length) {
+    list.innerHTML = '<div class="empty-hint">Ты пока не в группе. Создай свою — для команды или как тренер, или вступи по коду от тренера.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  myGroups.forEach((g) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'history-item group-row';
+    row.innerHTML = `
+      <span class="history-ico ${g.coach_mode ? 'rs' : 'tr'}">${ico(g.coach_mode ? 'target' : 'people')}</span>
+      <span class="history-main">
+        <span class="history-date">${esc(g.name)}</span>
+        <span class="history-sub">${g.coach_mode ? (g.is_owner ? 'ты тренер' : 'тренерская группа') : 'команда'} · ${g.members} ${membersWord(g.members)}</span>
+      </span>
+      <span class="history-arrow">›</span>`;
+    row.addEventListener('click', () => openGroup(g.id));
+    list.appendChild(row);
+  });
+}
+function membersWord(n) {
+  const a = n % 100, b = n % 10;
+  return a > 10 && a < 20 ? 'участников' : b === 1 ? 'участник' : b >= 2 && b <= 4 ? 'участника' : 'участников';
+}
+
+$('inviteShareBtn').addEventListener('click', () => {
+  if (inviteInfo?.link) shareLink(inviteInfo.link, 'Го вести дневник тренировок в Forma вместе 🔥 ИИ-помощник, серии и розыгрыши подарков');
+});
+$('inviteCopyBtn').addEventListener('click', async () => {
+  if (!inviteInfo?.link) return;
+  const ok = await copyText(inviteInfo.link);
+  $('inviteCopyBtn').textContent = ok ? 'Скопировано ✓' : inviteInfo.link;
+  setTimeout(() => { $('inviteCopyBtn').textContent = 'Копировать ссылку'; }, 2000);
+});
+
+// ---------- Экран группы ----------
+let groupTab = 'rating';
+async function openGroup(id) {
+  showScreen('groupScreen');
+  $('groupName').textContent = 'Загружаю...';
+  $('groupRating').innerHTML = '';
+  $('groupFeed').innerHTML = '';
+  try {
+    currentGroup = await api(`/api/friends/groups/${id}`);
+  } catch (err) {
+    alertMsg(err.data?.error || 'Не удалось открыть группу');
+    return showScreen('friendsScreen');
+  }
+  const g = currentGroup.group;
+  $('groupName').textContent = g.name;
+  $('groupKind').textContent = g.coach_mode ? (g.is_coach ? 'Тренерская группа · ты тренер' : 'Тренерская группа') : 'Команда';
+  $('groupCoachNote').classList.toggle('hidden', !g.coach_mode);
+  $('groupCoachNote').textContent = g.is_coach
+    ? 'Ты видишь все записи участников, включая закрытые. Нажми на спортсмена — откроется его дневник.'
+    : 'Тренер группы видит все твои записи и может их комментировать. Друзьям по-прежнему видны только открытые.';
+  $('groupLeaveBtn').textContent = g.is_owner ? 'Удалить группу' : 'Выйти из группы';
+  setGroupTab(groupTab);
+}
+
+function setGroupTab(tab) {
+  groupTab = tab;
+  $('groupTabs').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.gtab === tab));
+  $('groupRating').classList.toggle('hidden', tab !== 'rating');
+  $('groupFeed').classList.toggle('hidden', tab !== 'feed');
+  if (tab === 'rating') renderGroupRating(); else loadGroupFeed();
+}
+$('groupTabs').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => setGroupTab(b.dataset.gtab)));
+
+function renderGroupRating() {
+  if (!currentGroup) return;
+  const { group: g, members } = currentGroup;
+  const box = $('groupRating');
+  box.innerHTML = '';
+  members.forEach((m, i) => {
+    const row = document.createElement(g.is_coach && m.id !== currentUser?.id ? 'button' : 'div');
+    if (row.tagName === 'BUTTON') row.type = 'button';
+    row.className = 'rank-row' + (m.id === currentUser?.id ? ' me' : '');
+    const last = m.last_entry ? relativeDateLabel(m.last_entry) : 'нет записей';
+    row.innerHTML = `
+      <span class="rank-n${i < 3 && m.week_trainings ? ' top' : ''}">${i + 1}</span>
+      ${avatarHtml(m, 'small')}
+      <span class="rank-main">
+        <span class="rank-name">${nameHtml(m)}${m.role === 'coach' ? ' <span class="coach-tag">тренер</span>' : ''}</span>
+        <span class="rank-sub">${m.week_trainings} трен. · ${fmtNum(m.week_km || 0)} км${g.is_coach ? ` · последняя запись: ${esc(last)}` : ''}</span>
+      </span>
+      <span class="rank-streak">${ico('flame')} ${esc(m.current_streak ?? 0)}</span>`;
+    if (row.tagName === 'BUTTON') row.addEventListener('click', () => openMember(m));
+    box.appendChild(row);
+  });
+  const hint = document.createElement('div');
+  hint.className = 'muted rank-hint';
+  hint.textContent = 'Рейтинг — по тренировкам с понедельника, потом по километрам отрезков. Серия — дни подряд.';
+  box.appendChild(hint);
+}
+
+async function loadGroupFeed() {
+  const box = $('groupFeed');
+  box.innerHTML = '<div class="empty-hint">Загружаю...</div>';
+  try {
+    const { workouts } = await api(`/api/friends/groups/${currentGroup.group.id}/feed`);
+    box.innerHTML = workouts.length ? '' : '<div class="empty-hint">За последний месяц открытых тренировок пока нет.</div>';
+    workouts.forEach((w) => box.appendChild(buildWorkoutCard({ ...w, date: normDate(w.date) })));
+  } catch (err) {
+    box.innerHTML = '<div class="empty-hint">Не удалось загрузить ленту.</div>';
+  }
+}
+
+$('groupInviteBtn').addEventListener('click', () => {
+  const g = currentGroup?.group;
+  if (!g) return;
+  shareLink(g.link, g.coach_mode
+    ? `Вступай в мою тренерскую группу «${g.name}» в Forma — буду видеть твой дневник и комментировать тренировки 💪 Код: ${g.invite_code}`
+    : `Вступай в нашу группу «${g.name}» в Forma 🔥 Общая лента и рейтинг недели. Код: ${g.invite_code}`);
+});
+$('groupBackBtn').addEventListener('click', () => { showScreen('friendsScreen'); setFriendsTab('groups'); });
+$('groupLeaveBtn').addEventListener('click', async () => {
+  const g = currentGroup?.group;
+  if (!g) return;
+  const ok = await confirmAsk(g.is_owner
+    ? { icon: 'trash', title: 'Удалить группу?', text: `«${g.name}» исчезнет у всех участников.`, ok: 'Удалить', danger: true }
+    : { icon: 'people', title: 'Выйти из группы?', text: g.name, ok: 'Выйти', danger: true });
+  if (!ok) return;
+  try {
+    await api(`/api/friends/groups/${g.id}/leave`, { method: 'POST' });
+    currentGroup = null;
+    showScreen('friendsScreen');
+    setFriendsTab('groups');
+  } catch (err) { alertMsg('Не получилось. Попробуй ещё раз.'); }
+});
+
+// ---------- Дневник спортсмена для тренера ----------
+async function openMember(m) {
+  currentMember = m;
+  showScreen('memberScreen');
+  $('memberName').innerHTML = nameHtml(m);
+  $('memberWorkouts').innerHTML = '<div class="empty-hint">Загружаю...</div>';
+  $('memberWell').classList.add('hidden');
+  try {
+    const { workouts, checks } = await api(`/api/friends/groups/${currentGroup.group.id}/members/${m.id}`);
+    if (checks?.length) {
+      const c = checks[0];
+      const bits = [c.sleep_h != null && `сон ${fmtNum(c.sleep_h)} ч`, c.mood && MOOD_EMOJI[c.mood], c.rest_hr && `пульс покоя ${c.rest_hr}`].filter(Boolean);
+      $('memberWell').innerHTML = `<div class="card-label">☀️ Утро · ${esc(relativeDateLabel(c.date))}</div><div class="morning-sum">${esc(bits.join(' · '))}</div>`;
+      $('memberWell').classList.remove('hidden');
+    }
+    const box = $('memberWorkouts');
+    box.innerHTML = workouts.length ? '' : '<div class="empty-hint">Записей пока нет.</div>';
+    workouts.forEach((w) => {
+      const card = buildWorkoutCard({ ...w, date: normDate(w.date) }, { showAuthor: false });
+      if (w.visibility !== 'public') card.classList.add('private-wk');
+      box.appendChild(card);
+    });
+  } catch (err) {
+    $('memberWorkouts').innerHTML = `<div class="empty-hint">${esc(err.data?.error || 'Не удалось загрузить дневник.')}</div>`;
+  }
+}
+$('memberBackBtn').addEventListener('click', () => { showScreen('groupScreen'); setGroupTab(groupTab); });
+$('memberRemoveBtn').addEventListener('click', async () => {
+  if (!currentMember || !currentGroup) return;
+  if (!(await confirmAsk({ icon: 'people', title: 'Убрать из группы?', text: personName(currentMember), ok: 'Убрать', danger: true }))) return;
+  try {
+    await api(`/api/friends/groups/${currentGroup.group.id}/remove`, { method: 'POST', body: JSON.stringify({ userId: currentMember.id }) });
+    openGroup(currentGroup.group.id);
+  } catch (err) { alertMsg(err.data?.error || 'Не получилось.'); }
+});
+
+// ---------- Создать группу ----------
+let gcKind = 'team';
+function paintGcKind() {
+  $('gcKind').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.kind === gcKind));
+  $('gcHint').textContent = gcKind === 'coach'
+    ? 'Ты — тренер: увидишь ВСЕ записи спортсменов (и закрытые), сможешь комментировать. Спортсмены узнают об этом при вступлении.'
+    : 'Команда: общая лента открытых тренировок и рейтинг недели. Закрытые записи никто не видит.';
+}
+$('gcKind').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => { gcKind = b.dataset.kind; paintGcKind(); }));
+$('groupCreateBtn').addEventListener('click', () => { $('gcName').value = ''; gcKind = 'team'; paintGcKind(); $('groupCreateSheet').classList.remove('hidden'); });
+$('gcCancel').addEventListener('click', () => $('groupCreateSheet').classList.add('hidden'));
+$('groupCreateSheet').addEventListener('click', (e) => { if (e.target === $('groupCreateSheet')) $('groupCreateSheet').classList.add('hidden'); });
+$('gcSave').addEventListener('click', async () => {
+  try {
+    const { group } = await api('/api/friends/groups', { method: 'POST', body: JSON.stringify({ name: $('gcName').value, coach_mode: gcKind === 'coach' }) });
+    $('groupCreateSheet').classList.add('hidden');
+    haptic('success');
+    openGroup(group.id);
+  } catch (err) { alertMsg(err.data?.error || 'Не удалось создать группу.'); }
+});
+
+// ---------- Вступить ----------
+$('groupJoinBtn').addEventListener('click', () => { $('gjCode').value = ''; $('groupJoinSheet').classList.remove('hidden'); });
+$('gjCancel').addEventListener('click', () => $('groupJoinSheet').classList.add('hidden'));
+$('groupJoinSheet').addEventListener('click', (e) => { if (e.target === $('groupJoinSheet')) $('groupJoinSheet').classList.add('hidden'); });
+$('gjSave').addEventListener('click', () => {
+  const code = $('gjCode').value.trim().toLowerCase().replace(/^g_/, '').replace(/.*start=g_/, '');
+  if (!code) return;
+  $('groupJoinSheet').classList.add('hidden');
+  joinGroupFlow(code);
+});
+
+// Показать, что за группа, и спросить — вступать ли
+async function joinGroupFlow(code) {
+  let g;
+  try { g = (await api(`/api/friends/groups/preview/${encodeURIComponent(code)}`)).group; } catch (err) {
+    return alertMsg(err.data?.error || 'Группа не найдена — проверь код');
+  }
+  if (g.joined) { return openGroup(g.id); }
+  const owner = [g.owner_first_name, g.owner_last_name].filter(Boolean).join(' ') || (g.owner_username ? '@' + g.owner_username : 'тренер');
+  const ok = await confirmAsk({
+    icon: g.coach_mode ? 'target' : 'people',
+    title: `Вступить в «${g.name}»?`,
+    text: g.coach_mode
+      ? `Это тренерская группа: ${owner} будет видеть ВСЕ твои записи, включая закрытые, и сможет их комментировать. Выйти можно в любой момент.`
+      : `Команда · ${g.members} ${membersWord(g.members)}. Общая лента открытых тренировок и рейтинг недели.`,
+    ok: 'Вступить',
+  });
+  if (!ok) return;
+  try {
+    const { group } = await api('/api/friends/groups/join', { method: 'POST', body: JSON.stringify({ code }) });
+    haptic('success');
+    openGroup(group.id);
+  } catch (err) { alertMsg(err.data?.error || 'Не удалось вступить.'); }
+}
+
+// Открыли приложение по ссылке-приглашению в группу (?join=код или start_param g_код)
+function pendingJoinCode() {
+  const q = new URLSearchParams(location.search).get('join');
+  const sp = tg?.initDataUnsafe?.start_param || '';
+  const m = /^g_([a-z0-9]{4,12})$/i.exec(sp);
+  return (q && /^[a-z0-9]{4,12}$/i.test(q) ? q : m?.[1] || '').toLowerCase();
+}
 
 hydrateIcons();
 
