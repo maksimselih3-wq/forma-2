@@ -26,7 +26,7 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-html { background: var(--bg); }
+html { background: var(--bg); touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 body {
   margin: 0;
@@ -186,7 +186,7 @@ textarea, input[type="text"], input[type="number"] {
   font-size: 15px;
   color: var(--text);
   outline: none;
-  resize: vertical;
+  resize: none;
   transition: border-color 0.15s ease;
 }
 textarea:focus, input[type="text"]:focus, input[type="number"]:focus { border-color: rgba(180, 245, 60, 0.55); }
@@ -630,6 +630,7 @@ button.hero-sport { cursor: pointer; }
 .cal-cell.has-rest { background: transparent; box-shadow: inset 0 0 0 2px rgba(155, 107, 255, 0.7); }
 .cal-cell.today { outline: 2px solid #fff; outline-offset: 1px; }
 .cal-cell.future { opacity: 0.3; cursor: default; }
+.cal-cell.too-old { opacity: 0.4; }
 .cal-cell:not(.future):not(.empty):active { opacity: 0.7; }
 .cal-legend { display: flex; gap: 16px; justify-content: center; font-size: 12px; color: var(--muted); margin-top: 12px; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; }
@@ -699,7 +700,7 @@ button.hero-sport { cursor: pointer; }
   display: flex;
   flex-direction: column;
   /* высота экрана минус шапка и нижняя панель — строка ввода всегда видна */
-  height: calc(100vh - 64px - var(--nav-space) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  height: calc(var(--app-h, 100vh) - 64px - var(--nav-space) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   padding-bottom: 8px;
 }
 .chat-head {
@@ -1156,7 +1157,7 @@ button.hero-sport { cursor: pointer; }
 .gift-row.month { background: linear-gradient(135deg, rgba(155, 107, 255, 0.16), rgba(255, 196, 77, 0.08)); border-color: rgba(155, 107, 255, 0.35); }
 .gift-row.in { border-color: rgba(180, 245, 60, 0.55); }
 .gift-row-top { display: flex; align-items: center; gap: 10px; }
-.gift-emoji { font-size: 24px; }
+
 .gift-row-main { flex: 1; min-width: 0; }
 .gift-title { font-weight: 800; font-size: 14px; }
 .gift-title .muted { font-weight: 600; font-size: 12px; }
@@ -1222,3 +1223,196 @@ button.hero-sport { cursor: pointer; }
 .af-grid input { padding: 10px 6px; text-align: center; font-size: 15px; }
 .athlete-sheet textarea { width: 100%; }
 .athlete-sheet .btn-row { margin-top: 16px; }
+
+
+/* =====================================================================
+   Наши иконки
+   ===================================================================== */
+.ico { width: 1.15em; height: 1.15em; flex: 0 0 auto; vertical-align: -0.2em; overflow: visible; }
+.stat-icon .ico { width: 21px; height: 21px; }
+.streak-pill .ico { width: 17px; height: 17px; }
+.card-label .ico { width: 20px; height: 20px; }
+.date-input-wrap .ico { width: 20px; height: 20px; color: var(--muted); margin-bottom: 8px; }
+.history-ico .ico { width: 21px; height: 21px; }
+.seg-btn .ico { width: 18px; height: 18px; vertical-align: -0.25em; }
+.seg-btn.active .ico { color: #0b0d10; }
+.ghost-btn .ico { width: 17px; height: 17px; vertical-align: -0.22em; }
+.tag .ico, .mini-stats .ico, .friend-streak .ico, .gift-badge .ico, .gift-status .ico { width: 1.05em; height: 1.05em; vertical-align: -0.18em; }
+.sheet-title .ico { width: 20px; height: 20px; vertical-align: -0.22em; }
+.gift-rules .ico, .gift-sub .ico, .athlete-summary .ico, .wk-date .ico, .gift-winner .ico { width: 1.1em; height: 1.1em; vertical-align: -0.2em; }
+.done-title { display: flex; align-items: center; gap: 8px; }
+.done-title .ico { width: 22px; height: 22px; }
+.done-block-title { display: flex; align-items: center; gap: 6px; }
+.done-block-title .ico { width: 18px; height: 18px; }
+.gift-title .ico { width: 16px; height: 16px; vertical-align: -0.2em; }
+
+/* =====================================================================
+   Барабан подарков в розыгрыше
+   ===================================================================== */
+.gift-slot {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px; height: 52px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 196, 77, 0.45);
+  background: radial-gradient(circle at 50% 35%, rgba(255, 196, 77, 0.22), rgba(255, 255, 255, 0.03) 70%);
+  box-shadow: inset 0 0 14px rgba(255, 196, 77, 0.15), 0 0 16px rgba(255, 196, 77, 0.12);
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+}
+.gift-row.month .gift-slot {
+  border-color: rgba(155, 107, 255, 0.6);
+  background: radial-gradient(circle at 50% 35%, rgba(155, 107, 255, 0.3), rgba(255, 255, 255, 0.03) 70%);
+  box-shadow: inset 0 0 14px rgba(155, 107, 255, 0.2), 0 0 18px rgba(155, 107, 255, 0.2);
+}
+/* блик сверху и снизу — как у настоящего барабана */
+.gift-slot::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(10, 12, 17, 0.55), transparent 30%, transparent 70%, rgba(10, 12, 17, 0.55));
+  pointer-events: none;
+}
+.gift-slot-item {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  line-height: 1;
+}
+.gift-slot-item.in { animation: slot-in 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.gift-slot-item.out { animation: slot-out 0.38s ease-in both; }
+.gift-slot-item.fast.in { animation-duration: 0.12s; animation-timing-function: linear; }
+.gift-slot-item.fast.out { animation-duration: 0.12s; animation-timing-function: linear; }
+@keyframes slot-in { from { transform: translateY(100%); filter: blur(2px); } to { transform: none; filter: none; } }
+@keyframes slot-out { from { transform: none; } to { transform: translateY(-100%); filter: blur(2px); } }
+.gift-slot:active { transform: scale(0.95); }
+.gift-maybe { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.gift-maybe b { color: var(--text); font-weight: 700; }
+
+/* =====================================================================
+   Наше окно-сообщение
+   ===================================================================== */
+.dlg-backdrop {
+  position: fixed; inset: 0; z-index: 95;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: rgba(5, 6, 10, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: dlg-fade 0.18s ease both;
+}
+.dlg-backdrop.closing { animation: dlg-fade-out 0.16s ease both; }
+.dlg {
+  width: min(100%, 340px);
+  padding: 22px 20px 16px;
+  border-radius: 26px;
+  text-align: center;
+  background: linear-gradient(180deg, #1f2533, #141820);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(155, 107, 255, 0.12);
+  animation: dlg-pop 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.dlg-backdrop.closing .dlg { animation: dlg-pop-out 0.16s ease both; }
+.dlg-icon {
+  width: 56px; height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: #cfd5e2;
+}
+.dlg-icon .ico { width: 30px; height: 30px; }
+.dlg-title { font-family: var(--font-head); font-weight: 700; font-size: 17px; line-height: 1.25; margin-bottom: 8px; }
+.dlg-text { color: #c3c9d6; font-size: 14px; line-height: 1.5; }
+.dlg-btns { display: flex; gap: 8px; margin-top: 18px; }
+.dlg-btn {
+  flex: 1;
+  padding: 13px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 700; font-size: 15px;
+  cursor: pointer;
+}
+.dlg-btn.main { background: var(--grad-lime); color: #0b0d10; border-color: transparent; }
+.dlg-btn.main.danger { background: var(--danger); color: #fff; }
+.dlg-btn:active { transform: scale(0.97); }
+@keyframes dlg-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dlg-fade-out { to { opacity: 0; } }
+@keyframes dlg-pop { from { opacity: 0; transform: scale(0.9) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes dlg-pop-out { to { opacity: 0; transform: scale(0.95); } }
+
+/* =====================================================================
+   Клавиатура открыта: прячем нижнюю панель, чат — на всю высоту
+   ===================================================================== */
+.bottom-nav { transition: opacity 0.15s ease, transform 0.15s ease; }
+body.kb-open .bottom-nav { opacity: 0; pointer-events: none; transform: translate(-50%, 24px); visibility: hidden; }
+body.kb-open { padding-bottom: 24px; }
+body.kb-open .swipe-back { display: none; }
+body.chat-open.kb-open .topbar { display: none; }
+body.chat-open.kb-open .chat-section {
+  height: calc(var(--app-h, 100vh) - env(safe-area-inset-top, 0px) - 12px);
+  padding-top: 8px;
+}
+body.chat-open.kb-open { padding-bottom: 0; }
+
+/* =====================================================================
+   Знакомство с приложением
+   ===================================================================== */
+.tour {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; flex-direction: column;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 0 calc(20px + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(500px 380px at 100% 0%, rgba(155, 107, 255, 0.22), transparent 60%),
+    radial-gradient(460px 360px at 0% 100%, rgba(180, 245, 60, 0.12), transparent 60%),
+    var(--bg);
+  animation: dlg-fade 0.3s ease both;
+}
+.tour.closing { animation: dlg-fade-out 0.25s ease both; }
+.tour-skip {
+  align-self: flex-end;
+  margin-right: 16px;
+  border: none; background: none;
+  color: var(--muted);
+  font-size: 14px; font-weight: 700;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+.tour-track {
+  flex: 1;
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.tour-track::-webkit-scrollbar { display: none; }
+.tour-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+  padding: 0 30px;
+}
+.tour-art {
+  width: 128px; height: 128px;
+  margin-bottom: 28px;
+  border-radius: 40px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, var(--card-top), var(--card-bottom));
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 60px rgba(155, 107, 255, 0.18);
+  color: #cfd5e2;
+}
+.tour-art .ico { width: 64px; height: 64px; }
+.tour-logo { font-family: var(--font-head); font-weight: 700; font-size: 26px; display: flex; align-items: flex-end; gap: 3px; }
+.tour-fom { width: 64px; height: 64px; font-size: 30px; border-radius: 20px; }
+.tour-title { font-family: var(--font-head); font-weight: 700; font-size: 23px; line-height: 1.2; margin-bottom: 12px; }
+.tour-text { color: #c3c9d6; font-size: 15px; line-height: 1.55; max-width: 340px; }
+.tour-fill { margin-top: 20px; }
+.tour-dots { display: flex; justify-content: center; gap: 7px; margin: 14px 0 16px; }
+.tour-dots i { width: 7px; height: 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); transition: width 0.2s ease, background 0.2s ease; }
+.tour-dots i.on { width: 22px; background: var(--lime); box-shadow: 0 0 10px rgba(180, 245, 60, 0.6); }
+.tour-next { margin: 0 20px; width: auto; }
