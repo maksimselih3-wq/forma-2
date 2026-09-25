@@ -2372,9 +2372,14 @@ function winnerName(w) {
 }
 
 // Какие подарки могут выпасть — крутятся в «барабане» на карточке розыгрыша
+// Неделя — простые подарки и недорогие коллекционные; месяц — крутые, включая коллекционные (NFT) подарки Telegram
 const GIFT_POOL = {
-  week: [['🧸', 'Мишка'], ['💝', 'Сердце'], ['🎁', 'Подарок'], ['🌹', 'Роза']],
-  month: [['🎂', 'Торт'], ['💐', 'Букет'], ['🚀', 'Ракета'], ['🍾', 'Шампанское'], ['🏆', 'Кубок'], ['💍', 'Кольцо'], ['💎', 'Алмаз']],
+  week: [['🧸', 'Мишка'], ['💝', 'Сердце'], ['🎁', 'Подарок'], ['🌹', 'Роза'],
+    ['🍭', 'Lol Pop'], ['🍬', 'Candy Cane'], ['📅', 'Desk Calendar'], ['🍜', 'Instant Ramen'],
+    ['🧁', 'Whip Cupcake'], ['🕯️', 'B-Day Candle'], ['🃏', 'Jester Hat'], ['🧤', 'Snow Mittens']],
+  month: [['💰', 'Swag Bag'], ['🚬', 'Snoop Cigar'], ['🎤', 'Snoop Dogg'], ['🤟', 'Westside Sign'],
+    ['🚗', 'Low Rider'], ['🎭', 'Mask'], ['🦅', "Khabib's Papakha"],
+    ['🎂', 'Торт'], ['💐', 'Букет'], ['🚀', 'Ракета'], ['🍾', 'Шампанское'], ['🏆', 'Кубок'], ['💍', 'Кольцо'], ['💎', 'Алмаз']],
 };
 const giftSlotIndex = { week: 0, month: 0 };
 const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
