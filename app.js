@@ -284,11 +284,6 @@ const FORM_TEMPLATE = `
     <div class="card-hint smart-hint">Опиши тренировку своими словами — Fom сам разложит всё по полям ниже.</div>
     <textarea data-f="smartText" rows="4" placeholder="Например: разминка 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, присед 5×5 80 кг, пульс ср 150 макс 182, в паузах до 110. Было тяжело."></textarea>
     <button type="button" class="smart-btn" data-f="smartBtn">Разложить по полям</button>
-    <div class="watch-row">
-      <button type="button" class="watch-btn" data-f="watchBtn">⌚ Загрузить с часов</button>
-      <button type="button" class="watch-help" data-f="watchHelp" aria-label="Как выгрузить файл с часов">?</button>
-      <input type="file" data-f="watchFile" class="hidden" />
-    </div>
     <div class="status-msg" data-f="smartStatus"></div>
   </section>
 
@@ -519,9 +514,10 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   }
 
   // --- файл с часов: читаем в телефоне → сводку кругов отдаём Fom → он раскладывает по полям ---
-  f('watchHelp').addEventListener('click', openWatchHelp);
-  f('watchBtn').addEventListener('click', () => f('watchFile').click());
-  f('watchFile').addEventListener('change', async (e) => {
+  // Кнопка «С часов» пока скрыта (выгрузка из Garmin слишком неудобна) — код оставлен на будущее
+  if (f('watchBtn')) f('watchHelp').addEventListener('click', openWatchHelp);
+  if (f('watchBtn')) f('watchBtn').addEventListener('click', () => f('watchFile').click());
+  if (f('watchFile')) f('watchFile').addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
