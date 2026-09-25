@@ -1548,3 +1548,7 @@ body.chat-open.kb-open { padding-bottom: 0; }
 
 /* картинка подарка в барабане */
 .gift-slot-item img { width: 40px; height: 40px; object-fit: contain; pointer-events: none; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4)); }
+
+/* в своём профиле серия и фото уже крупно на экране — в шапке их не дублируем */
+.topbar-right { transition: opacity 0.2s ease; }
+body[data-screen="profileScreen"] .topbar-right { opacity: 0; visibility: hidden; pointer-events: none; }
