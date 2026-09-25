@@ -49,7 +49,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=42" />
+<link rel="stylesheet" href="style.css?v=43" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -325,6 +325,21 @@
         <button type="button" class="ghost-btn" id="afCancelBtn">Отмена</button>
         <button type="button" class="ghost-btn crop-save" id="afSaveBtn">Сохранить</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Как выгрузить файл с часов -->
+  <div id="watchSheet" class="sheet-backdrop hidden">
+    <div class="sheet watch-sheet">
+      <div class="sheet-title">⌚ Тренировка с часов Garmin</div>
+      <ol class="watch-steps">
+        <li>Открой <b>connect.garmin.com</b> в браузере — в приложении Garmin Connect кнопки экспорта нет. На айфоне в Safari: «аА» → «Запрос настольного веб-сайта».</li>
+        <li>«Активности» → нужная тренировка.</li>
+        <li>Шестерёнка ⚙ справа сверху → <b>«Экспорт оригинала»</b>. Скачается файл <b>.zip</b> — распаковывать не нужно.</li>
+        <li>Вернись сюда, нажми <b>«Загрузить с часов»</b> и выбери этот файл (на айфоне: «Файлы» → «Загрузки»).</li>
+      </ol>
+      <div class="muted watch-note">Fom сам разложит круги: разминка, отрезки с временем, отдых, заминка и пульс. Останется добавить самочувствие и RPE. Файлы .GPX и .TCX (Strava, Coros, Polar) тоже подходят.</div>
+      <button type="button" class="sheet-btn muted-btn" id="watchHelpClose">Понятно</button>
     </div>
   </div>
 
@@ -636,6 +651,7 @@
 
   <!-- ===================== НИЖНЯЯ ПАНЕЛЬ (всегда на месте) ===================== -->
   <nav class="bottom-nav">
+    <span class="nav-indicator" id="navIndicator" aria-hidden="true"></span>
     <button type="button" class="nav-btn" data-screen="chatScreen" id="chatBtn">
       <svg viewBox="0 0 24 24" width="24" height="24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6c-.5.4-1.3.1-1.3-.6V16A2.5 2.5 0 0 1 4 13.5v-8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       <span>Fom</span>
@@ -658,6 +674,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=42"></script>
+  <script src="app.js?v=43"></script>
 </body>
 </html>
