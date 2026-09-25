@@ -34,7 +34,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=31" />
+<link rel="stylesheet" href="style.css?v=33" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -120,18 +120,10 @@
     <!-- Карточка «запись уже есть / сохранена» — показывается вместо формы -->
     <section id="entryDone" class="card done-card hidden">
       <div class="done-title" id="doneTitle">✅ Запись сохранена</div>
-      <div id="doneSummary" class="done-summary"></div>
-
-      <div id="doneFeedbackBox" class="ai-box hidden">
-        <div class="ai-box-title"><span class="fom-badge">F</span> Fom</div>
-        <div id="doneFeedbackText"></div>
-      </div>
-
-      <div class="btn-row">
-        <button type="button" id="doneShareBtn" class="ghost-btn">📤 Поделиться</button>
-        <button type="button" id="doneEditBtn" class="ghost-btn">✏️ Изменить</button>
-      </div>
-      <div class="muted done-hint">Чтобы добавить запись за другой день — выбери дату выше.</div>
+      <!-- сюда рисуются все записи дня: основная и вторая тренировка -->
+      <div id="doneList"></div>
+      <button type="button" id="doneAddBtn" class="add-second-btn hidden">➕ Добавить вторую тренировку</button>
+      <div class="muted done-hint">Новые записи — за сегодня и вчера. Прошлые дни можно открыть и поправить в календаре профиля.</div>
     </section>
 
     <!-- Форма новой записи (поля рисуются из app.js) -->
@@ -139,6 +131,7 @@
       <div id="mainFormFields"></div>
       <button id="saveBtn" class="primary-btn" type="button">Сохранить запись <span class="plus-ico">+</span></button>
       <div id="statusMsg" class="status-msg"></div>
+      <button type="button" id="entryBackBtn" class="ghost-btn wide hidden">← Назад к записи дня</button>
     </div>
   </main>
 
@@ -201,7 +194,17 @@
         <span><i class="dot dot-rest"></i> отдых</span>
       </div>
       <div id="calSummary" class="muted cal-summary"></div>
-      <div class="muted cal-help">Нажми на пустой день — добавишь запись задним числом, на отмеченный — откроешь её.</div>
+      <div class="muted cal-help">Нажми на отмеченный день — откроешь запись. Новые записи — за сегодня и вчера.</div>
+    </section>
+
+    <!-- Личная анкета: видна только тебе и Fom -->
+    <section class="card athlete-card" id="athleteCard">
+      <div class="gift-head">
+        <div class="card-label">🔒 Анкета для Fom</div>
+        <button type="button" class="gift-rules-btn" id="athleteEditBtn">Заполнить</button>
+      </div>
+      <div class="athlete-summary" id="athleteSummary">Рост, вес, возраст, стаж и цели — чтобы Fom понимал, с кем имеет дело.</div>
+      <div class="muted athlete-note">Видно только тебе и Fom. Друзья это не видят.</div>
     </section>
 
     <section class="card">
@@ -226,6 +229,49 @@
       <button type="button" class="sheet-btn" id="photoPickBtn">Выбрать новое фото</button>
       <button type="button" class="sheet-btn" id="photoResetBtn">Вернуть фото из Telegram</button>
       <button type="button" class="sheet-btn muted-btn" id="photoCancelBtn">Отмена</button>
+    </div>
+  </div>
+
+  <!-- Анкета спортсмена -->
+  <div id="athleteSheet" class="sheet-backdrop hidden">
+    <div class="sheet athlete-sheet">
+      <div class="sheet-title">🔒 Анкета для Fom</div>
+      <div class="muted athlete-note center">Всё необязательно. Видно только тебе и Fom.</div>
+
+      <div class="card-label af-label">Пол</div>
+      <div class="segmented af-sex" id="afSex">
+        <button type="button" class="seg-btn" data-sex="m">Мужской</button>
+        <button type="button" class="seg-btn" data-sex="f">Женский</button>
+      </div>
+
+      <div class="af-grid">
+        <label class="hr-field"><span>Год рождения</span><input type="number" inputmode="numeric" id="afBirth" placeholder="2004" /></label>
+        <label class="hr-field"><span>Рост, см</span><input type="number" inputmode="numeric" id="afHeight" placeholder="180" /></label>
+        <label class="hr-field"><span>Вес, кг</span><input type="text" inputmode="decimal" id="afWeight" placeholder="72" /></label>
+        <label class="hr-field"><span>Пульс в покое</span><input type="number" inputmode="numeric" id="afRestHr" placeholder="55" /></label>
+        <label class="hr-field"><span>Стаж, лет</span><input type="number" inputmode="numeric" id="afExp" placeholder="5" /></label>
+      </div>
+
+      <div class="card-label af-label">Уровень</div>
+      <div class="discipline-chips" id="afLevel">
+        <button type="button" class="chip" data-level="beginner">Новичок</button>
+        <button type="button" class="chip" data-level="amateur">Любитель</button>
+        <button type="button" class="chip" data-level="ranked">Разрядник</button>
+        <button type="button" class="chip" data-level="kms">КМС</button>
+        <button type="button" class="chip" data-level="ms">МС и выше</button>
+      </div>
+
+      <div class="card-label af-label">Личные рекорды</div>
+      <textarea id="afRecords" rows="2" maxlength="300" placeholder="Например: 800 м — 1:58, 1500 м — 4:05"></textarea>
+      <div class="card-label af-label">Цель на сезон</div>
+      <textarea id="afGoal" rows="2" maxlength="300" placeholder="Например: выбежать 800 м из 1:55"></textarea>
+      <div class="card-label af-label">Травмы и ограничения</div>
+      <textarea id="afInjuries" rows="2" maxlength="300" placeholder="Например: побаливает ахилл на левой ноге"></textarea>
+
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="afCancelBtn">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="afSaveBtn">Сохранить</button>
+      </div>
     </div>
   </div>
 
@@ -462,6 +508,8 @@
         <h2 class="title small">Запись за <span id="editDateLabel"></span></h2>
       </div>
     </div>
+    <!-- переключатель, если за день две тренировки -->
+    <div class="segmented hidden" id="editSessionSwitch"></div>
 
     <div id="editFormFields"></div>
 
@@ -503,6 +551,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=33"></script>
 </body>
 </html>
