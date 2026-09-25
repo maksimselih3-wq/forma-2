@@ -1618,3 +1618,82 @@ body[data-screen="profileScreen"] .topbar-right { opacity: 0; visibility: hidden
 }
 .share-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .share-main { margin: 6px 0 8px; }
+
+/* =====================================================================
+   Волна 1: утро, старты, челлендж, достижения, лимит чата
+   ===================================================================== */
+.chat-limit { text-align: center; font-size: 12px; color: var(--muted); padding: 0 0 8px; }
+.chat-limit.empty { color: #ffc44d; font-weight: 700; }
+
+.morning-card { border-color: rgba(255, 196, 77, 0.35); background: linear-gradient(180deg, rgba(255, 196, 77, 0.07), var(--card-bottom) 70%); }
+.morning-close { border: none; background: none; color: var(--muted); font-size: 16px; padding: 4px 6px; cursor: pointer; }
+.morning-q { font-size: 12px; font-weight: 700; color: var(--muted); margin: 6px 0 6px; }
+.morning-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.morning-chips .chip { flex: 1 1 auto; text-align: center; padding: 8px 6px; }
+.morning-chips.mood .chip { font-size: 20px; padding: 6px; }
+.morning-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; margin-top: 10px; }
+.morning-save { padding: 12px; }
+.morning-sum { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+.morning-sum .ico { width: 20px; height: 20px; }
+.morning-warn { margin-top: 8px; font-size: 13px; line-height: 1.4; color: #ffc44d; display: flex; gap: 8px; align-items: flex-start; }
+.morning-warn .ico { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 1px; }
+
+.countdown-card {
+  width: 100%;
+  display: flex; align-items: center; gap: 14px;
+  text-align: left;
+  cursor: pointer;
+  border-color: rgba(255, 196, 77, 0.45);
+  background: linear-gradient(120deg, rgba(255, 196, 77, 0.14), rgba(155, 107, 255, 0.1));
+  color: var(--text);
+  font-family: inherit;
+}
+.cd-num { font-family: var(--font-head); font-weight: 700; font-size: 30px; color: #ffd15a; min-width: 44px; text-align: center; }
+.cd-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cd-when { font-weight: 800; font-size: 15px; }
+.cd-name { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.countdown-card > .ico { width: 26px; height: 26px; }
+
+.challenge-left { font-size: 12px; }
+.ch-row { margin-top: 10px; }
+.ch-top { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.ch-top .ico { width: 17px; height: 17px; }
+.ch-label { flex: 1; font-weight: 700; }
+.ch-val { color: var(--muted); font-weight: 700; font-size: 12px; }
+.ch-row .gift-bar { margin-top: 6px; }
+.ch-row.done .ch-val { color: var(--lime); }
+.ch-row.done .gift-bar i { background: var(--grad-lime); }
+
+.ach-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ach {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 6px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: center;
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+.ach.on { opacity: 1; filter: none; border-color: rgba(180, 245, 60, 0.35); background: rgba(180, 245, 60, 0.05); }
+.ach-ico { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.06); color: #cfd5e2; }
+.ach-ico .ico { width: 22px; height: 22px; }
+.ach-title { font-size: 12px; font-weight: 800; line-height: 1.2; }
+.ach-desc { font-size: 10.5px; color: var(--muted); line-height: 1.2; }
+
+.start-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.start-row:first-child { border-top: none; padding-top: 2px; }
+.start-row.past { opacity: 0.5; }
+.start-date { flex: 0 0 48px; display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--muted); text-transform: uppercase; }
+.start-date b { font-family: var(--font-head); font-size: 20px; color: var(--text); line-height: 1.1; }
+.start-name { font-size: 14px; }
+.start-left { font-size: 12px; font-weight: 800; color: #ffd15a; white-space: nowrap; }
+.start-sheet input[type="text"] { margin-bottom: 10px; }
+.st-date { margin-bottom: 4px; }
+.st-date input[type="date"] {
+  width: 100%;
+  border: 1px solid var(--border); background: var(--input); color: var(--text);
+  border-radius: 14px; padding: 12px 14px; font-size: 15px; font-family: inherit;
+}
+.st-goal { margin-top: 0; }
+#startsList, #achievementsGrid { margin-top: 12px; }
