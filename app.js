@@ -2432,6 +2432,41 @@ const GIFT_POOL = {
     ['🎂', 'Торт'], ['💐', 'Букет'], ['🚀', 'Ракета'], ['🍾', 'Шампанское'], ['🏆', 'Кубок'], ['💍', 'Кольцо'], ['💎', 'Алмаз']],
 };
 const giftSlotIndex = { week: 0, month: 0 };
+
+// Настоящие картинки коллекционных подарков — с Fragment (официальная площадка Telegram).
+// Адрес картинки коллекции: название маленькими буквами без пробелов и знаков («Khabib's Papakha» → khabibspapakha).
+// У обычных подарков (мишка, торт…) публичных картинок нет — для них остаётся значок.
+const GIFT_IMAGE_NAMES = new Set(['Lol Pop', 'Candy Cane', 'Desk Calendar', 'Instant Ramen', 'Whip Cupcake',
+  'B-Day Candle', 'Jester Hat', 'Snow Mittens', 'Swag Bag', 'Snoop Cigar', 'Snoop Dogg', 'Westside Sign',
+  'Low Rider', 'Mask', "Khabib's Papakha"]);
+function giftSlug(name) { return name.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function giftImageUrls(name) {
+  if (!GIFT_IMAGE_NAMES.has(name)) return [];
+  const slug = giftSlug(name);
+  return [`https://fragment.com/file/gifts/${slug}/thumb.webp`, `https://nft.fragment.com/gift/${slug}-1.webp`];
+}
+// Какие картинки реально загрузились (иначе показываем значок, чтобы барабан не был пустым)
+const giftImageOk = {};
+function preloadGiftImages() {
+  Object.values(GIFT_POOL).flat().forEach(([, name]) => {
+    const urls = giftImageUrls(name);
+    const tryUrl = (i) => {
+      if (i >= urls.length) return;
+      const img = new Image();
+      img.onload = () => { giftImageOk[name] = urls[i]; };
+      img.onerror = () => tryUrl(i + 1);
+      img.src = urls[i];
+    };
+    tryUrl(0);
+  });
+}
+preloadGiftImages();
+// Содержимое ячейки барабана: картинка подарка или значок
+function giftSlotHtml(emoji, name) {
+  return giftImageOk[name]
+    ? `<img src="${esc(giftImageOk[name])}" alt="${esc(name)}" draggable="false">`
+    : esc(emoji);
+}
 const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 // Показать следующий подарок в барабане (с анимацией прокрутки)
@@ -2443,7 +2478,7 @@ function spinSlot(slot, fast = false) {
   const old = slot.querySelector('.gift-slot-item:not(.out)');
   const item = document.createElement('span');
   item.className = 'gift-slot-item' + (REDUCED_MOTION ? '' : fast ? ' in fast' : ' in');
-  item.textContent = emoji;
+  item.innerHTML = giftSlotHtml(emoji, name);
   slot.appendChild(item);
   if (old) {
     if (REDUCED_MOTION) old.remove();
@@ -2489,7 +2524,7 @@ function renderGiveaway() {
     row.className = `gift-row ${kind}` + (g.eligible ? ' in' : '');
     row.innerHTML = `
       <div class="gift-row-top">
-        <button type="button" class="gift-slot" data-kind="${kind}" aria-label="Какие подарки могут выпасть"><span class="gift-slot-item">${emoji}</span></button>
+        <button type="button" class="gift-slot" data-kind="${kind}" aria-label="Какие подарки могут выпасть"><span class="gift-slot-item">${giftSlotHtml(emoji, name)}</span></button>
         <div class="gift-row-main">
           <div class="gift-title">${ico(kind === 'week' ? 'flame' : 'diamond')} ${esc(kind === 'week' ? 'Неделя' : 'Месяц')} <span class="muted">· ${esc(g.prize)}</span></div>
           <div class="gift-maybe">Может выпасть: <b class="gift-slot-name">${esc(name)}</b></div>
