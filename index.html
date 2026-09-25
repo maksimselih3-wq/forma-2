@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Forma</title>
 <meta name="theme-color" content="#0a0c11" />
 <!-- Заставка: стили прямо здесь, чтобы она появилась мгновенно, ещё до загрузки остального -->
@@ -34,10 +34,22 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=33" />
+<link rel="stylesheet" href="style.css?v=34" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+  <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="gLime" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dcff72"/><stop offset="1" stop-color="#5fd43a"/></linearGradient>
+      <linearGradient id="gFire" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a3c"/><stop offset=".5" stop-color="#ff9a2e"/><stop offset="1" stop-color="#ffd84d"/></linearGradient>
+      <linearGradient id="gPurple" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c3a2ff"/><stop offset="1" stop-color="#6b5bff"/></linearGradient>
+      <linearGradient id="gSpark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d6ff6a"/><stop offset="1" stop-color="#9b6bff"/></linearGradient>
+      <linearGradient id="gHeart" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a9a"/><stop offset="1" stop-color="#ff3d5a"/></linearGradient>
+      <linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe98a"/><stop offset="1" stop-color="#ffae1f"/></linearGradient>
+    </defs>
+  </svg>
+
 
   <!-- ЗАСТАВКА: «Forma» пишется от руки, в конце загорается зелёная точка -->
   <div id="splash" aria-hidden="true">
@@ -66,7 +78,7 @@
   <header class="topbar">
     <div class="logo">Forma<span class="logo-dot"></span></div>
     <div class="topbar-right">
-      <div class="streak-pill" title="Серия дней подряд">🔥 <span id="streakCurrent">0</span></div>
+      <div class="streak-pill" title="Серия дней подряд"><i data-ico="flame"></i><span id="streakCurrent">0</span></div>
       <button id="profileBtn" class="avatar-btn" type="button" title="Мой профиль">
         <img id="avatarImg" src="" alt="" class="hidden" />
         <span id="avatarFallback">👤</span>
@@ -78,17 +90,17 @@
   <main id="mainScreen" class="screen">
     <div class="stats-row">
       <div class="stat">
-        <div class="stat-icon">🔥</div>
+        <div class="stat-icon" data-ico="flame"></div>
         <div class="stat-num accent" id="statStreak">0</div>
         <div class="stat-label">дней подряд</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">📅</div>
+        <div class="stat-icon" data-ico="week"></div>
         <div class="stat-num" id="statWeek">0</div>
         <div class="stat-label">тренировок за неделю</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">🗓</div>
+        <div class="stat-icon" data-ico="calendar"></div>
         <div class="stat-num" id="statMonth">0</div>
         <div class="stat-label">тренировок за месяц</div>
       </div>
@@ -97,7 +109,7 @@
     <!-- Розыгрыши подарков за честную серию -->
     <section class="card gift-card hidden" id="giftCard">
       <div class="gift-head">
-        <div class="card-label">🎁 Розыгрыши</div>
+        <div class="card-label"><i data-ico="gift"></i>Розыгрыши</div>
         <button type="button" class="gift-rules-btn" id="giftRulesBtn">Правила</button>
       </div>
       <div class="muted gift-sub" id="giftStreak"></div>
@@ -112,18 +124,18 @@
         <button type="button" class="chip" data-shift="0">Сегодня</button>
         <button type="button" class="chip" data-shift="1">Вчера</button>
         <label class="date-input-wrap">
-          <span>📅</span><input type="date" id="entryDate" />
+          <i data-ico="calendar"></i><input type="date" id="entryDate" />
         </label>
       </div>
     </section>
 
     <!-- Карточка «запись уже есть / сохранена» — показывается вместо формы -->
     <section id="entryDone" class="card done-card hidden">
-      <div class="done-title" id="doneTitle">✅ Запись сохранена</div>
+      <div class="done-title" id="doneTitle">Запись сохранена</div>
       <!-- сюда рисуются все записи дня: основная и вторая тренировка -->
       <div id="doneList"></div>
       <button type="button" id="doneAddBtn" class="add-second-btn hidden">➕ Добавить вторую тренировку</button>
-      <div class="muted done-hint">Новые записи — за сегодня и вчера. Прошлые дни можно открыть и поправить в календаре профиля.</div>
+      <div class="muted done-hint">Новые записи — только за сегодня и вчера. Прошлые можно открыть и поправить в календаре профиля.</div>
     </section>
 
     <!-- Форма новой записи (поля рисуются из app.js) -->
@@ -158,17 +170,17 @@
 
     <div class="stats-row">
       <div class="stat">
-        <div class="stat-icon">🔥</div>
+        <div class="stat-icon" data-ico="flame"></div>
         <div class="stat-num accent" id="profileStreak">0</div>
         <div class="stat-label">дней подряд</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">📅</div>
+        <div class="stat-icon" data-ico="calendar"></div>
         <div class="stat-num" id="profileMonth">0</div>
         <div class="stat-label">тренировок за 30 дней</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">🏃</div>
+        <div class="stat-icon" data-ico="runner"></div>
         <div class="stat-num" id="profileTotal">0</div>
         <div class="stat-label">всего тренировок</div>
       </div>
@@ -194,17 +206,28 @@
         <span><i class="dot dot-rest"></i> отдых</span>
       </div>
       <div id="calSummary" class="muted cal-summary"></div>
-      <div class="muted cal-help">Нажми на отмеченный день — откроешь запись. Новые записи — за сегодня и вчера.</div>
+      <div class="muted cal-help">Нажми на отмеченный день — откроешь запись. Новые записи — только за сегодня и вчера.</div>
     </section>
 
     <!-- Личная анкета: видна только тебе и Fom -->
     <section class="card athlete-card" id="athleteCard">
       <div class="gift-head">
-        <div class="card-label">🔒 Анкета для Fom</div>
+        <div class="card-label"><i data-ico="lock"></i>Анкета для Fom</div>
         <button type="button" class="gift-rules-btn" id="athleteEditBtn">Заполнить</button>
       </div>
       <div class="athlete-summary" id="athleteSummary">Рост, вес, возраст, стаж и цели — чтобы Fom понимал, с кем имеет дело.</div>
       <div class="muted athlete-note">Видно только тебе и Fom. Друзья это не видят.</div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Напоминания</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="reminderToggle" checked />
+        <span class="toggle"></span>
+        <span>Напоминать вечером, если день не записан</span>
+      </label>
+      <div class="muted privacy-hint">Бот напишет в 21:00 (МСК), только если за сегодня ещё нет записи.</div>
+      <button type="button" class="ghost-btn wide" id="tourAgainBtn"><i data-ico="sparkle"></i> Как пользоваться Forma</button>
     </section>
 
     <section class="card">
@@ -215,7 +238,7 @@
         <span>Друзья видят весь мой календарь</span>
       </label>
       <div class="muted privacy-hint">Друзья видят подробно только те тренировки, где включено «Показывать друзьям». Остальные дни — просто отметкой в календаре. Выключи, и отметки закрытых дней пропадут.</div>
-      <button type="button" class="ghost-btn wide" id="previewProfileBtn">👀 Как меня видят друзья</button>
+      <button type="button" class="ghost-btn wide" id="previewProfileBtn"><i data-ico="eye"></i> Как меня видят друзья</button>
     </section>
 
     <h3 class="section-title">Последние записи</h3>
@@ -235,7 +258,7 @@
   <!-- Анкета спортсмена -->
   <div id="athleteSheet" class="sheet-backdrop hidden">
     <div class="sheet athlete-sheet">
-      <div class="sheet-title">🔒 Анкета для Fom</div>
+      <div class="sheet-title"><i data-ico="lock"></i> Анкета для Fom</div>
       <div class="muted athlete-note center">Всё необязательно. Видно только тебе и Fom.</div>
 
       <div class="card-label af-label">Пол</div>
@@ -278,10 +301,10 @@
   <!-- Правила розыгрышей и последние победители -->
   <div id="giftSheet" class="sheet-backdrop hidden">
     <div class="sheet gift-sheet">
-      <div class="sheet-title">🎁 Розыгрыши Forma</div>
+      <div class="sheet-title"><i data-ico="gift"></i> Розыгрыши Forma</div>
       <div class="gift-rules">
-        <p><b>🔥 Каждую неделю</b> — прикольные подарки. Участвуют все, у кого честная серия <b>от 7 дней</b>. Итоги в воскресенье в 20:00 (МСК).</p>
-        <p><b>💎 Каждый месяц</b> — подарки покруче. Нужна честная серия <b>от 30 дней</b>. Итоги в последний день месяца в 20:00 (МСК).</p>
+        <p><b><i data-ico="flame"></i> Каждую неделю</b> — прикольные подарки. Участвуют все, у кого честная серия <b>от 7 дней</b>. Итоги в воскресенье в 20:00 (МСК).</p>
+        <p><b><i data-ico="diamond"></i> Каждый месяц</b> — подарки покруче. Нужна честная серия <b>от 30 дней</b>. Итоги в последний день месяца в 20:00 (МСК).</p>
         <p><b>Честная серия</b> — дни подряд, где запись сделана в тот же день или не позже следующего. Дни, заполненные задним числом, в розыгрыше не считаются.</p>
         <p><b>Билеты:</b> чем длиннее серия, тем больше шансов. В неделе — 1 билет за каждые 7 дней (до 5), в месяце — 1 билет за каждые 30 дней (до 3).</p>
         <p>Победители выбираются случайно, бот напишет им в Telegram, а подарок придёт прямо туда.</p>
@@ -357,7 +380,7 @@
     <div id="feedTab">
       <section class="card activity-card hidden" id="activityCard">
         <div class="card-head">
-          <div class="card-label">🔔 Активность</div>
+          <div class="card-label"><i data-ico="bell"></i>Активность</div>
           <div class="card-hint">реакции и комментарии к твоим тренировкам</div>
         </div>
         <div id="activityList"></div>
@@ -411,17 +434,17 @@
 
     <div class="stats-row">
       <div class="stat">
-        <div class="stat-icon">🔥</div>
+        <div class="stat-icon" data-ico="flame"></div>
         <div class="stat-num accent" id="fpStreak">0</div>
         <div class="stat-label">дней подряд</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">📅</div>
+        <div class="stat-icon" data-ico="calendar"></div>
         <div class="stat-num" id="fpMonth">0</div>
         <div class="stat-label">тренировок за 30 дней</div>
       </div>
       <div class="stat">
-        <div class="stat-icon">🏃</div>
+        <div class="stat-icon" data-ico="runner"></div>
         <div class="stat-num" id="fpTotal">0</div>
         <div class="stat-label">всего тренировок</div>
       </div>
@@ -482,7 +505,7 @@
       <span class="fom-badge big">F</span>
       <div>
         <div class="chat-head-name">Fom</div>
-        <div class="muted">ИИ-тренер · знает твой дневник</div>
+        <div class="muted">ИИ-помощник · знает твой дневник</div>
       </div>
     </div>
     <div id="chatMessages" class="chat-messages"></div>
@@ -515,17 +538,35 @@
 
     <button id="editSaveBtn" class="primary-btn" type="button">Сохранить изменения</button>
     <div class="btn-row">
-      <button id="editShareBtn" class="ghost-btn" type="button">📤 Поделиться</button>
-      <button id="editDeleteBtn" class="ghost-btn danger" type="button">🗑 Удалить</button>
+      <button id="editShareBtn" class="ghost-btn" type="button"><i data-ico="share"></i> Поделиться</button>
+      <button id="editDeleteBtn" class="ghost-btn danger" type="button"><i data-ico="trash"></i> Удалить</button>
     </div>
     <div id="editStatusMsg" class="status-msg"></div>
 
     <!-- Реакции и комментарии друзей к этой записи -->
     <section class="card hidden" id="editSocialCard">
-      <div class="card-label">💬 Друзья о тренировке</div>
+      <div class="card-label"><i data-ico="chat"></i>Друзья о тренировке</div>
       <div id="editSocial"></div>
     </section>
   </section>
+
+  <!-- Наше окно-сообщение (вместо системного alert/confirm) -->
+  <div id="dialog" class="dlg-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="dlg">
+      <div class="dlg-icon hidden" id="dlgIcon"></div>
+      <div class="dlg-title hidden" id="dlgTitle"></div>
+      <div class="dlg-text" id="dlgText"></div>
+      <div class="dlg-btns" id="dlgBtns"></div>
+    </div>
+  </div>
+
+  <!-- Знакомство с приложением (показывается один раз новичку) -->
+  <div id="tour" class="tour hidden">
+    <button type="button" class="tour-skip" id="tourSkip">Пропустить</button>
+    <div class="tour-track" id="tourTrack"></div>
+    <div class="tour-dots" id="tourDots"></div>
+    <button type="button" class="primary-btn tour-next" id="tourNext">Дальше</button>
+  </div>
 
   <!-- ===================== НИЖНЯЯ ПАНЕЛЬ (всегда на месте) ===================== -->
   <nav class="bottom-nav">
@@ -551,6 +592,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=33"></script>
+  <script src="app.js?v=34"></script>
 </body>
 </html>
