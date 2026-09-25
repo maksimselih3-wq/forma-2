@@ -191,6 +191,7 @@ function showScreen(targetId) {
     btn.classList.toggle('active', btn.dataset.screen === (NAV_PARENT[targetId] || targetId));
   });
   document.body.classList.toggle('chat-open', targetId === 'chatScreen');
+  document.body.dataset.screen = targetId; // для стилей: например, в своём профиле прячем огонёк и аватарку в шапке
   window.scrollTo(0, 0);
   setTimeout(() => { try { updateMiniHead(); } catch (e) {} }, 0);
 }
