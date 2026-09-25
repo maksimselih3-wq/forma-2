@@ -49,7 +49,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=47" />
+<link rel="stylesheet" href="style.css?v=48" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -517,6 +517,7 @@
     <div class="segmented" id="friendsTabs">
       <button type="button" class="seg-btn active" data-tab="feed">Лента</button>
       <button type="button" class="seg-btn" data-tab="list">Друзья <span class="tab-badge hidden" id="requestsBadge"></span></button>
+      <button type="button" class="seg-btn" data-tab="groups">Группы</button>
     </div>
 
     <!-- Лента: что нового у меня + открытые тренировки друзей -->
@@ -531,6 +532,26 @@
       <div id="feedList"></div>
       <button type="button" class="ghost-btn wide hidden" id="feedMoreBtn">Показать ещё</button>
       <div id="feedStatus" class="status-msg"></div>
+    </div>
+
+    <!-- Группы и приглашения -->
+    <div id="groupsTab" class="hidden">
+      <section class="card invite-card">
+        <div class="card-label"><i data-ico="gift"></i>Пригласи друзей</div>
+        <div class="muted invite-text">Друг придёт по твоей ссылке — вы сразу станете друзьями. Когда он запишет 3 тренировки, тебе <b>+1 билет</b> в недельный розыгрыш (до +3).</div>
+        <div class="invite-stats" id="inviteStats"></div>
+        <div class="btn-row">
+          <button type="button" class="ghost-btn crop-save" id="inviteShareBtn">Пригласить</button>
+          <button type="button" class="ghost-btn" id="inviteCopyBtn">Копировать ссылку</button>
+        </div>
+      </section>
+
+      <h3 class="section-title">Мои группы</h3>
+      <div id="groupsList"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="groupCreateBtn">＋ Создать группу</button>
+        <button type="button" class="ghost-btn" id="groupJoinBtn">Вступить по коду</button>
+      </div>
     </div>
 
     <!-- Список друзей, заявки и поиск -->
@@ -553,6 +574,77 @@
       <div id="friendsList"></div>
     </div>
   </section>
+
+  <!-- Вкладка «Группы» живёт внутри экрана друзей (см. ниже) -->
+
+  <!-- ===================== ГРУППА ===================== -->
+  <section id="groupScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="groupBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="group-head-main">
+        <div class="eyebrow" id="groupKind">Группа</div>
+        <h2 class="title small" id="groupName"></h2>
+      </div>
+    </div>
+    <div class="group-actions">
+      <button type="button" class="primary-btn" id="groupInviteBtn">Пригласить в группу</button>
+    </div>
+    <div class="muted group-coach-note hidden" id="groupCoachNote"></div>
+    <div class="segmented" id="groupTabs">
+      <button type="button" class="seg-btn active" data-gtab="rating">Рейтинг недели</button>
+      <button type="button" class="seg-btn" data-gtab="feed">Лента</button>
+    </div>
+    <div id="groupRating"></div>
+    <div id="groupFeed" class="hidden"></div>
+    <button type="button" class="ghost-btn danger wide" id="groupLeaveBtn">Выйти из группы</button>
+  </section>
+
+  <!-- ===================== ДНЕВНИК СПОРТСМЕНА (для тренера) ===================== -->
+  <section id="memberScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="memberBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div>
+        <div class="eyebrow">Дневник спортсмена</div>
+        <h2 class="title small" id="memberName"></h2>
+      </div>
+    </div>
+    <section class="card member-well hidden" id="memberWell"></section>
+    <div id="memberWorkouts"></div>
+    <button type="button" class="ghost-btn danger wide" id="memberRemoveBtn">Убрать из группы</button>
+  </section>
+
+  <!-- Создать группу -->
+  <div id="groupCreateSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title">👥 Новая группа</div>
+      <input type="text" id="gcName" maxlength="60" placeholder="Название: например, Группа Иванова" />
+      <div class="segmented gc-kind" id="gcKind">
+        <button type="button" class="seg-btn active" data-kind="team">Команда</button>
+        <button type="button" class="seg-btn" data-kind="coach">Я тренер</button>
+      </div>
+      <div class="muted gc-hint" id="gcHint"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="gcCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="gcSave">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Вступить по коду -->
+  <div id="groupJoinSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title">Вступить в группу</div>
+      <input type="text" id="gjCode" maxlength="12" placeholder="Код группы, например: k7m2pq" autocomplete="off" autocapitalize="off" />
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="gjCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="gjSave">Дальше</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ===================== ПРОФИЛЬ ДРУГА ===================== -->
   <section id="friendProfileScreen" class="screen hidden">
@@ -763,6 +855,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=47"></script>
+  <script src="app.js?v=48"></script>
 </body>
 </html>
