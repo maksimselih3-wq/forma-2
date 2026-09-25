@@ -36,6 +36,50 @@ function esc(v) {
     .replace(/"/g, '&quot;');
 }
 
+// ---------- Наши иконки (вместо обычных смайликов) ----------
+// Рисуются SVG, цвета берут градиенты из index.html (gLime, gFire, gPurple...).
+const ICONS = {
+  flame: '<path d="M12.3 2.5c.4 2.5-.7 4.2-2.1 5.8C8.7 10 7 11.8 7 14.8a5 5 0 0 0 10 0c0-2.3-1-4-2.4-5.4.1 1.5-.4 2.7-1.4 3.3.3-3.8-.1-7.3-.9-10.2Z" fill="url(#gFire)"/><path d="M12 19.8a2.5 2.5 0 0 1-2.5-2.6c0-1.5 1.1-2.5 2.1-3.7.2 1 .8 1.6 1.5 2 .8.5 1.4 1.1 1.4 1.9a2.5 2.5 0 0 1-2.5 2.4Z" fill="#fff3b8"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="13" y="13" width="4.2" height="4.2" rx="1.3" fill="url(#gLime)"/>',
+  week: '<rect x="3.5" y="5" width="17" height="15.5" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13.4" width="10" height="3.4" rx="1.7" fill="url(#gLime)"/>',
+  runner: '<circle cx="15" cy="4.6" r="2.2" fill="url(#gLime)"/><path d="M13.6 8.2 11.6 13.4M13.6 8.2 10 9.4 8 11.8M13.6 8.2l2.6 2.8 2.8.4M11.6 13.4l3.2 2.2-.8 4.4M11.6 13.4 9.6 17l-4 .6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  moon: '<path d="M19.5 14.8A7.8 7.8 0 0 1 9.2 4.5a7.8 7.8 0 1 0 10.3 10.3Z" fill="url(#gPurple)"/><path d="M15.5 3.5h3.2l-3.2 3.4h3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  dumbbell: '<path d="M8 12h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><rect x="3.8" y="7.5" width="4.4" height="9" rx="1.6" fill="url(#gLime)"/><rect x="15.8" y="7.5" width="4.4" height="9" rx="1.6" fill="url(#gLime)"/><path d="M2 10.5v3M22 10.5v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  heart: '<path d="M12 20.3S3.5 15.4 3.5 9.3A4.6 4.6 0 0 1 12 6.8a4.6 4.6 0 0 1 8.5 2.5c0 6.1-8.5 11-8.5 11Z" fill="url(#gHeart)"/><path d="M6.5 12.2h3l1.3-2.4 2.2 4.6 1.4-2.2h3.1" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  sparkle: '<path d="M10.5 3c.6 4.3 2.7 6.4 7 7-4.3.6-6.4 2.7-7 7-.6-4.3-2.7-6.4-7-7 4.3-.6 6.4-2.7 7-7Z" fill="url(#gSpark)"/><path d="M18.5 14c.3 1.9 1.1 2.7 3 3-1.9.3-2.7 1.1-3 3-.3-1.9-1.1-2.7-3-3 1.9-.3 2.7-1.1 3-3Z" fill="url(#gLime)"/>',
+  check: '<circle cx="12" cy="12" r="9.5" fill="url(#gLime)"/><path d="M7.6 12.3l3 3 5.8-6" fill="none" stroke="#0b0d10" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>',
+  gift: '<rect x="4" y="10.5" width="16" height="10" rx="2.5" fill="url(#gPurple)"/><rect x="3" y="7" width="18" height="4.4" rx="1.6" fill="url(#gLime)"/><path d="M12 7v13.5" stroke="#fff" stroke-opacity=".85" stroke-width="2"/><path d="M12 7c-1.2-2.6-4.6-3.6-5.4-1.8C6 6.6 8.8 7 12 7Zm0 0c1.2-2.6 4.6-3.6 5.4-1.8.6 1.4-2.2 1.8-5.4 1.8Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+  diamond: '<path d="M7 4h10l4 5-9 11L3 9l4-5Z" fill="url(#gPurple)"/><path d="M3 9h18M9.5 4 8 9l4 11 4-11-1.5-5" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.2" stroke-linejoin="round"/>',
+  lock: '<path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="5" y="10.5" width="14" height="10" rx="3" fill="url(#gLime)"/><circle cx="12" cy="15.5" r="1.6" fill="#0b0d10"/>',
+  trophy: '<path d="M7 6H4.5v1.2A3.3 3.3 0 0 0 7.6 10.5M17 6h2.5v1.2a3.3 3.3 0 0 1-3.1 3.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 3.5h10v5a5 5 0 0 1-10 0v-5Z" fill="url(#gGold)"/><path d="M12 13.5V17M8.5 20.5h7M9.5 17h5v3.5h-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>',
+  share: '<path d="M12 15V4M8 7.5 12 3.5l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  pen: '<path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5 4 20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  trash: '<path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.9 12.2a1.8 1.8 0 0 0 1.8 1.6h5.6a1.8 1.8 0 0 0 1.8-1.6L17.5 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="url(#gLime)"/>',
+  bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15l1.5-2Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17.5" cy="6" r="2.6" fill="url(#gLime)"/>',
+  chat: '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3.4c-.5.4-1.2 0-1.2-.6V16A2.5 2.5 0 0 1 4 13.5v-7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="9" cy="10" r="1.2" fill="url(#gLime)"/><circle cx="12" cy="10" r="1.2" fill="url(#gLime)"/><circle cx="15" cy="10" r="1.2" fill="url(#gLime)"/>',
+  people: '<circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16.5" cy="9" r="2.5" fill="url(#gLime)"/>',
+  target: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="1.8" fill="url(#gLime)"/>',
+  ticket: '<path d="M3.5 8a1.5 1.5 0 0 1 1.5-1.5h14A1.5 1.5 0 0 1 20.5 8v2a2 2 0 0 0 0 4v2a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 16v-2a2 2 0 0 0 0-4V8Z" fill="url(#gGold)"/><path d="M14.5 7v10" stroke="#0b0d10" stroke-opacity=".4" stroke-width="1.4" stroke-dasharray="1.6 1.6"/>',
+  info: '<circle cx="12" cy="12" r="9.5" fill="url(#gPurple)"/><path d="M12 11v5.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.4" fill="#fff"/>',
+  warn: '<path d="M10.3 4.2a2 2 0 0 1 3.4 0l7.4 12.9a2 2 0 0 1-1.7 3H4.6a2 2 0 0 1-1.7-3l7.4-12.9Z" fill="url(#gGold)"/><path d="M12 9v4.6" stroke="#0b0d10" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.3" fill="#0b0d10"/>',
+};
+
+function ico(name, cls = '') {
+  const body = ICONS[name];
+  if (!body) return '';
+  return `<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${body}</svg>`;
+}
+
+// Все элементы с data-ico="имя" получают нашу иконку
+function hydrateIcons(root = document) {
+  root.querySelectorAll('[data-ico]').forEach((el) => {
+    if (el.dataset.icoDone) return;
+    el.dataset.icoDone = '1';
+    el.insertAdjacentHTML('afterbegin', ico(el.dataset.ico));
+  });
+}
+
 // Цвет по шкале 1–10: красный → жёлтый → зелёный (или наоборот, если reverse)
 function scaleColor(v, reverse = false) {
   const t = (Math.min(Math.max(v, 1), 10) - 1) / 9;
@@ -156,16 +200,16 @@ function showScreen(targetId) {
 // =====================================================================
 const FORM_TEMPLATE = `
   <section class="card smart-card">
-    <div class="card-label">✨ Умный ввод</div>
+    <div class="card-label">${ico('sparkle')}Умный ввод</div>
     <div class="card-hint smart-hint">Опиши тренировку своими словами — Fom сам разложит всё по полям ниже.</div>
     <textarea data-f="smartText" rows="3" placeholder="Например: разминка 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, присед 5×5 80 кг, пульс ср 150 макс 182, в паузах до 110. Было тяжело."></textarea>
-    <button type="button" class="smart-btn" data-f="smartBtn">✨ Разложить по полям</button>
+    <button type="button" class="smart-btn" data-f="smartBtn">Разложить по полям</button>
     <div class="status-msg" data-f="smartStatus"></div>
   </section>
 
   <div class="segmented" data-f="typeSwitch">
-    <button type="button" class="seg-btn active" data-type="training">🏃 Тренировка</button>
-    <button type="button" class="seg-btn" data-type="rest">😴 Отдых</button>
+    <button type="button" class="seg-btn active" data-type="training">${ico('runner')} Тренировка</button>
+    <button type="button" class="seg-btn" data-type="rest">${ico('moon')} Отдых</button>
   </div>
 
   <div data-f="trainingFields">
@@ -176,7 +220,7 @@ const FORM_TEMPLATE = `
 
     <section class="card">
       <div class="card-head">
-        <div class="card-label">🏃 Беговая работа</div>
+        <div class="card-label">${ico('runner')}Беговая работа</div>
         <div class="card-hint">метры · кол-во · время · отдых</div>
       </div>
       <div data-f="setsList"></div>
@@ -185,7 +229,7 @@ const FORM_TEMPLATE = `
 
     <section class="card">
       <div class="card-head">
-        <div class="card-label">🏋️ Силовая / ОФП</div>
+        <div class="card-label">${ico('dumbbell')}Силовая / ОФП</div>
         <div class="card-hint">упражнение · подходы × повторы · вес</div>
       </div>
       <div data-f="exList"></div>
@@ -213,7 +257,7 @@ const FORM_TEMPLATE = `
     </section>
 
     <section class="card">
-      <div class="card-label">❤️ Пульс, уд/мин <span class="optional">необязательно</span></div>
+      <div class="card-label">${ico('heart')}Пульс, уд/мин <span class="optional">необязательно</span></div>
       <div class="hr-row">
         <label class="hr-field"><span>Средний</span><input type="number" inputmode="numeric" data-f="hrAvg" min="30" max="250" placeholder="—" /></label>
         <label class="hr-field"><span>Макс.</span><input type="number" inputmode="numeric" data-f="hrMax" min="30" max="250" placeholder="—" /></label>
@@ -355,7 +399,8 @@ function createWorkoutForm(root) {
     try {
       const { parsed } = await api('/api/workouts/parse', { method: 'POST', body: JSON.stringify({ text }) });
       applyParsed(parsed);
-      status.textContent = '✅ Готово! Проверь поля ниже и сохрани запись.';
+      growAll(root);
+      status.textContent = 'Готово! Проверь поля ниже и сохрани запись.';
     } catch (err) {
       console.error(err);
       status.textContent = err.data?.error || 'Не получилось разобрать. Попробуй ещё раз.';
@@ -401,11 +446,13 @@ function createWorkoutForm(root) {
       }));
       renderSets();
       renderExercises();
+      growAll(root);
     },
     reset() {
       this.setData({ type: 'training', visibility: f('visibility').checked ? 'public' : 'private' });
       f('smartText').value = '';
       f('smartStatus').textContent = '';
+      growAll(root);
     },
   };
 }
@@ -437,6 +484,7 @@ async function init() {
     const { user } = await api('/api/auth/login', { method: 'POST' });
     currentUser = user;
     $('shareCalendarToggle').checked = user.share_calendar !== false;
+    $('reminderToggle').checked = user.remind_enabled !== false;
     renderMySport();
     updateAvatar();
     updateFriendsBadge();
@@ -446,6 +494,8 @@ async function init() {
     renderEntryState();
     loadGiveaway();
     loadAthleteProfile();
+    // новичку — короткое знакомство с приложением
+    if (!myWorkouts.length && !tourStorage()) setTimeout(openTour, 1500);
   } catch (err) {
     console.error('Login failed', err);
     $('statusMsg').textContent = 'Не удалось связаться с сервером. Попробуй открыть приложение ещё раз.';
@@ -493,7 +543,7 @@ function updateStats() {
   $('profileMonth').textContent = last30;
   $('profileTotal').textContent = total;
   // рекорд серии — не отдельной плиткой, а маленькой меткой в профиле
-  $('profileRecord').textContent = `🏆 рекорд ${best} дн.`;
+  $('profileRecord').innerHTML = `${ico('trophy')} рекорд ${best} дн.`;
   $('profileRecord').classList.toggle('hidden', best < 2);
 }
 
@@ -571,8 +621,8 @@ function renderEntryState() {
   form.classList.add('hidden');
   done.classList.remove('hidden');
 
-  $('doneTitle').textContent =
-    justSavedDate === entryDate ? `✅ Запись за ${label} сохранена` : `✅ За ${label} запись уже есть`;
+  $('doneTitle').innerHTML = ico('check') + esc(
+    justSavedDate === entryDate ? `Запись за ${label} сохранена` : `За ${label} запись уже есть`);
 
   // каждая запись дня — отдельный блок со своими кнопками
   const box = $('doneList');
@@ -580,14 +630,14 @@ function renderEntryState() {
   list.forEach((w) => {
     const block = document.createElement('div');
     block.className = 'done-block';
-    const title = w.type === 'rest' ? '😴 День отдыха' : list.length > 1 ? `🏃 Тренировка ${w.session || 1}` : '🏃 Тренировка';
+    const title = w.type === 'rest' ? 'День отдыха' : list.length > 1 ? `Тренировка ${w.session || 1}` : 'Тренировка';
     block.innerHTML = `
-      <div class="done-block-title">${esc(title)}</div>
+      <div class="done-block-title">${ico(w.type === 'rest' ? 'moon' : 'runner')}${esc(title)}</div>
       <div class="done-summary"></div>
       ${w.ai_feedback ? '<div class="ai-box"><div class="ai-box-title"><span class="fom-badge">F</span> Fom</div><div class="fb"></div></div>' : ''}
       <div class="btn-row">
-        <button type="button" class="ghost-btn share">📤 Поделиться</button>
-        <button type="button" class="ghost-btn edit">✏️ Изменить</button>
+        <button type="button" class="ghost-btn share">${ico('share')} Поделиться</button>
+        <button type="button" class="ghost-btn edit">${ico('pen')} Изменить</button>
       </div>`;
     block.querySelector('.done-summary').textContent = buildDetailLines(w).join('\n');
     if (w.ai_feedback) block.querySelector('.fb').textContent = w.ai_feedback;
@@ -671,7 +721,7 @@ async function loadProfileScreen() {
   // число друзей — метка в профиле, по нажатию открывается список друзей
   api('/api/friends')
     .then(({ friends }) => {
-      $('profileFriends').textContent = friendsLabel(friends.length);
+      $('profileFriends').innerHTML = friendsLabel(friends.length);
       $('profileFriends').classList.remove('hidden');
     })
     .catch((err) => console.error('Friends count failed', err));
@@ -729,6 +779,7 @@ function renderCalendar() {
       cell.classList.add('future');
       cell.disabled = true;
     } else {
+      if (!w && ds < addDays(today, -MAX_BACKFILL_DAYS)) cell.classList.add('too-old');
       cell.addEventListener('click', () => {
         if (w) {
           openEditScreen(w.id, 'profileScreen');
@@ -736,7 +787,7 @@ function renderCalendar() {
           setEntryDate(ds); // пустой день — форма новой записи на эту дату
           showScreen('mainScreen');
         } else {
-          alertMsg('Новые записи можно добавлять только за сегодня и вчера — так серия остаётся честной 💪');
+          showDialog({ icon: 'calendar', title: 'Только сегодня и вчера', text: 'Новую запись можно добавить только за сегодня или за вчера. Уже сделанные записи можно открыть и поправить.' });
         }
       });
     }
@@ -766,7 +817,7 @@ function renderHistory() {
     if (isTraining && Array.isArray(w.exercises) && w.exercises.length) bits.push('ОФП');
     if (isTraining && w.rpe) bits.push(`RPE ${w.rpe}`);
     item.innerHTML = `
-      <span class="history-ico ${isTraining ? 'tr' : 'rs'}">${isTraining ? '🏃' : '😴'}</span>
+      <span class="history-ico ${isTraining ? 'tr' : 'rs'}">${ico(isTraining ? 'runner' : 'moon')}</span>
       <span class="history-main">
         <span class="history-date">${esc(formatWithWeekday(w.date))}</span>
         <span class="history-sub">${isTraining ? (w.session > 1 ? 'Вторая тренировка' : 'Тренировка') : 'Отдых'}${bits.length ? ' · ' + esc(bits.join(' · ')) : ''}</span>
@@ -816,9 +867,47 @@ $('photoResetBtn').addEventListener('click', async () => {
   }
 });
 
-function alertMsg(text) {
-  if (tg?.showAlert) tg.showAlert(text); else alert(text);
+// ---------- Наше окно-сообщение (вместо системного alert / confirm) ----------
+// showDialog({ icon, title, text, ok, cancel, danger }) → Promise: true — нажали «ок», false — отмена
+let dialogResolve = null;
+function showDialog({ icon = '', title = '', text = '', ok = 'Понятно', cancel = '', danger = false } = {}) {
+  if (dialogResolve) dialogResolve(false); // предыдущее окно закрываем
+  $('dlgIcon').innerHTML = icon ? ico(icon) : '';
+  $('dlgIcon').classList.toggle('hidden', !icon);
+  $('dlgTitle').textContent = title;
+  $('dlgTitle').classList.toggle('hidden', !title);
+  $('dlgText').textContent = text;
+  $('dlgText').classList.toggle('hidden', !text);
+  const btns = $('dlgBtns');
+  btns.innerHTML = '';
+  return new Promise((resolve) => {
+    dialogResolve = resolve;
+    const close = (val) => {
+      if (dialogResolve !== resolve) return;
+      dialogResolve = null;
+      $('dialog').classList.add('closing');
+      setTimeout(() => $('dialog').classList.add('hidden'), 160);
+      resolve(val);
+    };
+    if (cancel) {
+      const c = document.createElement('button');
+      c.type = 'button'; c.className = 'dlg-btn'; c.textContent = cancel;
+      c.addEventListener('click', () => close(false));
+      btns.appendChild(c);
+    }
+    const o = document.createElement('button');
+    o.type = 'button'; o.className = 'dlg-btn main' + (danger ? ' danger' : ''); o.textContent = ok;
+    o.addEventListener('click', () => close(true));
+    btns.appendChild(o);
+    $('dialog').onclick = (e) => { if (e.target === $('dialog')) close(false); };
+    $('dialog').classList.remove('hidden', 'closing');
+    haptic();
+  });
 }
+function alertMsg(text) { return showDialog({ icon: 'info', text }); }
+function confirmAsk(opts) { return showDialog({ cancel: 'Отмена', ...opts }); }
+function dialogOpen() { return !$('dialog').classList.contains('hidden'); }
+function closeDialog() { if (dialogResolve) { const r = dialogResolve; dialogResolve = null; $('dialog').classList.add('hidden'); r(false); } }
 
 // =====================================================================
 //  ДРУЗЬЯ: лента, профиль друга, реакции, комментарии, активность
@@ -844,9 +933,9 @@ function timeAgo(iso) {
 function friendsLabel(n) {
   const m10 = n % 10;
   const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return `👥 ${n} друг`;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `👥 ${n} друга`;
-  return `👥 ${n} друзей`;
+  if (m10 === 1 && m100 !== 11) return `${ico('people')} ${n} друг`;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${ico('people')} ${n} друга`;
+  return `${ico('people')} ${n} друзей`;
 }
 
 // Имя полностью: имя + фамилия из Telegram (если фамилии нет — только имя, если и его нет — @username)
@@ -903,7 +992,7 @@ function buildWorkoutCard(w, { showAuthor = true } = {}) {
       ${showAuthor ? avatarHtml(w.author) : ''}
       <div class="wk-head-main">
         ${showAuthor ? `<button type="button" class="wk-author">${nameHtml(w.author)}${isMine ? ' <span class="muted">· ты</span>' : ''}</button>` : ''}
-        <div class="wk-date">${esc(formatWithWeekday(normDate(w.date)))} · ${w.type === 'rest' ? '😴 Отдых' : w.session > 1 ? '🏃 Вторая тренировка' : '🏃 Тренировка'}</div>
+        <div class="wk-date">${esc(formatWithWeekday(normDate(w.date)))} · ${w.type === 'rest' ? ico('moon') + ' Отдых' : w.session > 1 ? ico('runner') + ' Вторая тренировка' : ico('runner') + ' Тренировка'}</div>
       </div>
     </div>
     ${chips.length ? `<div class="wk-chips">${chips.join('')}</div>` : ''}
@@ -1001,7 +1090,7 @@ function buildSocial(w, { openThread = false } = {}) {
           </div>
           ${c.can_delete ? '<button type="button" class="comment-del" aria-label="Удалить">✕</button>' : ''}`;
         row.querySelector('.comment-del')?.addEventListener('click', async () => {
-          if (!confirm('Удалить комментарий?')) return;
+          if (!(await confirmAsk({ icon: 'trash', title: 'Удалить комментарий?', ok: 'Удалить', danger: true }))) return;
           try {
             await api(`/api/friends/comments/${c.comment_id}`, { method: 'DELETE' });
             loadThread();
@@ -1205,7 +1294,7 @@ async function loadFriendsList() {
           <span class="friend-name">${nameHtml(fr)}
             <span class="friend-sub">${fr.sport ? esc(sportLabel(fr, { short: true })) + ' · ' : ''}${esc(lastTrainingLabel(fr.last_training))}</span>
           </span>
-          <span class="friend-streak">🔥 ${esc(fr.current_streak ?? 0)}</span>
+          <span class="friend-streak">${ico('flame')} ${esc(fr.current_streak ?? 0)}</span>
           <span class="history-arrow">›</span>`;
         btn.addEventListener('click', () => openFriendProfile(fr.id));
         friendsList.appendChild(btn);
@@ -1261,10 +1350,10 @@ async function openFriendProfile(userId, returnTo) {
     $('fpStreak').textContent = u.current_streak ?? 0;
     $('fpMonth').textContent = fpData.stats?.last30 ?? 0;
     $('fpTotal').textContent = fpData.stats?.total ?? 0;
-    $('fpRecord').textContent = `🏆 рекорд ${u.longest_streak ?? 0} дн.`;
+    $('fpRecord').innerHTML = `${ico('trophy')} рекорд ${esc(u.longest_streak ?? 0)} дн.`;
     $('fpRecord').classList.toggle('hidden', (u.longest_streak ?? 0) < 2);
     $('fpRemoveBtn').classList.toggle('hidden', isMe);
-    $('fpFriends').textContent = friendsLabel(fpData.stats?.friends ?? 0);
+    $('fpFriends').innerHTML = friendsLabel(fpData.stats?.friends ?? 0);
     $('fpFriends').classList.toggle('hidden', fpData.stats?.friends == null);
 
     const src = avatarSrc(u);
@@ -1365,7 +1454,7 @@ $('fpBackBtn').addEventListener('click', () => {
 
 $('fpRemoveBtn').addEventListener('click', async () => {
   if (!fpData) return;
-  if (!confirm(`Удалить ${personName(fpData.user)} из друзей?`)) return;
+  if (!(await confirmAsk({ icon: 'people', title: 'Удалить из друзей?', text: `${personName(fpData.user)} больше не будет видеть твою ленту, а ты — его.`, ok: 'Удалить', danger: true }))) return;
   try {
     await api(`/api/friends/${fpData.user.id}`, { method: 'DELETE' });
     showScreen('friendsScreen');
@@ -1454,7 +1543,7 @@ function renderChatMessages() {
   container.innerHTML = '';
   if (chatHistory.length === 0) {
     container.innerHTML =
-      '<div class="chat-empty">Привет! Я Fom, твой ИИ-тренер 👋<br />Спроси про свои тренировки — например, «сколько я бегал на этой неделе?» или «не перегружаюсь ли я?»</div>';
+      '<div class="chat-empty">Привет! Я Fom, твой ИИ-помощник 👋<br />Спроси про свои тренировки — например, «сколько я бегал на этой неделе?» или «не перегружаюсь ли я?»</div>';
     return;
   }
   chatHistory.forEach((msg) => {
@@ -1624,7 +1713,7 @@ async function openEditScreen(workoutId, returnTo = 'profileScreen') {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'seg-btn' + (w.id === workout.id ? ' active' : '');
-      b.textContent = w.type === 'rest' ? '😴 Отдых' : `🏃 Тренировка ${w.session || 1}`;
+      b.innerHTML = w.type === 'rest' ? `${ico('moon')} Отдых` : `${ico('runner')} Тренировка ${w.session || 1}`;
       b.addEventListener('click', () => { if (w.id !== workout.id) openEditScreen(w.id, editReturnScreen); });
       sw.appendChild(b);
     });
@@ -1669,7 +1758,7 @@ $('editShareBtn').addEventListener('click', () => {
 
 $('editDeleteBtn').addEventListener('click', async () => {
   if (!currentEditWorkout) return;
-  if (!confirm('Точно удалить эту запись? Это необратимо.')) return;
+  if (!(await confirmAsk({ icon: 'trash', title: 'Удалить запись?', text: 'Это нельзя будет отменить.', ok: 'Удалить', danger: true }))) return;
 
   const statusEl = $('editStatusMsg');
   statusEl.textContent = 'Удаляю...';
@@ -1834,7 +1923,7 @@ function miniHeadSource() {
     return {
       hero: $('profileHero'),
       name: $('profileName').innerHTML,
-      stats: `🔥 ${$('profileStreak').textContent} · 📅 ${$('profileMonth').textContent} · 🏃 ${$('profileTotal').textContent}`,
+      stats: `${ico('flame')} ${esc($('profileStreak').textContent)} · ${ico('calendar')} ${esc($('profileMonth').textContent)} · ${ico('runner')} ${esc($('profileTotal').textContent)}`,
       ava: getAvatarUrl(),
       letter: (currentUser?.first_name || '?').slice(0, 1).toUpperCase(),
     };
@@ -1843,7 +1932,7 @@ function miniHeadSource() {
     return {
       hero: $('fpHero'),
       name: $('fpName').innerHTML,
-      stats: `🔥 ${$('fpStreak').textContent} · 📅 ${$('fpMonth').textContent} · 🏃 ${$('fpTotal').textContent}`,
+      stats: `${ico('flame')} ${esc($('fpStreak').textContent)} · ${ico('calendar')} ${esc($('fpMonth').textContent)} · ${ico('runner')} ${esc($('fpTotal').textContent)}`,
       ava: avatarSrc(fpData.user),
       letter: personName(fpData.user).replace('@', '').slice(0, 1).toUpperCase(),
     };
@@ -1872,7 +1961,7 @@ function updateMiniHead() {
   if (key !== miniHeadKey) {
     miniHeadKey = key;
     $('miniName').innerHTML = src.name;
-    $('miniStats').textContent = src.stats;
+    $('miniStats').innerHTML = src.stats;
     $('miniAva').innerHTML = src.ava ? `<img src="${esc(src.ava)}" alt="" onerror="this.remove()">` : esc(src.letter);
   }
 }
@@ -1883,6 +1972,8 @@ $('miniHead').addEventListener('click', () => window.scrollTo({ top: 0, behavior
 // Короткое случайное движение не считается: нужно протянуть заметно (примерно треть экрана).
 function goBack() {
   const screen = document.querySelector('.screen:not(.hidden)')?.id;
+  if (dialogOpen()) return closeDialog();
+  if (!$('tour').classList.contains('hidden')) return;
   if (!$('cropSheet').classList.contains('hidden')) return closeCropper();
   if (!$('photoSheet').classList.contains('hidden')) return $('photoSheet').classList.add('hidden');
   if (!$('sportSheet').classList.contains('hidden')) return closeSportSheet();
@@ -1898,7 +1989,7 @@ function goBack() {
 }
 
 const swipe = { active: false, x: 0, y: 0, dx: 0, decided: false, horizontal: false };
-const SWIPE_BLOCKERS = 'input, textarea, .crop-view, .sheet';
+const SWIPE_BLOCKERS = 'input, textarea, .crop-view, .sheet, .dlg, .tour';
 
 document.addEventListener('touchstart', (e) => {
   if (e.touches.length !== 1 || e.target.closest(SWIPE_BLOCKERS)) { swipe.active = false; return; }
@@ -2110,7 +2201,7 @@ let giftData = null;
 function ticketsLabel(n) {
   const m10 = n % 10, m100 = n % 100;
   const w = m10 === 1 && m100 !== 11 ? 'билет' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'билета' : 'билетов';
-  return `🎟 ${n} ${w}`;
+  return `${ico('ticket')} ${n} ${w}`;
 }
 
 // «через 2 дн 5 ч», «через 3 ч», «через 25 мин»
@@ -2128,31 +2219,82 @@ function winnerName(w) {
   return [w.first_name, w.last_name].filter(Boolean).join(' ') || (w.username ? '@' + w.username : 'Спортсмен');
 }
 
+// Какие подарки могут выпасть — крутятся в «барабане» на карточке розыгрыша
+const GIFT_POOL = {
+  week: [['🧸', 'Мишка'], ['💝', 'Сердце'], ['🎁', 'Подарок'], ['🌹', 'Роза']],
+  month: [['🎂', 'Торт'], ['💐', 'Букет'], ['🚀', 'Ракета'], ['🍾', 'Шампанское'], ['🏆', 'Кубок'], ['💍', 'Кольцо'], ['💎', 'Алмаз']],
+};
+const giftSlotIndex = { week: 0, month: 0 };
+const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+// Показать следующий подарок в барабане (с анимацией прокрутки)
+function spinSlot(slot, fast = false) {
+  const kind = slot.dataset.kind;
+  const pool = GIFT_POOL[kind];
+  giftSlotIndex[kind] = (giftSlotIndex[kind] + 1) % pool.length;
+  const [emoji, name] = pool[giftSlotIndex[kind]];
+  const old = slot.querySelector('.gift-slot-item:not(.out)');
+  const item = document.createElement('span');
+  item.className = 'gift-slot-item' + (REDUCED_MOTION ? '' : fast ? ' in fast' : ' in');
+  item.textContent = emoji;
+  slot.appendChild(item);
+  if (old) {
+    if (REDUCED_MOTION) old.remove();
+    else { old.classList.add('out'); if (fast) old.classList.add('fast'); setTimeout(() => old.remove(), fast ? 120 : 380); }
+  }
+  const nameEl = slot.closest('.gift-row')?.querySelector('.gift-slot-name');
+  if (nameEl) nameEl.textContent = name;
+}
+
+// Нажал на барабан — он быстро прокручивается и останавливается на случайном подарке
+function spinSlotFast(slot) {
+  if (slot.dataset.spinning) return;
+  slot.dataset.spinning = '1';
+  haptic();
+  const turns = 8 + Math.floor(Math.random() * GIFT_POOL[slot.dataset.kind].length);
+  let i = 0;
+  const step = () => {
+    spinSlot(slot, i < turns - 2);
+    i++;
+    if (i < turns) setTimeout(step, 60 + i * i * 2.2);
+    else { delete slot.dataset.spinning; haptic('medium'); }
+  };
+  step();
+}
+
+setInterval(() => {
+  if (document.hidden) return;
+  document.querySelectorAll('.gift-slot').forEach((slot) => { if (!slot.dataset.spinning) spinSlot(slot); });
+}, 1300);
+
 function renderGiveaway() {
   if (!giftData) return;
   $('giftCard').classList.remove('hidden');
-  $('giftStreak').textContent = `Твоя честная серия: ${giftData.honest_streak} дн. 🔥`;
+  $('giftStreak').innerHTML = `Твоя честная серия: <b>${esc(giftData.honest_streak)} дн.</b> ${ico('flame')}`;
   const rows = $('giftRows');
   rows.innerHTML = '';
   ['week', 'month'].forEach((kind) => {
     const g = giftData[kind];
     if (!g) return;
     const progress = Math.min(100, Math.round((giftData.honest_streak / g.min_streak) * 100));
+    const [emoji, name] = GIFT_POOL[kind][giftSlotIndex[kind]];
     const row = document.createElement('div');
     row.className = `gift-row ${kind}` + (g.eligible ? ' in' : '');
     row.innerHTML = `
       <div class="gift-row-top">
-        <span class="gift-emoji">${g.emoji}</span>
+        <button type="button" class="gift-slot" data-kind="${kind}" aria-label="Какие подарки могут выпасть"><span class="gift-slot-item">${emoji}</span></button>
         <div class="gift-row-main">
-          <div class="gift-title">${esc(kind === 'week' ? 'Неделя' : 'Месяц')} <span class="muted">· ${esc(g.prize)}</span></div>
+          <div class="gift-title">${ico(kind === 'week' ? 'flame' : 'diamond')} ${esc(kind === 'week' ? 'Неделя' : 'Месяц')} <span class="muted">· ${esc(g.prize)}</span></div>
+          <div class="gift-maybe">Может выпасть: <b class="gift-slot-name">${esc(name)}</b></div>
           <div class="gift-when">${esc(untilLabel(g.draw_at))}</div>
         </div>
-        ${g.eligible ? `<span class="gift-badge">${esc(ticketsLabel(g.tickets))}</span>` : ''}
+        ${g.eligible ? `<span class="gift-badge">${ticketsLabel(Number(g.tickets) || 0)}</span>` : ''}
       </div>
       ${g.eligible
-        ? '<div class="gift-status ok">✅ Ты участвуешь</div>'
+        ? `<div class="gift-status ok">${ico('check')} Ты участвуешь</div>`
         : `<div class="gift-bar"><i style="width:${progress}%"></i></div>
-           <div class="gift-status">Ещё ${g.need_days} дн. честной серии — и ты в игре</div>`}`;
+           <div class="gift-status">Ещё ${esc(g.need_days)} дн. честной серии — и ты в игре</div>`}`;
+    row.querySelector('.gift-slot').addEventListener('click', (e) => spinSlotFast(e.currentTarget));
     rows.appendChild(row);
   });
 }
@@ -2174,8 +2316,8 @@ function openGiftSheet() {
     if (!g?.last_winners?.length) return;
     const block = document.createElement('div');
     block.className = 'gift-winners';
-    block.innerHTML = `<div class="card-label">${g.emoji} Последние победители · ${kind === 'week' ? 'неделя' : 'месяц'}</div>` +
-      g.last_winners.map((w) => `<div class="gift-winner">🏆 ${esc(winnerName(w))}${w.username ? ` <span class="muted">@${esc(w.username)}</span>` : ''} <span class="muted">· серия ${esc(w.streak)} дн.</span></div>`).join('');
+    block.innerHTML = `<div class="card-label">${ico(kind === 'week' ? 'flame' : 'diamond')} Последние победители · ${kind === 'week' ? 'неделя' : 'месяц'}</div>` +
+      g.last_winners.map((w) => `<div class="gift-winner">${ico('trophy')} ${esc(winnerName(w))}${w.username ? ` <span class="muted">@${esc(w.username)}</span>` : ''} <span class="muted">· серия ${esc(w.streak)} дн.</span></div>`).join('');
     box.appendChild(block);
   });
   $('giftSheet').classList.remove('hidden');
@@ -2201,12 +2343,12 @@ function renderAthleteSummary() {
   if (p.birth_year) { const a = new Date().getFullYear() - p.birth_year; parts.push(`${a} ${yearsWord(a)}`); }
   if (p.height_cm) parts.push(`${p.height_cm} см`);
   if (p.weight_kg) parts.push(`${Number(p.weight_kg)} кг`);
-  if (p.rest_hr) parts.push(`❤️ ${p.rest_hr} в покое`);
+  if (p.rest_hr) parts.push(`пульс в покое ${p.rest_hr}`);
   if (p.experience_years != null) parts.push(`стаж ${p.experience_years} ${yearsWord(p.experience_years)}`);
   if (p.level) parts.push(LEVEL_NAMES[p.level]);
   const filled = parts.length || p.records || p.goal || p.injuries;
-  $('athleteSummary').textContent = filled
-    ? [parts.join(' · '), p.goal ? `🎯 ${p.goal}` : ''].filter(Boolean).join('\n')
+  $('athleteSummary').innerHTML = filled
+    ? [esc(parts.join(' · ')), p.goal ? `${ico('target')} ${esc(p.goal)}` : ''].filter(Boolean).join('<br>')
     : 'Рост, вес, возраст, стаж и цели — чтобы Fom понимал, с кем имеет дело.';
   $('athleteEditBtn').textContent = filled ? 'Изменить' : 'Заполнить';
 }
@@ -2248,6 +2390,7 @@ function openAthleteSheet() {
   $('afInjuries').value = p.injuries || '';
   paintAthleteChoices();
   $('athleteSheet').classList.remove('hidden');
+  growAll($('athleteSheet'));
 }
 function closeAthleteSheet() { $('athleteSheet').classList.add('hidden'); }
 
@@ -2278,5 +2421,151 @@ $('afSaveBtn').addEventListener('click', async () => {
     btn.disabled = false;
   }
 });
+
+// =====================================================================
+//  КЛАВИАТУРА, ПОЛЯ ВВОДА, ЗУМ
+// =====================================================================
+// Пока печатаешь — нижняя панель прячется, чтобы не висела над клавиатурой
+const TYPING_SEL = 'textarea, input:not([type=checkbox]):not([type=range]):not([type=radio]):not([type=file]):not([type=date])';
+function updateKeyboardState() {
+  const a = document.activeElement;
+  const typing = !!a && !!a.matches && a.matches(TYPING_SEL);
+  document.body.classList.toggle('kb-open', typing);
+  if (typing && document.body.classList.contains('chat-open')) {
+    // в чате держим окно прижатым к верху, а сообщения — прокрученными вниз
+    setTimeout(() => { window.scrollTo(0, 0); $('chatMessages').scrollTop = $('chatMessages').scrollHeight; }, 60);
+  }
+}
+document.addEventListener('focusin', updateKeyboardState);
+document.addEventListener('focusout', () => setTimeout(updateKeyboardState, 60));
+
+// Реальная видимая высота экрана (без клавиатуры) — для чата
+function updateAppHeight() {
+  const h = window.visualViewport?.height || window.innerHeight;
+  document.documentElement.style.setProperty('--app-h', `${Math.round(h)}px`);
+}
+window.visualViewport?.addEventListener('resize', updateAppHeight);
+window.addEventListener('resize', updateAppHeight);
+try { tg?.onEvent?.('viewportChanged', updateAppHeight); } catch (e) {}
+updateAppHeight();
+
+// Поле текста растёт вместе с текстом, а не прячет его внутри
+function autoGrow(el) {
+  if (!el || el.tagName !== 'TEXTAREA') return;
+  if (!el.offsetParent) { el.style.height = ''; return; } // скрытое поле не трогаем
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight + 2}px`;
+}
+function growAll(root) { root.querySelectorAll('textarea').forEach(autoGrow); }
+
+// Пишешь в конце длинного текста — страница сама подкручивается, чтобы строка была видна
+function keepCaretVisible(el) {
+  if (el.selectionEnd !== el.value.length) return;
+  const vv = window.visualViewport;
+  const bottom = vv ? vv.height + vv.offsetTop : window.innerHeight;
+  const over = el.getBoundingClientRect().bottom - (bottom - 16);
+  if (over > 0) window.scrollBy(0, over);
+}
+document.addEventListener('input', (e) => {
+  if (e.target.tagName !== 'TEXTAREA') return;
+  autoGrow(e.target);
+  keepCaretVisible(e.target);
+});
+document.addEventListener('focusin', (e) => { if (e.target.tagName === 'TEXTAREA') autoGrow(e.target); });
+
+// Запрещаем увеличивать страницу двумя пальцами (в обрезке фото щипок работает сам по себе)
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('touchmove', (e) => { if (e.scale && e.scale !== 1) e.preventDefault(); }, { passive: false });
+try { tg?.disableVerticalSwipes?.(); } catch (e) {}
+
+// =====================================================================
+//  ЗНАКОМСТВО С ПРИЛОЖЕНИЕМ (один раз для новичка + кнопка в профиле)
+// =====================================================================
+const TOUR_KEY = 'forma_tour_done';
+const TOUR_SLIDES = [
+  { art: '<span class="tour-logo">Forma<span class="logo-dot"></span></span>', title: 'Привет! Это Forma',
+    text: 'Дневник тренировок с ИИ-помощником Fom. Покажу за 20 секунд, как тут всё устроено.' },
+  { icon: 'sparkle', title: 'Запись за минуту',
+    text: 'Нажми «+» внизу и заполни поля. Или просто опиши тренировку своими словами в «Умном вводе» — Fom сам разложит всё по полям.' },
+  { art: '<span class="fom-badge tour-fom">F</span>', title: 'Fom — твой помощник',
+    text: 'После тренировки Fom даёт короткий отзыв: объём, темп, пульс, восстановление. В «Разборе» — итоги недели и месяца, во вкладке Fom — чат.' },
+  { icon: 'flame', title: 'Держи серию',
+    text: 'Каждый записанный день — тренировка или отдых — продлевает серию. Записывать можно только за сегодня и вчера. За серию от 7 дней — розыгрыши подарков.' },
+  { icon: 'people', title: 'Друзья',
+    text: 'Добавляй друзей по @username, смотри их открытые тренировки, ставь реакции. Что показывать друзьям — решаешь ты.' },
+  { icon: 'lock', title: 'Расскажи о себе',
+    text: 'Укажи вид спорта и заполни анкету в профиле — так Fom поймёт, с кем имеет дело. Анкету видишь только ты и Fom.', extra: true },
+];
+let tourIndex = 0;
+
+function tourStorage(set) {
+  try {
+    if (set) localStorage.setItem(TOUR_KEY, '1');
+    return localStorage.getItem(TOUR_KEY) === '1';
+  } catch (e) { return false; }
+}
+
+function openTour() {
+  const track = $('tourTrack');
+  track.innerHTML = TOUR_SLIDES.map((sl) => `
+    <div class="tour-slide">
+      <div class="tour-art">${sl.art || ico(sl.icon)}</div>
+      <div class="tour-title">${esc(sl.title)}</div>
+      <div class="tour-text">${esc(sl.text)}</div>
+      ${sl.extra ? '<button type="button" class="ghost-btn tour-fill" id="tourFillBtn">Заполнить профиль сейчас</button>' : ''}
+    </div>`).join('');
+  $('tourDots').innerHTML = TOUR_SLIDES.map(() => '<i></i>').join('');
+  $('tourFillBtn').addEventListener('click', () => {
+    closeTour();
+    openProfile();
+    setTimeout(() => (currentUser?.sport ? openAthleteSheet() : openSportSheet()), 250);
+  });
+  tourIndex = 0;
+  $('tour').classList.remove('hidden', 'closing');
+  track.scrollLeft = 0;
+  paintTour();
+}
+
+function paintTour() {
+  $('tourDots').querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i === tourIndex));
+  $('tourNext').textContent = tourIndex === TOUR_SLIDES.length - 1 ? 'Начать' : 'Дальше';
+}
+
+function closeTour() {
+  tourStorage(true);
+  $('tour').classList.add('closing');
+  setTimeout(() => $('tour').classList.add('hidden'), 250);
+}
+
+$('tourTrack').addEventListener('scroll', () => {
+  const t = $('tourTrack');
+  const i = Math.round(t.scrollLeft / Math.max(1, t.clientWidth));
+  if (i !== tourIndex) { tourIndex = i; paintTour(); haptic(); }
+}, { passive: true });
+$('tourNext').addEventListener('click', () => {
+  if (tourIndex >= TOUR_SLIDES.length - 1) return closeTour();
+  const t = $('tourTrack');
+  t.scrollTo({ left: (tourIndex + 1) * t.clientWidth, behavior: 'smooth' });
+});
+$('tourSkip').addEventListener('click', closeTour);
+$('tourAgainBtn').addEventListener('click', openTour);
+
+// =====================================================================
+//  ВЕЧЕРНЕЕ НАПОМИНАНИЕ (настройка в профиле)
+// =====================================================================
+$('reminderToggle').addEventListener('change', async (e) => {
+  const enabled = e.target.checked;
+  try {
+    await api('/api/auth/reminder', { method: 'POST', body: JSON.stringify({ enabled }) });
+    if (currentUser) currentUser.remind_enabled = enabled;
+    haptic();
+  } catch (err) {
+    console.error(err);
+    e.target.checked = !enabled;
+    alertMsg('Не удалось сохранить настройку. Попробуй ещё раз.');
+  }
+});
+
+hydrateIcons();
 
 init();
