@@ -1,2614 +1,1432 @@
-// Адрес бэкенда на Railway
-const API_BASE = 'https://forma-production-9c7a.up.railway.app';
-
-const tg = window.Telegram?.WebApp;
-if (tg) {
-  tg.ready();
-  tg.expand();
-  // шапка и фон Telegram в цвет приложения (если версия Telegram это умеет)
-  try { tg.setHeaderColor('#0a0c11'); tg.setBackgroundColor('#0a0c11'); } catch (e) {}
-}
-
-let currentUser = null;
-let justSavedDate = null; // дата, которую только что сохранили (для заголовка «Запись сохранена»)
-
-// Все мои записи (для календаря, статистики и карточки «запись уже есть»)
-let myWorkouts = [];
-let workoutsByDate = {}; // 'ГГГГ-ММ-ДД' -> список записей дня (основная + вторая тренировка)
-
-// Номер тренировки, которую сейчас заполняем на главной: 1 — основная, 2 — вторая за день
-let entrySession = 1;
-// Новые записи — только за сегодня и вчера (так серия остаётся честной)
-const MAX_BACKFILL_DAYS = 1;
-
-// Дата, за которую сейчас заполняется форма на главном экране
-let entryDate = null;
-
-// ---------- Мелкие утилиты ----------
-const $ = (id) => document.getElementById(id);
-
-// Защита от «сломанной» вёрстки, если в тексте есть кавычки или < >
-function esc(v) {
-  return String(v ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// ---------- Наши иконки (вместо обычных смайликов) ----------
-// Рисуются SVG, цвета берут градиенты из index.html (gLime, gFire, gPurple...).
-const ICONS = {
-  flame: '<path d="M12.3 2.5c.4 2.5-.7 4.2-2.1 5.8C8.7 10 7 11.8 7 14.8a5 5 0 0 0 10 0c0-2.3-1-4-2.4-5.4.1 1.5-.4 2.7-1.4 3.3.3-3.8-.1-7.3-.9-10.2Z" fill="url(#gFire)"/><path d="M12 19.8a2.5 2.5 0 0 1-2.5-2.6c0-1.5 1.1-2.5 2.1-3.7.2 1 .8 1.6 1.5 2 .8.5 1.4 1.1 1.4 1.9a2.5 2.5 0 0 1-2.5 2.4Z" fill="#fff3b8"/>',
-  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="13" y="13" width="4.2" height="4.2" rx="1.3" fill="url(#gLime)"/>',
-  week: '<rect x="3.5" y="5" width="17" height="15.5" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13.4" width="10" height="3.4" rx="1.7" fill="url(#gLime)"/>',
-  runner: '<circle cx="15" cy="4.6" r="2.2" fill="url(#gLime)"/><path d="M13.6 8.2 11.6 13.4M13.6 8.2 10 9.4 8 11.8M13.6 8.2l2.6 2.8 2.8.4M11.6 13.4l3.2 2.2-.8 4.4M11.6 13.4 9.6 17l-4 .6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
-  moon: '<path d="M19.5 14.8A7.8 7.8 0 0 1 9.2 4.5a7.8 7.8 0 1 0 10.3 10.3Z" fill="url(#gPurple)"/><path d="M15.5 3.5h3.2l-3.2 3.4h3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
-  dumbbell: '<path d="M8 12h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><rect x="3.8" y="7.5" width="4.4" height="9" rx="1.6" fill="url(#gLime)"/><rect x="15.8" y="7.5" width="4.4" height="9" rx="1.6" fill="url(#gLime)"/><path d="M2 10.5v3M22 10.5v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-  heart: '<path d="M12 20.3S3.5 15.4 3.5 9.3A4.6 4.6 0 0 1 12 6.8a4.6 4.6 0 0 1 8.5 2.5c0 6.1-8.5 11-8.5 11Z" fill="url(#gHeart)"/><path d="M6.5 12.2h3l1.3-2.4 2.2 4.6 1.4-2.2h3.1" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
-  sparkle: '<path d="M10.5 3c.6 4.3 2.7 6.4 7 7-4.3.6-6.4 2.7-7 7-.6-4.3-2.7-6.4-7-7 4.3-.6 6.4-2.7 7-7Z" fill="url(#gSpark)"/><path d="M18.5 14c.3 1.9 1.1 2.7 3 3-1.9.3-2.7 1.1-3 3-.3-1.9-1.1-2.7-3-3 1.9-.3 2.7-1.1 3-3Z" fill="url(#gLime)"/>',
-  check: '<circle cx="12" cy="12" r="9.5" fill="url(#gLime)"/><path d="M7.6 12.3l3 3 5.8-6" fill="none" stroke="#0b0d10" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>',
-  gift: '<rect x="4" y="10.5" width="16" height="10" rx="2.5" fill="url(#gPurple)"/><rect x="3" y="7" width="18" height="4.4" rx="1.6" fill="url(#gLime)"/><path d="M12 7v13.5" stroke="#fff" stroke-opacity=".85" stroke-width="2"/><path d="M12 7c-1.2-2.6-4.6-3.6-5.4-1.8C6 6.6 8.8 7 12 7Zm0 0c1.2-2.6 4.6-3.6 5.4-1.8.6 1.4-2.2 1.8-5.4 1.8Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
-  diamond: '<path d="M7 4h10l4 5-9 11L3 9l4-5Z" fill="url(#gPurple)"/><path d="M3 9h18M9.5 4 8 9l4 11 4-11-1.5-5" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.2" stroke-linejoin="round"/>',
-  lock: '<path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="5" y="10.5" width="14" height="10" rx="3" fill="url(#gLime)"/><circle cx="12" cy="15.5" r="1.6" fill="#0b0d10"/>',
-  trophy: '<path d="M7 6H4.5v1.2A3.3 3.3 0 0 0 7.6 10.5M17 6h2.5v1.2a3.3 3.3 0 0 1-3.1 3.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 3.5h10v5a5 5 0 0 1-10 0v-5Z" fill="url(#gGold)"/><path d="M12 13.5V17M8.5 20.5h7M9.5 17h5v3.5h-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>',
-  share: '<path d="M12 15V4M8 7.5 12 3.5l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-  pen: '<path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5 4 20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
-  trash: '<path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.9 12.2a1.8 1.8 0 0 0 1.8 1.6h5.6a1.8 1.8 0 0 0 1.8-1.6L17.5 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
-  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="url(#gLime)"/>',
-  bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15l1.5-2Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="17.5" cy="6" r="2.6" fill="url(#gLime)"/>',
-  chat: '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3.4c-.5.4-1.2 0-1.2-.6V16A2.5 2.5 0 0 1 4 13.5v-7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="9" cy="10" r="1.2" fill="url(#gLime)"/><circle cx="12" cy="10" r="1.2" fill="url(#gLime)"/><circle cx="15" cy="10" r="1.2" fill="url(#gLime)"/>',
-  people: '<circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16.5" cy="9" r="2.5" fill="url(#gLime)"/>',
-  target: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="1.8" fill="url(#gLime)"/>',
-  ticket: '<path d="M3.5 8a1.5 1.5 0 0 1 1.5-1.5h14A1.5 1.5 0 0 1 20.5 8v2a2 2 0 0 0 0 4v2a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 16v-2a2 2 0 0 0 0-4V8Z" fill="url(#gGold)"/><path d="M14.5 7v10" stroke="#0b0d10" stroke-opacity=".4" stroke-width="1.4" stroke-dasharray="1.6 1.6"/>',
-  info: '<circle cx="12" cy="12" r="9.5" fill="url(#gPurple)"/><path d="M12 11v5.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.4" fill="#fff"/>',
-  warn: '<path d="M10.3 4.2a2 2 0 0 1 3.4 0l7.4 12.9a2 2 0 0 1-1.7 3H4.6a2 2 0 0 1-1.7-3l7.4-12.9Z" fill="url(#gGold)"/><path d="M12 9v4.6" stroke="#0b0d10" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.3" fill="#0b0d10"/>',
-};
-
-function ico(name, cls = '') {
-  const body = ICONS[name];
-  if (!body) return '';
-  return `<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${body}</svg>`;
-}
-
-// Все элементы с data-ico="имя" получают нашу иконку
-function hydrateIcons(root = document) {
-  root.querySelectorAll('[data-ico]').forEach((el) => {
-    if (el.dataset.icoDone) return;
-    el.dataset.icoDone = '1';
-    el.insertAdjacentHTML('afterbegin', ico(el.dataset.ico));
-  });
-}
-
-// Цвет по шкале 1–10: красный → жёлтый → зелёный (или наоборот, если reverse)
-function scaleColor(v, reverse = false) {
-  const t = (Math.min(Math.max(v, 1), 10) - 1) / 9;
-  const hue = Math.round((reverse ? 1 - t : t) * 110);
-  return `hsl(${hue}, 85%, 60%)`;
-}
-
-// Фирменная синяя галочка — только у этих аккаунтов (username без @, маленькими буквами)
-const VERIFIED_USERNAMES = ['maksimshelikh'];
-const VERIFIED_BADGE =
-  '<svg class="verified" viewBox="0 0 24 24" aria-label="Подтверждённый аккаунт"><path fill="#2AABEE" d="M12 1.5l2.4 1.9 3-.4 1.1 2.8 2.8 1.1-.4 3 1.9 2.4-1.9 2.4.4 3-2.8 1.1-1.1 2.8-3-.4L12 22.5l-2.4-1.9-3 .4-1.1-2.8-2.8-1.1.4-3L1.2 12l1.9-2.4-.4-3 2.8-1.1 1.1-2.8 3 .4z"/><path d="M7.6 12.4l3 3 5.9-6.1" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-function isVerified(username) {
-  return !!username && VERIFIED_USERNAMES.includes(String(username).toLowerCase().replace(/^@/, ''));
-}
-
-// ---------- Даты ----------
-const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-
-function pad2(n) { return String(n).padStart(2, '0'); }
-
-// Дата по часам телефона в формате 'ГГГГ-ММ-ДД'
-function localDateStr(d = new Date()) {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function parseDateStr(str) {
-  const [y, m, d] = str.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function addDays(str, n) {
-  const d = parseDateStr(str);
-  d.setDate(d.getDate() + n);
-  return localDateStr(d);
-}
-
-function normDate(v) { return String(v).slice(0, 10); }
-
-// «19 сентября» (+ год, если он не текущий)
-function formatDayMonth(str) {
-  const d = parseDateStr(str);
-  const opts = { day: 'numeric', month: 'long' };
-  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
-  return d.toLocaleDateString('ru-RU', opts);
-}
-
-// «вт, 22 сентября»
-function formatWithWeekday(str) {
-  const d = parseDateStr(str);
-  const opts = { weekday: 'short', day: 'numeric', month: 'long' };
-  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
-  return d.toLocaleDateString('ru-RU', opts);
-}
-
-// «сегодня» / «вчера» / «19 сентября»
-function relativeDateLabel(str) {
-  const today = localDateStr();
-  if (str === today) return 'сегодня';
-  if (str === addDays(today, -1)) return 'вчера';
-  return formatDayMonth(str);
-}
-
-// Понедельник текущей недели
-function mondayOf(str) {
-  const d = parseDateStr(str);
-  const shift = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - shift);
-  return localDateStr(d);
-}
-
-// ---------- API ----------
-async function api(path, options = {}) {
-  const res = await fetch(API_BASE + path, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Telegram-Init-Data': tg?.initData || '',
-      'X-Client-Date': localDateStr(), // сервер узнаёт, какое «сегодня» у пользователя
-      ...(options.headers || {}),
-    },
-  });
-  if (!res.ok) {
-    let data = null;
-    try { data = await res.json(); } catch {}
-    const err = new Error(data?.error || `API ${path} -> ${res.status}`);
-    err.data = data;
-    throw err;
-  }
-  return res.json();
-}
-
-// ---------- Переключение экранов + подсветка нижней панели ----------
-const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen'];
-// какая кнопка нижней панели подсвечивается на «вложенных» экранах
-const NAV_PARENT = { friendProfileScreen: 'friendsScreen' };
-const TAB_SCREENS = ['mainScreen', 'chatScreen', 'insightsScreen', 'friendsScreen', 'profileScreen'];
-const tabHistory = []; // какие вкладки открывались — чтобы жест «назад» вёл туда, откуда пришёл
-function showScreen(targetId) {
-  if (TAB_SCREENS.includes(targetId) && tabHistory[tabHistory.length - 1] !== targetId) {
-    tabHistory.push(targetId);
-    if (tabHistory.length > 20) tabHistory.shift();
-  }
-  ALL_SCREENS.forEach((id) => {
-    const el = $(id);
-    if (el) el.classList.toggle('hidden', id !== targetId);
-  });
-  document.querySelectorAll('.bottom-nav [data-screen]').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.screen === (NAV_PARENT[targetId] || targetId));
-  });
-  document.body.classList.toggle('chat-open', targetId === 'chatScreen');
-  window.scrollTo(0, 0);
-  setTimeout(() => { try { updateMiniHead(); } catch (e) {} }, 0);
-}
-
-// =====================================================================
-//  ФОРМА ЗАПИСИ — одна и та же для «новой записи» и «редактирования»
-// =====================================================================
-const FORM_TEMPLATE = `
-  <section class="card smart-card">
-    <div class="card-label">${ico('sparkle')}Умный ввод</div>
-    <div class="card-hint smart-hint">Опиши тренировку своими словами — Fom сам разложит всё по полям ниже.</div>
-    <textarea data-f="smartText" rows="3" placeholder="Например: разминка 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, присед 5×5 80 кг, пульс ср 150 макс 182, в паузах до 110. Было тяжело."></textarea>
-    <button type="button" class="smart-btn" data-f="smartBtn">Разложить по полям</button>
-    <div class="status-msg" data-f="smartStatus"></div>
-  </section>
-
-  <div class="segmented" data-f="typeSwitch">
-    <button type="button" class="seg-btn active" data-type="training">${ico('runner')} Тренировка</button>
-    <button type="button" class="seg-btn" data-type="rest">${ico('moon')} Отдых</button>
-  </div>
-
-  <div data-f="trainingFields">
-    <section class="card">
-      <div class="card-label">Разминка</div>
-      <textarea data-f="warmup" rows="2" placeholder="Например: 3 км трусцой + суставная"></textarea>
-    </section>
-
-    <section class="card">
-      <div class="card-head">
-        <div class="card-label">${ico('runner')}Беговая работа</div>
-        <div class="card-hint">метры · кол-во · время · отдых</div>
-      </div>
-      <div data-f="setsList"></div>
-      <button type="button" class="add-btn" data-f="addSet">+ Добавить отрезок</button>
-    </section>
-
-    <section class="card">
-      <div class="card-head">
-        <div class="card-label">${ico('dumbbell')}Силовая / ОФП</div>
-        <div class="card-hint">упражнение · подходы × повторы · вес</div>
-      </div>
-      <div data-f="exList"></div>
-      <button type="button" class="add-btn" data-f="addEx">+ Добавить упражнение</button>
-    </section>
-
-    <section class="card">
-      <div class="card-label">Заминка</div>
-      <textarea data-f="cooldown" rows="2" placeholder="Необязательно"></textarea>
-    </section>
-
-    <section class="card">
-      <div class="card-label">Как прошло</div>
-      <div class="slider-row">
-        <div class="slider-top"><span>Самочувствие</span><b data-f="feelingNum"><span data-f="feelingVal">5</span>/10</b></div>
-        <input type="range" class="range-good" data-f="feeling" min="1" max="10" value="5" />
-        <div class="slider-scale"><span>плохо</span><span>отлично</span></div>
-      </div>
-      <div class="slider-row">
-        <div class="slider-top"><span>Нагрузка (RPE)</span><b data-f="rpeNum"><span data-f="rpeVal">5</span>/10</b></div>
-        <input type="range" class="range-load" data-f="rpe" min="1" max="10" value="5" />
-        <div class="slider-scale"><span>очень легко</span><span>на пределе</span></div>
-        <div class="muted slider-hint">RPE — насколько тяжело далась тренировка по твоим ощущениям.</div>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="card-label">${ico('heart')}Пульс, уд/мин <span class="optional">необязательно</span></div>
-      <div class="hr-row">
-        <label class="hr-field"><span>Средний</span><input type="number" inputmode="numeric" data-f="hrAvg" min="30" max="250" placeholder="—" /></label>
-        <label class="hr-field"><span>Макс.</span><input type="number" inputmode="numeric" data-f="hrMax" min="30" max="250" placeholder="—" /></label>
-        <label class="hr-field"><span>Мин. в паузах</span><input type="number" inputmode="numeric" data-f="hrMin" min="30" max="250" placeholder="—" /></label>
-      </div>
-      <div class="muted hr-hint">Мин. в паузах — насколько низко пульс опускался в отдыхе между отрезками. Чем ниже, тем лучше восстановление.</div>
-    </section>
-  </div>
-
-  <section class="card">
-    <div class="card-label">Заметки</div>
-    <textarea data-f="notes" rows="2" placeholder="Как прошло, что заметил..."></textarea>
-    <label class="toggle-row">
-      <input type="checkbox" data-f="visibility" />
-      <span class="toggle"></span>
-      <span>Показывать друзьям</span>
-    </label>
-  </section>
-`;
-
-function createWorkoutForm(root) {
-  root.innerHTML = FORM_TEMPLATE;
-  const f = (name) => root.querySelector(`[data-f="${name}"]`);
-
-  let type = 'training';
-  let sets = [];      // беговые отрезки: { distance_m, reps, time_or_pace, rest_between }
-  let exercises = []; // силовая/ОФП:     { name, sets, reps, weight }
-
-  function setType(t) {
-    type = t === 'rest' ? 'rest' : 'training';
-    f('typeSwitch').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.type === type));
-    f('trainingFields').classList.toggle('hidden', type !== 'training');
-  }
-  f('typeSwitch').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => setType(b.dataset.type)));
-
-  // --- беговые отрезки ---
-  function renderSets() {
-    const list = f('setsList');
-    list.innerHTML = '';
-    sets.forEach((s, i) => {
-      const row = document.createElement('div');
-      row.className = 'set-row';
-      row.innerHTML = `
-        <input type="number" inputmode="numeric" placeholder="Метры" value="${esc(s.distance_m)}" data-k="distance_m" />
-        <input type="number" inputmode="numeric" placeholder="Кол-во" value="${esc(s.reps)}" data-k="reps" />
-        <input type="text" placeholder="Время" value="${esc(s.time_or_pace)}" data-k="time_or_pace" />
-        <input type="text" placeholder="Отдых" value="${esc(s.rest_between)}" data-k="rest_between" />
-        <button type="button" class="row-del" aria-label="Удалить">✕</button>`;
-      row.querySelectorAll('input').forEach((inp) => inp.addEventListener('input', () => { sets[i][inp.dataset.k] = inp.value; }));
-      row.querySelector('.row-del').addEventListener('click', () => { sets.splice(i, 1); renderSets(); });
-      list.appendChild(row);
-    });
-  }
-  f('addSet').addEventListener('click', () => {
-    sets.push({ distance_m: '', reps: '', time_or_pace: '', rest_between: '' });
-    renderSets();
-  });
-
-  // --- силовая / ОФП ---
-  function renderExercises() {
-    const list = f('exList');
-    list.innerHTML = '';
-    exercises.forEach((e, i) => {
-      const row = document.createElement('div');
-      row.className = 'ex-row';
-      row.innerHTML = `
-        <div class="ex-top">
-          <input type="text" placeholder="Упражнение (присед, выпрыгивания, барьеры...)" value="${esc(e.name)}" data-k="name" />
-          <button type="button" class="row-del" aria-label="Удалить">✕</button>
-        </div>
-        <div class="ex-bottom">
-          <input type="number" inputmode="numeric" placeholder="Подходы" value="${esc(e.sets)}" data-k="sets" />
-          <input type="text" placeholder="Повторы" value="${esc(e.reps)}" data-k="reps" />
-          <input type="text" placeholder="Вес, кг" value="${esc(e.weight)}" data-k="weight" />
-        </div>`;
-      row.querySelectorAll('input').forEach((inp) => inp.addEventListener('input', () => { exercises[i][inp.dataset.k] = inp.value; }));
-      row.querySelector('.row-del').addEventListener('click', () => { exercises.splice(i, 1); renderExercises(); });
-      list.appendChild(row);
-    });
-  }
-  f('addEx').addEventListener('click', () => {
-    exercises.push({ name: '', sets: '', reps: '', weight: '' });
-    renderExercises();
-    const inputs = f('exList').querySelectorAll('.ex-top input');
-    inputs[inputs.length - 1]?.focus();
-  });
-
-  // --- ползунки ---
-  // цвет цифры: самочувствие — чем выше, тем зеленее; нагрузка — чем выше, тем краснее
-  function paintSlider(k) {
-    const v = Number(f(k).value);
-    f(k + 'Val').textContent = v;
-    f(k + 'Num').style.color = scaleColor(v, k === 'rpe');
-  }
-  ['feeling', 'rpe'].forEach((k) => {
-    f(k).addEventListener('input', () => paintSlider(k));
-    paintSlider(k);
-  });
-
-  function setSlider(k, v) {
-    f(k).value = v || 5;
-    paintSlider(k);
-  }
-
-  // --- умный ввод: текст → Fom → поля формы ---
-  function applyParsed(p) {
-    setType(p.type);
-    if (p.warmup) f('warmup').value = p.warmup;
-    if (p.cooldown) f('cooldown').value = p.cooldown;
-    if (p.notes) f('notes').value = f('notes').value ? `${f('notes').value}\n${p.notes}` : p.notes;
-    if (p.rpe) setSlider('rpe', p.rpe);
-    if (p.feeling) setSlider('feeling', p.feeling);
-    if (p.hr_avg) f('hrAvg').value = p.hr_avg;
-    if (p.hr_max) f('hrMax').value = p.hr_max;
-    if (p.hr_min) f('hrMin').value = p.hr_min;
-    if (Array.isArray(p.sets) && p.sets.length) {
-      sets = p.sets.map((s) => ({
-        distance_m: s.distance_m ?? '', reps: s.reps ?? '', time_or_pace: s.time_or_pace ?? '', rest_between: s.rest_between ?? '',
-      }));
-      renderSets();
-    }
-    if (Array.isArray(p.exercises) && p.exercises.length) {
-      exercises = p.exercises.map((e) => ({
-        name: e.name ?? '', sets: e.sets ?? '', reps: e.reps ?? '', weight: e.weight ?? '',
-      }));
-      renderExercises();
-    }
-  }
-
-  f('smartBtn').addEventListener('click', async () => {
-    const text = f('smartText').value.trim();
-    const status = f('smartStatus');
-    if (!text) {
-      status.textContent = 'Сначала напиши, как прошла тренировка 🙂';
-      return;
-    }
-    f('smartBtn').disabled = true;
-    status.textContent = 'Fom разбирает текст...';
-    try {
-      const { parsed } = await api('/api/workouts/parse', { method: 'POST', body: JSON.stringify({ text }) });
-      applyParsed(parsed);
-      growAll(root);
-      status.textContent = 'Готово! Проверь поля ниже и сохрани запись.';
-    } catch (err) {
-      console.error(err);
-      status.textContent = err.data?.error || 'Не получилось разобрать. Попробуй ещё раз.';
-    } finally {
-      f('smartBtn').disabled = false;
-    }
-  });
-
-  return {
-    get type() { return type; },
-    getPayload() {
-      return {
-        type,
-        warmup: f('warmup').value,
-        cooldown: f('cooldown').value,
-        feeling: Number(f('feeling').value),
-        rpe: Number(f('rpe').value),
-        notes: f('notes').value,
-        visibility: f('visibility').checked ? 'public' : 'private',
-        sets: type === 'training' ? sets : [],
-        exercises: type === 'training' ? exercises : [],
-        hr_avg: f('hrAvg').value,
-        hr_max: f('hrMax').value,
-        hr_min: f('hrMin').value,
-      };
-    },
-    setData(w) {
-      setType(w.type);
-      f('warmup').value = w.warmup || '';
-      f('cooldown').value = w.cooldown || '';
-      f('notes').value = w.notes || '';
-      f('visibility').checked = w.visibility === 'public';
-      setSlider('feeling', w.feeling);
-      setSlider('rpe', w.rpe);
-      f('hrAvg').value = w.hr_avg ?? '';
-      f('hrMax').value = w.hr_max ?? '';
-      f('hrMin').value = w.hr_min ?? '';
-      sets = (Array.isArray(w.sets) ? w.sets : []).map((s) => ({
-        distance_m: s.distance_m ?? '', reps: s.reps ?? '', time_or_pace: s.time_or_pace ?? '', rest_between: s.rest_between ?? '',
-      }));
-      exercises = (Array.isArray(w.exercises) ? w.exercises : []).map((e) => ({
-        name: e.name ?? '', sets: e.sets ?? '', reps: e.reps ?? '', weight: e.weight ?? '',
-      }));
-      renderSets();
-      renderExercises();
-      growAll(root);
-    },
-    reset() {
-      this.setData({ type: 'training', visibility: f('visibility').checked ? 'public' : 'private' });
-      f('smartText').value = '';
-      f('smartStatus').textContent = '';
-      growAll(root);
-    },
-  };
-}
-
-const mainForm = createWorkoutForm($('mainFormFields'));
-const editForm = createWorkoutForm($('editFormFields'));
-
-// ---------- Заставка ----------
-// Убираем заставку, когда надпись дописана (~1.4 c) и данные загрузились (но не дольше 4 c)
-let splashGone = false;
-function hideSplash() {
-  if (splashGone) return;
-  const el = document.getElementById('splash');
-  if (!el) return;
-  const wait = Math.max(0, 1400 - (Date.now() - (window.__splashStart || 0)));
-  splashGone = true;
-  setTimeout(() => {
-    el.classList.add('hide');
-    setTimeout(() => el.remove(), 400);
-  }, wait);
-}
-setTimeout(hideSplash, 4000); // запасной вариант, если сервер долго отвечает
-
-// ---------- Инициализация ----------
-async function init() {
-  setEntryDate(localDateStr());
-  showScreen('mainScreen');
-  try {
-    const { user } = await api('/api/auth/login', { method: 'POST' });
-    currentUser = user;
-    $('shareCalendarToggle').checked = user.share_calendar !== false;
-    $('reminderToggle').checked = user.remind_enabled !== false;
-    renderMySport();
-    updateAvatar();
-    updateFriendsBadge();
-    setInterval(updateFriendsBadge, 60000); // раз в минуту проверяем новые реакции и заявки
-    updateStats();
-    await loadMyWorkouts();
-    renderEntryState();
-    loadGiveaway();
-    loadAthleteProfile();
-    // новичку — короткое знакомство с приложением
-    if (!myWorkouts.length && !tourStorage()) setTimeout(openTour, 1500);
-  } catch (err) {
-    console.error('Login failed', err);
-    $('statusMsg').textContent = 'Не удалось связаться с сервером. Попробуй открыть приложение ещё раз.';
-  }
-  hideSplash();
-}
-
-async function loadMyWorkouts() {
-  const { workouts, streak } = await api('/api/workouts');
-  myWorkouts = workouts.map((w) => ({ ...w, date: normDate(w.date) }));
-  workoutsByDate = {};
-  myWorkouts.forEach((w) => { (workoutsByDate[w.date] ||= []).push(w); });
-  Object.values(workoutsByDate).forEach((list) => list.sort((a, b) => (a.session || 1) - (b.session || 1)));
-  if (currentUser && streak) {
-    currentUser.current_streak = streak.current;
-    currentUser.longest_streak = streak.longest;
-  }
-  updateStats();
-}
-
-function applyStreak(streak) {
-  if (!currentUser || !streak) return;
-  currentUser.current_streak = streak.current;
-  currentUser.longest_streak = streak.longest;
-  updateStats();
-}
-
-// Цифры в шапке, на главной и в профиле
-function updateStats() {
-  const cur = currentUser?.current_streak ?? 0;
-  const best = currentUser?.longest_streak ?? 0;
-  const monday = mondayOf(localDateStr());
-  const weekTrainings = myWorkouts.filter((w) => w.type === 'training' && w.date >= monday).length;
-  const total = myWorkouts.filter((w) => w.type === 'training').length;
-  const monthStart = localDateStr().slice(0, 8) + '01';
-  const monthTrainings = myWorkouts.filter((w) => w.type === 'training' && w.date >= monthStart).length;
-  const from30 = addDays(localDateStr(), -29);
-  const last30 = myWorkouts.filter((w) => w.type === 'training' && w.date >= from30).length;
-
-  $('streakCurrent').textContent = cur;
-  $('statStreak').textContent = cur;
-  $('statWeek').textContent = weekTrainings;
-  $('statMonth').textContent = monthTrainings;
-  $('profileStreak').textContent = cur;
-  $('profileMonth').textContent = last30;
-  $('profileTotal').textContent = total;
-  // рекорд серии — не отдельной плиткой, а маленькой меткой в профиле
-  $('profileRecord').innerHTML = `${ico('trophy')} рекорд ${best} дн.`;
-  $('profileRecord').classList.toggle('hidden', best < 2);
-}
-
-// ---------- Аватар: своё фото → фото из Telegram → значок ----------
-function getAvatarUrl() {
-  return currentUser?.avatar_data || tg?.initDataUnsafe?.user?.photo_url || '';
-}
-
-function updateAvatar() {
-  const url = getAvatarUrl();
-  const img = $('avatarImg');
-  if (url) {
-    img.src = url;
-    img.classList.remove('hidden');
-    $('avatarFallback').classList.add('hidden');
-  } else {
-    img.classList.add('hidden');
-    $('avatarFallback').classList.remove('hidden');
-  }
-  const hero = $('profileHero');
-  hero.style.backgroundImage = url ? `url("${url}")` : '';
-  hero.classList.toggle('no-photo', !url);
-  $('photoResetBtn').classList.toggle('hidden', !currentUser?.avatar_data);
-}
-
-// ---------- Выбор даты записи ----------
-function setEntryDate(dateStr) {
-  const today = localDateStr();
-  const minDate = addDays(today, -MAX_BACKFILL_DAYS);
-  if (!dateStr || dateStr > today) dateStr = today; // в будущее писать нельзя
-  if (dateStr < minDate) dateStr = minDate;        // и слишком далеко в прошлое тоже
-  entrySession = 1;
-
-  entryDate = dateStr;
-
-  const input = $('entryDate');
-  input.max = today;
-  input.min = minDate;
-  input.value = dateStr;
-
-  $('entryTitle').textContent = `Запись за ${relativeDateLabel(dateStr)}`;
-
-  document.querySelectorAll('.date-picker-row .chip').forEach((chip) => {
-    const chipDate = addDays(today, -Number(chip.dataset.shift));
-    chip.classList.toggle('active', chipDate === dateStr);
-  });
-
-  $('statusMsg').textContent = '';
-  if (dateStr !== justSavedDate) justSavedDate = null;
-
-  renderEntryState();
-}
-
-// Главный экран в двух состояниях:
-//  - на выбранную дату записи ещё нет → показываем форму;
-//  - запись уже есть (или только что сохранена) → прячем форму и показываем карточку с итогом.
-function renderEntryState() {
-  const list = workoutsByDate[entryDate] || [];
-  const form = $('entryForm');
-  const done = $('entryDone');
-  const label = relativeDateLabel(entryDate);
-
-  // режим «вторая тренировка»: форма только для тренировки, без «Отдыха»
-  $('mainFormFields').classList.toggle('second-mode', entrySession === 2);
-
-  if (!list.length || entrySession === 2) {
-    done.classList.add('hidden');
-    form.classList.remove('hidden');
-    $('entryTitle').textContent = entrySession === 2 ? `Вторая тренировка за ${label}` : `Запись за ${label}`;
-    $('entryBackBtn')?.classList.toggle('hidden', entrySession !== 2);
-    return;
-  }
-
-  $('entryTitle').textContent = `Запись за ${label}`;
-  form.classList.add('hidden');
-  done.classList.remove('hidden');
-
-  $('doneTitle').innerHTML = ico('check') + esc(
-    justSavedDate === entryDate ? `Запись за ${label} сохранена` : `За ${label} запись уже есть`);
-
-  // каждая запись дня — отдельный блок со своими кнопками
-  const box = $('doneList');
-  box.innerHTML = '';
-  list.forEach((w) => {
-    const block = document.createElement('div');
-    block.className = 'done-block';
-    const title = w.type === 'rest' ? 'День отдыха' : list.length > 1 ? `Тренировка ${w.session || 1}` : 'Тренировка';
-    block.innerHTML = `
-      <div class="done-block-title">${ico(w.type === 'rest' ? 'moon' : 'runner')}${esc(title)}</div>
-      <div class="done-summary"></div>
-      ${w.ai_feedback ? '<div class="ai-box"><div class="ai-box-title"><span class="fom-badge">F</span> Fom</div><div class="fb"></div></div>' : ''}
-      <div class="btn-row">
-        <button type="button" class="ghost-btn share">${ico('share')} Поделиться</button>
-        <button type="button" class="ghost-btn edit">${ico('pen')} Изменить</button>
-      </div>`;
-    block.querySelector('.done-summary').textContent = buildDetailLines(w).join('\n');
-    if (w.ai_feedback) block.querySelector('.fb').textContent = w.ai_feedback;
-    block.querySelector('.share').addEventListener('click', () => shareWorkout(w));
-    block.querySelector('.edit').addEventListener('click', () => openEditScreen(w.id, 'mainScreen'));
-    box.appendChild(block);
-  });
-
-  // вторую тренировку можно добавить, если первая — тренировка и второй ещё нет
-  const canAdd = list.length === 1 && list[0].type === 'training';
-  $('doneAddBtn').classList.toggle('hidden', !canAdd);
-}
-
-document.querySelectorAll('.date-picker-row .chip').forEach((chip) => {
-  chip.addEventListener('click', () => setEntryDate(addDays(localDateStr(), -Number(chip.dataset.shift))));
-});
-$('entryDate').addEventListener('change', (e) => setEntryDate(e.target.value));
-
-$('doneAddBtn').addEventListener('click', () => {
-  entrySession = 2;
-  mainForm.reset();
-  renderEntryState();
-  window.scrollTo(0, 0);
-});
-$('entryBackBtn')?.addEventListener('click', () => {
-  entrySession = 1;
-  renderEntryState();
-});
-
-// ---------- Сохранение новой записи ----------
-$('saveBtn').addEventListener('click', async () => {
-  const statusEl = $('statusMsg');
-  const saveBtn = $('saveBtn');
-  const payload = { date: entryDate, session: entrySession, ...mainForm.getPayload() };
-  if (entrySession === 2) payload.type = 'training';
-
-  saveBtn.disabled = true;
-  statusEl.textContent = payload.type === 'training' ? 'Сохраняю, Fom смотрит тренировку...' : 'Сохраняю...';
-
-  try {
-    const result = await api('/api/workouts', { method: 'POST', body: JSON.stringify(payload) });
-    applyStreak(result.streak);
-
-    // обновляем список записей — из него рисуется карточка «сохранено», календарь и цифры
-    try {
-      await loadMyWorkouts();
-    } catch (e) {
-      const w = { ...result.workout, date: normDate(result.workout.date) };
-      (workoutsByDate[w.date] ||= []).push(w);
-    }
-
-    statusEl.textContent = '';
-    haptic('success');
-    justSavedDate = entryDate;
-    entrySession = 1;
-    loadGiveaway(); // серия могла вырасти — обновим статус розыгрышей
-    mainForm.reset();
-    renderEntryState();
-    window.scrollTo(0, 0);
-  } catch (err) {
-    console.error(err);
-    haptic('error');
-    statusEl.textContent = err.data?.error || 'Ошибка сохранения. Попробуй ещё раз.';
-  } finally {
-    saveBtn.disabled = false;
-  }
-});
-
-// ---------- Профиль + календарь ----------
-let calMonth = new Date(); // какой месяц показывает календарь
-
-async function loadProfileScreen() {
-  const tgUser = tg?.initDataUnsafe?.user;
-  const name = [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(' ') || currentUser?.first_name || 'Спортсмен';
-  const uname = tgUser?.username || currentUser?.username;
-  $('profileName').innerHTML = esc(name) + (isVerified(uname) ? VERIFIED_BADGE : '');
-  $('profileUsername').textContent = uname ? '@' + uname : 'спортсмен';
-  updateAvatar();
-
-  renderCalendar(); // сразу рисуем по тому, что уже загружено
-  renderHistory();
-
-  // число друзей — метка в профиле, по нажатию открывается список друзей
-  api('/api/friends')
-    .then(({ friends }) => {
-      $('profileFriends').innerHTML = friendsLabel(friends.length);
-      $('profileFriends').classList.remove('hidden');
-    })
-    .catch((err) => console.error('Friends count failed', err));
-
-  try {
-    await loadMyWorkouts();
-    renderCalendar();
-    renderHistory();
-  } catch (err) {
-    console.error('Failed to load history', err);
-  }
-}
-
-function renderCalendar() {
-  const y = calMonth.getFullYear();
-  const m = calMonth.getMonth();
-  const today = localDateStr();
-  const now = new Date();
-
-  $('calTitle').textContent = `${MONTHS[m]} ${y}`;
-  $('calNext').disabled = y > now.getFullYear() || (y === now.getFullYear() && m >= now.getMonth());
-
-  const grid = $('calGrid');
-  grid.innerHTML = '';
-
-  const offset = (new Date(y, m, 1).getDay() + 6) % 7; // понедельник — первый день недели
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-
-  for (let i = 0; i < offset; i++) {
-    const empty = document.createElement('span');
-    empty.className = 'cal-cell empty';
-    grid.appendChild(empty);
-  }
-
-  let trainings = 0;
-  let rests = 0;
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const ds = localDateStr(new Date(y, m, d));
-    const dayList = workoutsByDate[ds] || [];
-    const w = dayList[0];
-    const cell = document.createElement('button');
-    cell.type = 'button';
-    cell.className = 'cal-cell';
-    cell.textContent = d;
-
-    if (w) {
-      cell.classList.add(w.type === 'training' ? 'has-training' : 'has-rest');
-      if (dayList.length > 1) cell.classList.add('double'); // две тренировки за день
-      dayList.forEach((x) => { if (x.type === 'training') trainings++; else rests++; });
-    }
-    if (ds === today) cell.classList.add('today');
-
-    if (ds > today) {
-      cell.classList.add('future');
-      cell.disabled = true;
-    } else {
-      if (!w && ds < addDays(today, -MAX_BACKFILL_DAYS)) cell.classList.add('too-old');
-      cell.addEventListener('click', () => {
-        if (w) {
-          openEditScreen(w.id, 'profileScreen');
-        } else if (ds >= addDays(today, -MAX_BACKFILL_DAYS)) {
-          setEntryDate(ds); // пустой день — форма новой записи на эту дату
-          showScreen('mainScreen');
-        } else {
-          showDialog({ icon: 'calendar', title: 'Только сегодня и вчера', text: 'Новую запись можно добавить только за сегодня или за вчера. Уже сделанные записи можно открыть и поправить.' });
-        }
-      });
-    }
-    grid.appendChild(cell);
-  }
-
-  $('calSummary').textContent =
-    trainings + rests === 0
-      ? 'В этом месяце записей пока нет.'
-      : `За месяц: тренировок — ${trainings}, дней отдыха — ${rests}.`;
-}
-
-function renderHistory() {
-  const list = $('historyList');
-  list.innerHTML = '';
-  if (myWorkouts.length === 0) {
-    list.innerHTML = '<div class="empty-hint">Записей пока нет.</div>';
-    return;
-  }
-  myWorkouts.slice(0, 10).forEach((w) => {
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.className = 'history-item';
-    const isTraining = w.type === 'training';
-    const bits = [];
-    if (isTraining && Array.isArray(w.sets) && w.sets.length) bits.push('бег');
-    if (isTraining && Array.isArray(w.exercises) && w.exercises.length) bits.push('ОФП');
-    if (isTraining && w.rpe) bits.push(`RPE ${w.rpe}`);
-    item.innerHTML = `
-      <span class="history-ico ${isTraining ? 'tr' : 'rs'}">${ico(isTraining ? 'runner' : 'moon')}</span>
-      <span class="history-main">
-        <span class="history-date">${esc(formatWithWeekday(w.date))}</span>
-        <span class="history-sub">${isTraining ? (w.session > 1 ? 'Вторая тренировка' : 'Тренировка') : 'Отдых'}${bits.length ? ' · ' + esc(bits.join(' · ')) : ''}</span>
-      </span>
-      <span class="history-arrow">›</span>`;
-    item.addEventListener('click', () => openEditScreen(w.id, 'profileScreen'));
-    list.appendChild(item);
-  });
-}
-
-$('calPrev').addEventListener('click', () => {
-  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1);
-  renderCalendar();
-});
-$('calNext').addEventListener('click', () => {
-  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1);
-  renderCalendar();
-});
-
-function openProfile() {
-  calMonth = new Date(); // при каждом открытии — текущий месяц
-  showScreen('profileScreen');
-  loadProfileScreen();
-}
-$('profileBtn').addEventListener('click', openProfile);
-$('profileNavBtn').addEventListener('click', openProfile);
-
-// ---------- Смена фото профиля ----------
-$('photoBtn').addEventListener('click', () => $('photoSheet').classList.remove('hidden'));
-$('photoCancelBtn').addEventListener('click', () => $('photoSheet').classList.add('hidden'));
-$('photoSheet').addEventListener('click', (e) => {
-  if (e.target === $('photoSheet')) $('photoSheet').classList.add('hidden');
-});
-$('photoPickBtn').addEventListener('click', () => {
-  $('photoSheet').classList.add('hidden');
-  $('photoInput').click();
-});
-$('photoResetBtn').addEventListener('click', async () => {
-  $('photoSheet').classList.add('hidden');
-  try {
-    await api('/api/auth/avatar', { method: 'POST', body: JSON.stringify({ image: null }) });
-    currentUser.avatar_data = null;
-    updateAvatar();
-  } catch (err) {
-    console.error(err);
-    alertMsg('Не удалось вернуть фото. Попробуй ещё раз.');
-  }
-});
-
-// ---------- Наше окно-сообщение (вместо системного alert / confirm) ----------
-// showDialog({ icon, title, text, ok, cancel, danger }) → Promise: true — нажали «ок», false — отмена
-let dialogResolve = null;
-function showDialog({ icon = '', title = '', text = '', ok = 'Понятно', cancel = '', danger = false } = {}) {
-  if (dialogResolve) dialogResolve(false); // предыдущее окно закрываем
-  $('dlgIcon').innerHTML = icon ? ico(icon) : '';
-  $('dlgIcon').classList.toggle('hidden', !icon);
-  $('dlgTitle').textContent = title;
-  $('dlgTitle').classList.toggle('hidden', !title);
-  $('dlgText').textContent = text;
-  $('dlgText').classList.toggle('hidden', !text);
-  const btns = $('dlgBtns');
-  btns.innerHTML = '';
-  return new Promise((resolve) => {
-    dialogResolve = resolve;
-    const close = (val) => {
-      if (dialogResolve !== resolve) return;
-      dialogResolve = null;
-      $('dialog').classList.add('closing');
-      setTimeout(() => $('dialog').classList.add('hidden'), 160);
-      resolve(val);
-    };
-    if (cancel) {
-      const c = document.createElement('button');
-      c.type = 'button'; c.className = 'dlg-btn'; c.textContent = cancel;
-      c.addEventListener('click', () => close(false));
-      btns.appendChild(c);
-    }
-    const o = document.createElement('button');
-    o.type = 'button'; o.className = 'dlg-btn main' + (danger ? ' danger' : ''); o.textContent = ok;
-    o.addEventListener('click', () => close(true));
-    btns.appendChild(o);
-    $('dialog').onclick = (e) => { if (e.target === $('dialog')) close(false); };
-    $('dialog').classList.remove('hidden', 'closing');
-    haptic(danger || icon === 'calendar' || icon === 'warn' ? 'warning' : icon === 'info' ? 'error' : 'light');
-  });
-}
-function alertMsg(text) { return showDialog({ icon: 'info', text }); }
-function confirmAsk(opts) { return showDialog({ cancel: 'Отмена', ...opts }); }
-function dialogOpen() { return !$('dialog').classList.contains('hidden'); }
-function closeDialog() { if (dialogResolve) { const r = dialogResolve; dialogResolve = null; $('dialog').classList.add('hidden'); r(false); } }
-
-// =====================================================================
-//  ДРУЗЬЯ: лента, профиль друга, реакции, комментарии, активность
-// =====================================================================
-const REACTIONS = ['🔥', '👏', '💪', '🚀'];
-
-// ---------- Вибрация (отклик телефона на нажатия и жесты) ----------
-// kind: 'light' | 'medium' | 'heavy' | 'soft' | 'rigid' — толчок;
-//       'success' | 'warning' | 'error' — «уведомление»; 'select' — лёгкий щелчок выбора.
-let lastHaptic = 0;
-function haptic(kind = 'light') {
-  const now = Date.now();
-  if (now - lastHaptic < 35) return; // две вибрации подряд от одного нажатия — не нужно
-  lastHaptic = now;
-  try {
-    const h = tg?.HapticFeedback;
-    if (!h) return;
-    if (kind === 'select') h.selectionChanged();
-    else if (kind === 'success' || kind === 'warning' || kind === 'error') h.notificationOccurred(kind);
-    else h.impactOccurred(kind);
-  } catch (e) {}
-}
-
-// «только что», «5 мин», «3 ч», «вчера», «19 сентября»
-function timeAgo(iso) {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return 'только что';
-  if (diff < 3600) return `${Math.floor(diff / 60)} мин`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} ч`;
-  const day = localDateStr(new Date(iso));
-  if (day === addDays(localDateStr(), -1)) return 'вчера';
-  return formatDayMonth(day);
-}
-
-// «1 друг», «3 друга», «12 друзей»
-function friendsLabel(n) {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return `${ico('people')} ${n} друг`;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${ico('people')} ${n} друга`;
-  return `${ico('people')} ${n} друзей`;
-}
-
-// Имя полностью: имя + фамилия из Telegram (если фамилии нет — только имя, если и его нет — @username)
-function personName(u) {
-  const full = [u?.first_name, u?.last_name].filter(Boolean).join(' ');
-  return full || (u?.username ? '@' + u.username : 'Спортсмен');
-}
-
-// Имя + синяя галочка (если положена)
-function nameHtml(u) {
-  return esc(personName(u)) + (isVerified(u?.username) ? VERIFIED_BADGE : '');
-}
-
-// Ссылка на фото человека (своё — сразу, друга — через сервер с проверкой, что вы друзья)
-function avatarSrc(u) {
-  if (!u) return '';
-  if (currentUser && u.id === currentUser.id) return getAvatarUrl();
-  if (!u.avatar_v) return '';
-  return `${API_BASE}/api/friends/avatar/${u.id}?v=${u.avatar_v}&auth=${encodeURIComponent(tg?.initData || '')}`;
-}
-
-// Кружок с фото; если фото нет или не загрузилось — первая буква имени
-function avatarHtml(u, extra = '') {
-  const letter = esc(personName(u).replace('@', '').slice(0, 1).toUpperCase());
-  const src = avatarSrc(u);
-  return `<span class="friend-ava ${extra}">${letter}${src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
-}
-
-// «тренировался сегодня / вчера / 3 дн. назад»
-function lastTrainingLabel(date) {
-  if (!date) return 'пока без тренировок';
-  const d = normDate(date);
-  const today = localDateStr();
-  if (d === today) return 'тренировался сегодня 💪';
-  if (d === addDays(today, -1)) return 'тренировался вчера';
-  const days = Math.round((parseDateStr(today) - parseDateStr(d)) / 86400000);
-  return days < 30 ? `тренировался ${days} дн. назад` : `последняя тренировка ${formatDayMonth(d)}`;
-}
-
-// ---------- Карточка тренировки (лента и профиль друга) ----------
-function buildWorkoutCard(w, { showAuthor = true } = {}) {
-  const card = document.createElement('article');
-  card.className = 'card wk-card';
-  card.id = 'wk-' + w.id;
-  const isMine = currentUser && w.user_id === currentUser.id;
-  // RPE и самочувствие показываем цветными значками, поэтому в тексте их не повторяем
-  const lines = buildDetailLines(w).filter((l) => !l.startsWith('Самочувствие') && !l.startsWith('RPE'));
-  const chips = [];
-  if (w.rpe) chips.push(`<span class="wk-chip" style="color:${scaleColor(w.rpe, true)}">RPE ${esc(w.rpe)}</span>`);
-  if (w.feeling) chips.push(`<span class="wk-chip" style="color:${scaleColor(w.feeling)}">😊 ${esc(w.feeling)}/10</span>`);
-
-  card.innerHTML = `
-    <div class="wk-head">
-      ${showAuthor ? avatarHtml(w.author) : ''}
-      <div class="wk-head-main">
-        ${showAuthor ? `<button type="button" class="wk-author">${nameHtml(w.author)}${isMine ? ' <span class="muted">· ты</span>' : ''}</button>` : ''}
-        <div class="wk-date">${esc(formatWithWeekday(normDate(w.date)))} · ${w.type === 'rest' ? ico('moon') + ' Отдых' : w.session > 1 ? ico('runner') + ' Вторая тренировка' : ico('runner') + ' Тренировка'}</div>
-      </div>
-    </div>
-    ${chips.length ? `<div class="wk-chips">${chips.join('')}</div>` : ''}
-    ${lines.length ? `<div class="wk-body">${esc(lines.join('\n'))}</div>` : ''}`;
-
-  const authorBtn = card.querySelector('.wk-author');
-  if (authorBtn) authorBtn.addEventListener('click', () => (isMine ? openProfile() : openFriendProfile(w.user_id)));
-  card.appendChild(buildSocial(w));
-  return card;
-}
-
-// ---------- Реакции + комментарии под тренировкой ----------
-function buildSocial(w, { openThread = false } = {}) {
-  const wrap = document.createElement('div');
-  wrap.className = 'social';
-  wrap.innerHTML = `<div class="react-bar"></div><div class="thread hidden"></div>`;
-  const bar = wrap.querySelector('.react-bar');
-  const thread = wrap.querySelector('.thread');
-
-  function renderBar() {
-    bar.innerHTML = '';
-    REACTIONS.forEach((emoji) => {
-      const n = w.reactions?.[emoji] || 0;
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'react-btn' + (w.my_reaction === emoji ? ' mine' : '') + (n ? ' has' : '');
-      b.innerHTML = `<span class="react-emoji">${emoji}</span>${n ? `<b>${n}</b>` : ''}`;
-      b.addEventListener('click', () => toggleReaction(emoji, b));
-      bar.appendChild(b);
-    });
-    const c = document.createElement('button');
-    c.type = 'button';
-    c.className = 'react-btn comment-btn' + (thread.classList.contains('hidden') ? '' : ' mine');
-    c.innerHTML = `<span class="react-emoji">💬</span>${w.comments_count ? `<b>${w.comments_count}</b>` : ''}`;
-    c.addEventListener('click', () => {
-      thread.classList.toggle('hidden');
-      renderBar();
-      if (!thread.classList.contains('hidden')) loadThread();
-    });
-    bar.appendChild(c);
-  }
-
-  async function toggleReaction(emoji, btn) {
-    haptic();
-    const before = { reactions: { ...(w.reactions || {}) }, my_reaction: w.my_reaction };
-    // сразу показываем результат, не дожидаясь сервера
-    const r = { ...(w.reactions || {}) };
-    if (w.my_reaction) r[w.my_reaction] = Math.max(0, (r[w.my_reaction] || 1) - 1);
-    if (w.my_reaction === emoji) {
-      w.my_reaction = null;
-    } else {
-      r[emoji] = (r[emoji] || 0) + 1;
-      w.my_reaction = emoji;
-    }
-    Object.keys(r).forEach((k) => { if (!r[k]) delete r[k]; });
-    w.reactions = r;
-    renderBar();
-    if (w.my_reaction === emoji) bar.children[REACTIONS.indexOf(emoji)]?.classList.add('pop');
-    try {
-      const res = await api(`/api/friends/workouts/${w.id}/react`, { method: 'POST', body: JSON.stringify({ emoji }) });
-      w.reactions = res.reactions;
-      w.my_reaction = res.my_reaction;
-      renderBar();
-      if (!thread.classList.contains('hidden')) loadThread();
-    } catch (err) {
-      console.error(err);
-      Object.assign(w, before);
-      renderBar();
-    }
-  }
-
-  async function loadThread() {
-    thread.innerHTML = '<div class="muted thread-loading">Загружаю...</div>';
-    try {
-      const { reactions, comments } = await api(`/api/friends/workouts/${w.id}/social`);
-      w.comments_count = comments.length;
-      renderBar();
-      thread.innerHTML = '';
-
-      if (reactions.length) {
-        const who = document.createElement('div');
-        who.className = 'who-reacted';
-        who.innerHTML = reactions.map((r) => `<span>${r.emoji} ${nameHtml(r)}</span>`).join('');
-        thread.appendChild(who);
-      }
-
-      comments.forEach((c) => {
-        const row = document.createElement('div');
-        row.className = 'comment';
-        row.innerHTML = `
-          ${avatarHtml(c, 'small')}
-          <div class="comment-main">
-            <div class="comment-top"><b>${nameHtml(c)}</b><span class="muted">${esc(timeAgo(c.created_at))}</span></div>
-            <div class="comment-text">${esc(c.text)}</div>
-          </div>
-          ${c.can_delete ? '<button type="button" class="comment-del" aria-label="Удалить">✕</button>' : ''}`;
-        row.querySelector('.comment-del')?.addEventListener('click', async () => {
-          if (!(await confirmAsk({ icon: 'trash', title: 'Удалить комментарий?', ok: 'Удалить', danger: true }))) return;
-          try {
-            await api(`/api/friends/comments/${c.comment_id}`, { method: 'DELETE' });
-            loadThread();
-          } catch (err) { console.error(err); }
-        });
-        thread.appendChild(row);
-      });
-
-      if (!reactions.length && !comments.length) {
-        const empty = document.createElement('div');
-        empty.className = 'muted thread-empty';
-        empty.textContent = 'Пока тихо. Напиши первым 👇';
-        thread.appendChild(empty);
-      }
-
-      const form = document.createElement('div');
-      form.className = 'comment-form';
-      form.innerHTML = `
-        <input type="text" maxlength="500" placeholder="Комментарий..." autocomplete="off" />
-        <button type="button" class="send-btn small" aria-label="Отправить">
-          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21.85 12.5a.55.55 0 0 0 0-1L3.4 3.6a.5.5 0 0 0-.7.6L5 11l9 1-9 1-2.3 6.8a.5.5 0 0 0 .7.6Z"/></svg>
-        </button>`;
-      const input = form.querySelector('input');
-      const send = async () => {
-        const text = input.value.trim();
-        if (!text) return;
-        input.disabled = true;
-        try {
-          await api(`/api/friends/workouts/${w.id}/comments`, { method: 'POST', body: JSON.stringify({ text }) });
-          haptic();
-          await loadThread();
-        } catch (err) {
-          console.error(err);
-          input.disabled = false;
-        }
-      };
-      form.querySelector('button').addEventListener('click', send);
-      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
-      thread.appendChild(form);
-    } catch (err) {
-      console.error(err);
-      thread.innerHTML = '<div class="muted thread-loading">Не удалось загрузить комментарии.</div>';
-    }
-  }
-
-  if (openThread) thread.classList.remove('hidden');
-  renderBar();
-  if (openThread) loadThread();
-  return wrap;
-}
-
-// ---------- Значок на кнопке «Друзья»: новые реакции, комментарии, заявки ----------
-async function updateFriendsBadge() {
-  try {
-    const res = await api('/api/friends/activity/count');
-    const unread = res.unread || 0;
-    const requests = res.requests || 0;
-    const total = unread + requests;
-    const badge = $('friendsBadge');
-    badge.textContent = total > 9 ? '9+' : total;
-    badge.classList.toggle('hidden', total === 0);
-    const rb = $('requestsBadge');
-    rb.textContent = requests;
-    rb.classList.toggle('hidden', requests === 0);
-  } catch (err) {
-    console.error('Badge failed', err);
-  }
-}
-
-// ---------- Экран «Друзья»: вкладки ----------
-let friendsTab = 'feed';
-let feedCursor = null;
-
-function setFriendsTab(tab) {
-  friendsTab = tab;
-  document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
-  $('feedTab').classList.toggle('hidden', tab !== 'feed');
-  $('listTab').classList.toggle('hidden', tab !== 'list');
-  if (tab === 'feed') loadFeedTab();
-  else loadFriendsList();
-}
-document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.addEventListener('click', () => setFriendsTab(b.dataset.tab)));
-
-$('friendsBtn').addEventListener('click', () => {
-  showScreen('friendsScreen');
-  setFriendsTab(friendsTab);
-});
-
-// ---------- Лента ----------
-async function loadFeedTab() {
-  loadActivity();
-  feedCursor = null;
-  $('feedList').innerHTML = '';
-  await loadFeedPage();
-}
-
-async function loadFeedPage() {
-  const status = $('feedStatus');
-  const more = $('feedMoreBtn');
-  status.textContent = 'Загружаю ленту...';
-  more.classList.add('hidden');
-  try {
-    const qs = feedCursor ? `?before_date=${feedCursor.date}&before_id=${feedCursor.id}` : '';
-    const { workouts } = await api('/api/friends/feed' + qs);
-    status.textContent = '';
-    workouts.forEach((w) => $('feedList').appendChild(buildWorkoutCard(w)));
-    if (workouts.length) {
-      const last = workouts[workouts.length - 1];
-      feedCursor = { date: normDate(last.date), id: last.id };
-    }
-    more.classList.toggle('hidden', workouts.length < 15);
-    if (!$('feedList').children.length) {
-      $('feedList').innerHTML = `
-        <div class="card empty-feed">
-          <div class="empty-feed-ico">👟</div>
-          <div class="empty-feed-title">Лента пока пустая</div>
-          <div class="muted">Здесь появляются открытые тренировки — твои и друзей. Включи «Показывать друзьям» в записи, а друзей добавь во вкладке «Друзья».</div>
-        </div>`;
-    }
-  } catch (err) {
-    console.error(err);
-    status.textContent = 'Не удалось загрузить ленту.';
-  }
-}
-$('feedMoreBtn').addEventListener('click', loadFeedPage);
-
-// ---------- Активность: реакции и комментарии к моим тренировкам ----------
-async function loadActivity() {
-  try {
-    const { items } = await api('/api/friends/activity');
-    const card = $('activityCard');
-    const list = $('activityList');
-    list.innerHTML = '';
-    card.classList.toggle('hidden', items.length === 0);
-    items.slice(0, 8).forEach((a) => {
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'activity-item' + (a.unread ? ' unread' : '');
-      const what = a.kind === 'reaction'
-        ? `поставил(а) ${a.emoji} твоей тренировке за ${esc(formatDayMonth(normDate(a.date)))}`
-        : `: «${esc(a.text.length > 80 ? a.text.slice(0, 80) + '…' : a.text)}»`;
-      row.innerHTML = `
-        ${avatarHtml(a, 'small')}
-        <span class="activity-text"><b>${nameHtml(a)}</b>${a.kind === 'reaction' ? ' ' : ''}${what}</span>
-        <span class="muted activity-time">${esc(timeAgo(a.created_at))}</span>`;
-      row.addEventListener('click', () => openEditScreen(a.workout_id, 'friendsScreen'));
-      list.appendChild(row);
-    });
-    updateFriendsBadge(); // после просмотра новые события считаются прочитанными
-  } catch (err) {
-    console.error('Activity failed', err);
-  }
-}
-
-// ---------- Список друзей и заявки ----------
-async function loadFriendsList() {
-  const statusEl = $('friendRequestStatus');
-  statusEl.textContent = '';
-
-  try {
-    const [{ requests }, { friends }] = await Promise.all([api('/api/friends/requests'), api('/api/friends')]);
-
-    const reqList = $('incomingRequestsList');
-    reqList.innerHTML = '';
-    $('incomingRequestsBlock').classList.toggle('hidden', requests.length === 0);
-    requests.forEach((r) => {
-      const div = document.createElement('div');
-      div.className = 'friend-item';
-      div.innerHTML = `
-        ${avatarHtml(r)}
-        <span class="friend-name">${nameHtml(r)} <span class="muted">${r.username ? '@' + esc(r.username) : ''}</span></span>
-        <span class="friend-actions">
-          <button class="mini-btn accept" type="button">Принять</button>
-          <button class="mini-btn decline" type="button">✕</button>
-        </span>`;
-      div.querySelector('.accept').addEventListener('click', async () => {
-        haptic('medium');
-        await api('/api/friends/accept', { method: 'POST', body: JSON.stringify({ friendshipId: r.friendship_id }) });
-        loadFriendsList();
-        updateFriendsBadge();
-      });
-      div.querySelector('.decline').addEventListener('click', async () => {
-        await api('/api/friends/decline', { method: 'POST', body: JSON.stringify({ friendshipId: r.friendship_id }) });
-        loadFriendsList();
-        updateFriendsBadge();
-      });
-      reqList.appendChild(div);
-    });
-
-    const friendsList = $('friendsList');
-    friendsList.innerHTML = '';
-    if (friends.length === 0) {
-      friendsList.innerHTML = '<div class="empty-hint">Пока нет друзей — добавь кого-нибудь по username выше.</div>';
-    } else {
-      friends.forEach((fr) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'friend-item clickable';
-        btn.innerHTML = `
-          ${avatarHtml(fr)}
-          <span class="friend-name">${nameHtml(fr)}
-            <span class="friend-sub">${fr.sport ? esc(sportLabel(fr, { short: true })) + ' · ' : ''}${esc(lastTrainingLabel(fr.last_training))}</span>
-          </span>
-          <span class="friend-streak">${ico('flame')} ${esc(fr.current_streak ?? 0)}</span>
-          <span class="history-arrow">›</span>`;
-        btn.addEventListener('click', () => openFriendProfile(fr.id));
-        friendsList.appendChild(btn);
-      });
-    }
-  } catch (err) {
-    console.error('Failed to load friends', err);
-    statusEl.textContent = 'Не удалось загрузить друзей.';
-  }
-}
-
-$('sendRequestBtn').addEventListener('click', async () => {
-  const input = $('friendUsernameInput');
-  const statusEl = $('friendRequestStatus');
-  const username = input.value.trim();
-  if (!username) return;
-
-  statusEl.textContent = 'Отправляю...';
-  try {
-    await api('/api/friends/request', { method: 'POST', body: JSON.stringify({ username }) });
-    statusEl.textContent = 'Заявка отправлена ✓';
-    input.value = '';
-  } catch (err) {
-    statusEl.textContent = err.message || 'Не удалось отправить заявку.';
-  }
-});
-
-// ---------- Профиль друга ----------
-let fpData = null;       // что пришло с сервера
-let fpMonth = new Date(); // какой месяц показывает календарь друга
-let fpReturnScreen = 'friendsScreen';
-
-async function openFriendProfile(userId, returnTo) {
-  fpReturnScreen = returnTo || (document.querySelector('.screen:not(.hidden)')?.id === 'profileScreen' ? 'profileScreen' : 'friendsScreen');
-  showScreen('friendProfileScreen');
-  fpData = null;
-  fpMonth = new Date();
-  $('fpWorkouts').innerHTML = '';
-  $('fpStatus').textContent = 'Загружаю профиль...';
-  $('fpName').textContent = '';
-  $('fpHeadName').textContent = '';
-  $('fpCalGrid').innerHTML = '';
-
-  try {
-    fpData = await api(`/api/friends/${userId}/profile`);
-    const u = fpData.user;
-    const isMe = currentUser && u.id === currentUser.id;
-    $('fpStatus').textContent = '';
-    $('fpHeadName').innerHTML = nameHtml(u);
-    $('fpName').innerHTML = nameHtml(u);
-    $('fpEyebrow').textContent = sportLabel(u) || (isMe ? 'Так тебя видят друзья' : 'Друг');
-    $('fpUsername').textContent = u.username ? '@' + u.username : 'спортсмен';
-    $('fpStreak').textContent = u.current_streak ?? 0;
-    $('fpMonth').textContent = fpData.stats?.last30 ?? 0;
-    $('fpTotal').textContent = fpData.stats?.total ?? 0;
-    $('fpRecord').innerHTML = `${ico('trophy')} рекорд ${esc(u.longest_streak ?? 0)} дн.`;
-    $('fpRecord').classList.toggle('hidden', (u.longest_streak ?? 0) < 2);
-    $('fpRemoveBtn').classList.toggle('hidden', isMe);
-    $('fpFriends').innerHTML = friendsLabel(fpData.stats?.friends ?? 0);
-    $('fpFriends').classList.toggle('hidden', fpData.stats?.friends == null);
-
-    const src = avatarSrc(u);
-    const hero = $('fpHero');
-    hero.style.backgroundImage = src ? `url("${src}")` : '';
-    hero.classList.toggle('no-photo', !src);
-
-    $('fpCalHelp').textContent = u.share_calendar === false && !isMe
-      ? 'Отмечены только открытые тренировки. Нажми на день — покажем её.'
-      : 'Нажми на отмеченный день — покажем тренировку. Закрытые дни видны без подробностей.';
-
-    renderFpCalendar();
-
-    const list = $('fpWorkouts');
-    if (!fpData.workouts.length) {
-      list.innerHTML = `<div class="empty-hint">${isMe ? 'У тебя пока нет открытых тренировок.' : 'Открытых тренировок пока нет.'}</div>`;
-    } else {
-      fpData.workouts.forEach((w) => list.appendChild(buildWorkoutCard(w, { showAuthor: false })));
-    }
-  } catch (err) {
-    console.error(err);
-    $('fpStatus').textContent = err.data?.error || 'Не удалось загрузить профиль.';
-  }
-}
-
-function renderFpCalendar() {
-  if (!fpData) return;
-  const byDate = {};
-  fpData.days.forEach((d) => { byDate[normDate(d.date)] = d; });
-
-  const y = fpMonth.getFullYear();
-  const m = fpMonth.getMonth();
-  const today = localDateStr();
-  const now = new Date();
-  $('fpCalTitle').textContent = `${MONTHS[m]} ${y}`;
-  $('fpCalNext').disabled = y > now.getFullYear() || (y === now.getFullYear() && m >= now.getMonth());
-
-  const grid = $('fpCalGrid');
-  grid.innerHTML = '';
-  const offset = (new Date(y, m, 1).getDay() + 6) % 7;
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-  for (let i = 0; i < offset; i++) {
-    const empty = document.createElement('span');
-    empty.className = 'cal-cell empty';
-    grid.appendChild(empty);
-  }
-
-  let trainings = 0;
-  for (let d = 1; d <= daysInMonth; d++) {
-    const ds = localDateStr(new Date(y, m, d));
-    const day = byDate[ds];
-    const cell = document.createElement('button');
-    cell.type = 'button';
-    cell.className = 'cal-cell readonly';
-    cell.textContent = d;
-    if (day) {
-      cell.classList.add(day.type === 'training' ? 'has-training' : 'has-rest');
-      if (day.type === 'training') trainings++;
-      if (!day.public) cell.classList.add('locked');
-    }
-    if (ds === today) cell.classList.add('today');
-    if (ds > today) cell.classList.add('future');
-
-    if (day?.public && day.id) {
-      cell.addEventListener('click', () => {
-        const target = $('wk-' + day.id);
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          target.classList.remove('flash');
-          void target.offsetWidth;
-          target.classList.add('flash');
-        }
-      });
-    } else {
-      cell.disabled = true;
-    }
-    grid.appendChild(cell);
-  }
-  $('fpCalSummary').textContent = trainings ? `Тренировок за месяц: ${trainings}` : 'В этом месяце тренировок не видно.';
-}
-
-$('fpCalPrev').addEventListener('click', () => {
-  fpMonth = new Date(fpMonth.getFullYear(), fpMonth.getMonth() - 1, 1);
-  renderFpCalendar();
-});
-$('fpCalNext').addEventListener('click', () => {
-  fpMonth = new Date(fpMonth.getFullYear(), fpMonth.getMonth() + 1, 1);
-  renderFpCalendar();
-});
-
-$('fpBackBtn').addEventListener('click', () => {
-  if (fpReturnScreen === 'profileScreen') openProfile();
-  else {
-    showScreen('friendsScreen');
-    setFriendsTab(friendsTab);
-  }
-});
-
-$('fpRemoveBtn').addEventListener('click', async () => {
-  if (!fpData) return;
-  if (!(await confirmAsk({ icon: 'people', title: 'Удалить из друзей?', text: `${personName(fpData.user)} больше не будет видеть твою ленту, а ты — его.`, ok: 'Удалить', danger: true }))) return;
-  try {
-    await api(`/api/friends/${fpData.user.id}`, { method: 'DELETE' });
-    showScreen('friendsScreen');
-    setFriendsTab('list');
-  } catch (err) {
-    console.error(err);
-    $('fpStatus').textContent = 'Не удалось удалить.';
-  }
-});
-
-// ---------- Приватность в своём профиле ----------
-$('profileFriends').addEventListener('click', () => {
-  showScreen('friendsScreen');
-  setFriendsTab('list');
-});
-
-$('shareCalendarToggle').addEventListener('change', async (e) => {
-  const share = e.target.checked;
-  try {
-    await api('/api/friends/settings', { method: 'POST', body: JSON.stringify({ share_calendar: share }) });
-    if (currentUser) currentUser.share_calendar = share;
-  } catch (err) {
-    console.error(err);
-    e.target.checked = !share;
-    alertMsg('Не удалось сохранить настройку.');
-  }
-});
-$('previewProfileBtn').addEventListener('click', () => {
-  if (currentUser) openFriendProfile(currentUser.id, 'profileScreen');
-});
-
-// ---------- Разбор нагрузки ----------
-let selectedInsightPeriod = 'week';
-
-async function loadInsight() {
-  const loadingEl = $('insightLoading');
-  const emptyEl = $('insightEmpty');
-  const boxEl = $('insightBox');
-
-  loadingEl.classList.remove('hidden');
-  emptyEl.classList.add('hidden');
-  boxEl.classList.add('hidden');
-
-  try {
-    const { insight, workoutsCount } = await api(`/api/insights?period=${selectedInsightPeriod}`);
-    loadingEl.classList.add('hidden');
-
-    if (!insight || workoutsCount === 0) {
-      emptyEl.textContent = 'Пока недостаточно записей за этот период.';
-      emptyEl.classList.remove('hidden');
-      return;
-    }
-
-    $('insightText').innerHTML = renderMarkdownBold(insight);
-    boxEl.classList.remove('hidden');
-  } catch (err) {
-    console.error('Failed to load insight', err);
-    loadingEl.classList.add('hidden');
-    emptyEl.textContent = 'Не удалось получить разбор. Попробуй ещё раз.';
-    emptyEl.classList.remove('hidden');
-  }
-}
-
-$('insightsBtn').addEventListener('click', () => showScreen('insightsScreen'));
-
-document.querySelectorAll('#insightsScreen .seg-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#insightsScreen .seg-btn').forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedInsightPeriod = btn.dataset.period;
-  });
-});
-
-$('refreshInsightBtn').addEventListener('click', loadInsight);
-
-// ---------- Чат с Fom ----------
-let chatHistory = []; // { role: 'user'|'assistant', content } — хранится только пока открыто приложение
-
-function renderMarkdownBold(text) {
-  // Простой рендер **жирного** текста без сторонних библиотек
-  return esc(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-}
-
-function renderChatMessages() {
-  const container = $('chatMessages');
-  container.innerHTML = '';
-  if (chatHistory.length === 0) {
-    container.innerHTML =
-      '<div class="chat-empty">Привет! Я Fom, твой ИИ-помощник 👋<br />Спроси про свои тренировки — например, «сколько я бегал на этой неделе?» или «не перегружаюсь ли я?»</div>';
-    return;
-  }
-  chatHistory.forEach((msg) => {
-    const div = document.createElement('div');
-    div.className = `chat-bubble ${msg.role === 'user' ? 'user' : 'assistant'}`;
-    div.innerHTML = renderMarkdownBold(msg.content);
-    container.appendChild(div);
-  });
-  container.scrollTop = container.scrollHeight;
-}
-
-async function sendChatMessage() {
-  const input = $('chatInput');
-  const message = input.value.trim();
-  if (!message) return;
-
-  chatHistory.push({ role: 'user', content: message });
-  renderChatMessages();
-  input.value = '';
-
-  const loadingBubble = document.createElement('div');
-  loadingBubble.className = 'chat-bubble assistant typing';
-  loadingBubble.textContent = 'Fom думает...';
-  $('chatMessages').appendChild(loadingBubble);
-  $('chatMessages').scrollTop = $('chatMessages').scrollHeight;
-
-  try {
-    const { reply } = await api('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({ message, history: chatHistory.slice(0, -1) }),
-    });
-    chatHistory.push({ role: 'assistant', content: reply || 'Не смог ответить, попробуй переформулировать.' });
-  } catch (err) {
-    console.error('Chat failed', err);
-    chatHistory.push({ role: 'assistant', content: 'Ошибка связи с сервером. Попробуй ещё раз.' });
-  }
-  renderChatMessages();
-}
-
-$('chatBtn').addEventListener('click', () => {
-  showScreen('chatScreen');
-  renderChatMessages();
-});
-$('chatSendBtn').addEventListener('click', sendChatMessage);
-$('chatInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') sendChatMessage();
-});
-
-// ---------- Кнопка «+» внизу — новая запись ----------
-$('homeBtn').addEventListener('click', () => {
-  showScreen('mainScreen');
-  renderEntryState();
-});
-
-// ---------- Текст записи (карточка на главной и «Поделиться») ----------
-function formatExercise(e) {
-  let line = e.name || '';
-  if (e.sets && e.reps) line += ` ${e.sets}×${e.reps}`;
-  else if (e.sets) line += ` ${e.sets} подх.`;
-  else if (e.reps) line += ` ×${e.reps}`;
-  if (e.weight) line += `, ${e.weight}${/^[\d.,]+$/.test(String(e.weight)) ? ' кг' : ''}`;
-  return line.trim();
-}
-
-function buildDetailLines(w) {
-  const lines = [];
-  if (w.type === 'training') {
-    if (w.warmup) lines.push(`Разминка: ${w.warmup}`);
-    const setLines = (Array.isArray(w.sets) ? w.sets : [])
-      .map((s) => {
-        const parts = [];
-        if (s.distance_m) parts.push(`${s.distance_m}м`);
-        if (s.reps) parts.push(`x${s.reps}`);
-        if (s.time_or_pace) parts.push(s.time_or_pace);
-        if (s.rest_between) parts.push(`отдых ${s.rest_between}`);
-        return parts.join(' ');
-      })
-      .filter(Boolean);
-    if (setLines.length) {
-      lines.push('Беговая работа:');
-      setLines.forEach((l, i) => lines.push(`${i + 1}. ${l}`));
-    }
-    const exLines = (Array.isArray(w.exercises) ? w.exercises : []).map(formatExercise).filter(Boolean);
-    if (exLines.length) {
-      lines.push('Силовая / ОФП:');
-      exLines.forEach((l, i) => lines.push(`${i + 1}. ${l}`));
-    }
-    if (w.cooldown) lines.push(`Заминка: ${w.cooldown}`);
-    const pulse = [];
-    if (w.hr_avg) pulse.push(`ср. ${w.hr_avg}`);
-    if (w.hr_max) pulse.push(`макс. ${w.hr_max}`);
-    if (w.hr_min) pulse.push(`мин. в паузах ${w.hr_min}`);
-    if (pulse.length) lines.push(`❤️ Пульс: ${pulse.join(' · ')} уд/мин`);
-    if (w.rpe) lines.push(`RPE: ${w.rpe}/10`);
-  }
-  if (w.feeling) lines.push(`Самочувствие: ${w.feeling}/10`);
-  if (w.notes) lines.push(`Заметка: ${w.notes}`);
-  return lines;
-}
-
-function buildShareText(w) {
-  const lines = [];
-  lines.push(w.type === 'rest' ? '😴 День отдыха' : w.session > 1 ? '🏃 Вторая тренировка' : '🏃 Тренировка');
-  lines.push(`📅 ${formatWithWeekday(normDate(w.date))}`);
-  lines.push(...buildDetailLines(w));
-  lines.push('— записано в Forma');
-  return lines.join('\n');
-}
-
-function shareWorkout(w) {
-  const text = buildShareText(w);
-  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent('')}&text=${encodeURIComponent(text)}`;
-  if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl);
-  else window.open(shareUrl, '_blank');
-}
-
-// ---------- Редактирование записи ----------
-let currentEditWorkout = null;
-let editReturnScreen = 'profileScreen'; // куда вернуться по стрелке «назад»
-
-// Реакции и комментарии друзей под своей записью (если запись открыта друзьям или под ней уже что-то есть)
-async function renderEditSocial(workout) {
-  const card = $('editSocialCard');
-  const box = $('editSocial');
-  box.innerHTML = '';
-  card.classList.add('hidden');
-  try {
-    const { reactions, comments } = await api(`/api/friends/workouts/${workout.id}/social`);
-    if (workout.visibility !== 'public' && !reactions.length && !comments.length) return;
-    const counts = {};
-    let mine = null;
-    reactions.forEach((r) => {
-      counts[r.emoji] = (counts[r.emoji] || 0) + 1;
-      if (r.id === currentUser?.id) mine = r.emoji;
-    });
-    box.appendChild(buildSocial(
-      { id: workout.id, user_id: workout.user_id, reactions: counts, my_reaction: mine, comments_count: comments.length },
-      { openThread: true }
-    ));
-    card.classList.remove('hidden');
-  } catch (err) {
-    console.error('Social failed', err);
-  }
-}
-
-async function openEditScreen(workoutId, returnTo = 'profileScreen') {
-  editReturnScreen = returnTo;
-  showScreen('editScreen');
-  $('editSocialCard').classList.add('hidden');
-  $('editStatusMsg').textContent = 'Загружаю...';
-
-  try {
-    const { workout } = await api(`/api/workouts/${workoutId}`);
-    workout.date = normDate(workout.date);
-    currentEditWorkout = workout;
-    $('editDateLabel').textContent = formatWithWeekday(workout.date);
-    editForm.setData(workout);
-    $('editStatusMsg').textContent = '';
-    renderEditSocial(workout);
-
-    // если за день две тренировки — переключатель между ними
-    const sameDay = workoutsByDate[workout.date] || [];
-    const sw = $('editSessionSwitch');
-    sw.innerHTML = '';
-    sw.classList.toggle('hidden', sameDay.length < 2);
-    sameDay.forEach((w) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'seg-btn' + (w.id === workout.id ? ' active' : '');
-      b.innerHTML = w.type === 'rest' ? `${ico('moon')} Отдых` : `${ico('runner')} Тренировка ${w.session || 1}`;
-      b.addEventListener('click', () => { if (w.id !== workout.id) openEditScreen(w.id, editReturnScreen); });
-      sw.appendChild(b);
-    });
-  } catch (err) {
-    console.error('Failed to load workout', err);
-    $('editStatusMsg').textContent = 'Не удалось загрузить запись.';
-  }
-}
-
-function leaveEditScreen() {
-  showScreen(editReturnScreen);
-  if (editReturnScreen === 'profileScreen') loadProfileScreen();
-  else if (editReturnScreen === 'friendsScreen') setFriendsTab(friendsTab);
-  else renderEntryState();
-}
-
-$('editBackBtn').addEventListener('click', leaveEditScreen);
-
-$('editSaveBtn').addEventListener('click', async () => {
-  if (!currentEditWorkout) return;
-  const statusEl = $('editStatusMsg');
-  statusEl.textContent = 'Сохраняю...';
-
-  try {
-    const result = await api(`/api/workouts/${currentEditWorkout.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(editForm.getPayload()),
-    });
-    currentEditWorkout = { ...currentEditWorkout, ...result.workout, date: normDate(result.workout.date) };
-    statusEl.textContent = 'Сохранено ✓';
-    haptic('success');
-    renderEditSocial(currentEditWorkout);
-    try { await loadMyWorkouts(); } catch (e) { console.error(e); }
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = 'Ошибка сохранения. Попробуй ещё раз.';
-  }
-});
-
-$('editShareBtn').addEventListener('click', () => {
-  if (currentEditWorkout) shareWorkout({ ...currentEditWorkout, ...editForm.getPayload() });
-});
-
-$('editDeleteBtn').addEventListener('click', async () => {
-  if (!currentEditWorkout) return;
-  if (!(await confirmAsk({ icon: 'trash', title: 'Удалить запись?', text: 'Это нельзя будет отменить.', ok: 'Удалить', danger: true }))) return;
-
-  const statusEl = $('editStatusMsg');
-  statusEl.textContent = 'Удаляю...';
-  try {
-    const result = await api(`/api/workouts/${currentEditWorkout.id}`, { method: 'DELETE' });
-    applyStreak(result.streak);
-    await loadMyWorkouts();
-    currentEditWorkout = null;
-    leaveEditScreen();
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = 'Не удалось удалить запись.';
-  }
-});
-
-// ---------- Обрезка фото перед загрузкой ----------
-// Показываем фото в квадратном окне: двигаешь пальцем, увеличиваешь ползунком или двумя пальцами.
-// В профиль попадает ровно то, что видно в окне (квадрат 400×400).
-const crop = { img: null, url: '', w: 0, h: 0, view: 0, base: 1, zoom: 1, x: 0, y: 0, pointers: new Map(), pinch: null };
-
-function cropScale() { return crop.base * crop.zoom; }
-
-// Не даём фото «уехать» — окно всегда полностью закрыто картинкой
-function cropClamp() {
-  const s = cropScale();
-  crop.x = Math.min(0, Math.max(crop.view - crop.w * s, crop.x));
-  crop.y = Math.min(0, Math.max(crop.view - crop.h * s, crop.y));
-}
-
-function cropRender() {
-  cropClamp();
-  const s = cropScale();
-  const img = $('cropImg');
-  img.style.width = `${crop.w * s}px`;
-  img.style.height = `${crop.h * s}px`;
-  img.style.transform = `translate(${crop.x}px, ${crop.y}px)`;
-}
-
-// Меняем увеличение так, чтобы точка (cx, cy) внутри окна осталась на месте
-function cropSetZoom(z, cx = crop.view / 2, cy = crop.view / 2) {
-  const before = cropScale();
-  crop.zoom = Math.min(4, Math.max(1, z));
-  const after = cropScale();
-  crop.x = cx - ((cx - crop.x) * after) / before;
-  crop.y = cy - ((cy - crop.y) * after) / before;
-  $('cropZoom').value = crop.zoom;
-  cropRender();
-}
-
-function openCropper(file) {
-  const url = URL.createObjectURL(file);
-  const img = $('cropImg');
-  img.onload = () => {
-    crop.url = url;
-    crop.w = img.naturalWidth;
-    crop.h = img.naturalHeight;
-    $('cropSheet').classList.remove('hidden');
-    crop.view = $('cropView').clientWidth;
-    crop.base = crop.view / Math.min(crop.w, crop.h); // фото закрывает окно целиком
-    crop.zoom = 1;
-    crop.x = (crop.view - crop.w * crop.base) / 2;   // по центру
-    crop.y = (crop.view - crop.h * crop.base) / 2;
-    $('cropZoom').value = 1;
-    cropRender();
-  };
-  img.onerror = () => {
-    URL.revokeObjectURL(url);
-    alertMsg('Не удалось открыть фото. Попробуй другое.');
-  };
-  img.src = url;
-}
-
-function closeCropper() {
-  $('cropSheet').classList.add('hidden');
-  if (crop.url) URL.revokeObjectURL(crop.url);
-  crop.url = '';
-  crop.pointers.clear();
-  crop.pinch = null;
-}
-
-// Вырезаем видимый квадрат в JPEG 400×400 (и ужимаем, пока не станет меньше ~90 КБ)
-function cropToJpeg(size = 400) {
-  const s = cropScale();
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  canvas.getContext('2d').drawImage($('cropImg'), -crop.x / s, -crop.y / s, crop.view / s, crop.view / s, 0, 0, size, size);
-  let quality = 0.85;
-  let data = canvas.toDataURL('image/jpeg', quality);
-  while (data.length > 90000 && quality > 0.3) {
-    quality -= 0.1;
-    data = canvas.toDataURL('image/jpeg', quality);
-  }
-  return data;
-}
-
-// Перетаскивание одним пальцем и «щипок» двумя
-const cropView = $('cropView');
-cropView.addEventListener('pointerdown', (e) => {
-  cropView.setPointerCapture(e.pointerId);
-  crop.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (crop.pointers.size === 2) {
-    const [a, b] = [...crop.pointers.values()];
-    crop.pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), zoom: crop.zoom };
-  }
-});
-cropView.addEventListener('pointermove', (e) => {
-  const prev = crop.pointers.get(e.pointerId);
-  if (!prev) return;
-  const cur = { x: e.clientX, y: e.clientY };
-  crop.pointers.set(e.pointerId, cur);
-  if (crop.pointers.size === 2 && crop.pinch) {
-    const [a, b] = [...crop.pointers.values()];
-    const rect = cropView.getBoundingClientRect();
-    const cx = (a.x + b.x) / 2 - rect.left;
-    const cy = (a.y + b.y) / 2 - rect.top;
-    cropSetZoom((crop.pinch.zoom * Math.hypot(a.x - b.x, a.y - b.y)) / crop.pinch.dist, cx, cy);
-  } else if (crop.pointers.size === 1) {
-    crop.x += cur.x - prev.x;
-    crop.y += cur.y - prev.y;
-    cropRender();
-  }
-});
-['pointerup', 'pointercancel'].forEach((ev) => cropView.addEventListener(ev, (e) => {
-  crop.pointers.delete(e.pointerId);
-  if (crop.pointers.size < 2) crop.pinch = null;
-}));
-$('cropZoom').addEventListener('input', (e) => cropSetZoom(Number(e.target.value)));
-$('cropCancelBtn').addEventListener('click', closeCropper);
-
-$('cropSaveBtn').addEventListener('click', async () => {
-  const btn = $('cropSaveBtn');
-  btn.disabled = true;
-  btn.textContent = 'Сохраняю...';
-  try {
-    const image = cropToJpeg();
-    const { avatar_data } = await api('/api/auth/avatar', { method: 'POST', body: JSON.stringify({ image }) });
-    currentUser.avatar_data = avatar_data;
-    updateAvatar();
-    closeCropper();
-  } catch (err) {
-    console.error(err);
-    alertMsg(err.data?.error || 'Не удалось загрузить фото. Попробуй другое.');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Готово';
-  }
-});
-
-$('photoInput').addEventListener('change', (e) => {
-  const file = e.target.files?.[0];
-  e.target.value = '';
-  if (file) openCropper(file);
-});
-
-// ---------- Компактная шапка профиля при прокрутке ----------
-// Листаешь профиль вниз — большое фото уезжает, а сверху появляется полоска:
-// имя и цифры слева, маленький кружок с фото справа.
-function miniHeadSource() {
-  const screen = document.querySelector('.screen:not(.hidden)')?.id;
-  if (screen === 'profileScreen') {
-    return {
-      hero: $('profileHero'),
-      name: $('profileName').innerHTML,
-      stats: `${ico('flame')} ${esc($('profileStreak').textContent)} · ${ico('calendar')} ${esc($('profileMonth').textContent)} · ${ico('runner')} ${esc($('profileTotal').textContent)}`,
-      ava: getAvatarUrl(),
-      letter: (currentUser?.first_name || '?').slice(0, 1).toUpperCase(),
-    };
-  }
-  if (screen === 'friendProfileScreen' && fpData) {
-    return {
-      hero: $('fpHero'),
-      name: $('fpName').innerHTML,
-      stats: `${ico('flame')} ${esc($('fpStreak').textContent)} · ${ico('calendar')} ${esc($('fpMonth').textContent)} · ${ico('runner')} ${esc($('fpTotal').textContent)}`,
-      ava: avatarSrc(fpData.user),
-      letter: personName(fpData.user).replace('@', '').slice(0, 1).toUpperCase(),
-    };
-  }
-  return null;
-}
-
-let miniHeadKey = '';
-function updateMiniHead() {
-  const head = $('miniHead');
-  const src = miniHeadSource();
-  if (!src) {
-    head.style.opacity = 0;
-    head.classList.remove('shown');
-    return;
-  }
-  const rect = src.hero.getBoundingClientRect();
-  // 0 — фото целиком на экране, 1 — фото уехало наверх
-  const p = Math.min(1, Math.max(0, (150 - rect.bottom) / 110));
-  head.style.opacity = p;
-  head.style.transform = `translateY(${(1 - p) * -14}px)`;
-  head.classList.toggle('shown', p > 0.5);
-  $('miniAva').style.transform = `scale(${0.5 + p * 0.5})`;
-
-  const key = src.name + src.stats + src.ava;
-  if (key !== miniHeadKey) {
-    miniHeadKey = key;
-    $('miniName').innerHTML = src.name;
-    $('miniStats').innerHTML = src.stats;
-    $('miniAva').innerHTML = src.ava ? `<img src="${esc(src.ava)}" alt="" onerror="this.remove()">` : esc(src.letter);
-  }
-}
-window.addEventListener('scroll', updateMiniHead, { passive: true });
-$('miniHead').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-
-// ---------- Жест «назад»: провести пальцем слева направо в любом месте экрана ----------
-// Короткое случайное движение не считается: нужно протянуть заметно (примерно треть экрана).
-function goBack() {
-  const screen = document.querySelector('.screen:not(.hidden)')?.id;
-  if (dialogOpen()) return closeDialog();
-  if (!$('tour').classList.contains('hidden')) return;
-  if (!$('cropSheet').classList.contains('hidden')) return closeCropper();
-  if (!$('photoSheet').classList.contains('hidden')) return $('photoSheet').classList.add('hidden');
-  if (!$('sportSheet').classList.contains('hidden')) return closeSportSheet();
-  if (!$('giftSheet').classList.contains('hidden')) return $('giftSheet').classList.add('hidden');
-  if (!$('athleteSheet').classList.contains('hidden')) return closeAthleteSheet();
-  if (screen === 'editScreen') return $('editBackBtn').click();
-  if (screen === 'friendProfileScreen') return $('fpBackBtn').click();
-  // обычные вкладки: возвращаемся на предыдущую, а если её нет — на главную
-  tabHistory.pop();
-  const prev = tabHistory.pop() || 'mainScreen';
-  if (prev === screen) return;
-  document.querySelector(`.bottom-nav [data-screen="${prev}"]`)?.click();
-}
-
-const swipe = { active: false, x: 0, y: 0, dx: 0, decided: false, horizontal: false };
-const SWIPE_BLOCKERS = 'input, textarea, .crop-view, .sheet, .dlg, .tour';
-
-document.addEventListener('touchstart', (e) => {
-  if (e.touches.length !== 1 || e.target.closest(SWIPE_BLOCKERS)) { swipe.active = false; return; }
-  const t = e.touches[0];
-  Object.assign(swipe, { active: true, x: t.clientX, y: t.clientY, dx: 0, decided: false, horizontal: false });
-}, { passive: true });
-
-document.addEventListener('touchmove', (e) => {
-  if (!swipe.active) return;
-  const t = e.touches[0];
-  const dx = t.clientX - swipe.x;
-  const dy = t.clientY - swipe.y;
-  if (!swipe.decided && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) {
-    swipe.decided = true;
-    swipe.horizontal = dx > 0 && Math.abs(dx) > Math.abs(dy) * 1.5; // только вправо и почти горизонтально
-    if (!swipe.horizontal) swipe.active = false;
-  }
-  if (!swipe.horizontal) return;
-  swipe.dx = Math.max(0, dx);
-  const need = Math.max(90, window.innerWidth * 0.3);
-  const p = Math.min(1, swipe.dx / need);
-  const arrow = $('swipeBack');
-  arrow.style.opacity = p;
-  arrow.style.transform = `translate(${-40 + p * 56}px, -50%) scale(${0.7 + p * 0.3})`;
-  arrow.classList.toggle('ready', p >= 1);
-}, { passive: true });
-
-document.addEventListener('touchend', () => {
-  if (!swipe.active || !swipe.horizontal) { swipe.active = false; return; }
-  swipe.active = false;
-  const need = Math.max(90, window.innerWidth * 0.3);
-  const arrow = $('swipeBack');
-  arrow.style.opacity = 0;
-  arrow.style.transform = 'translate(-40px, -50%) scale(0.7)';
-  arrow.classList.remove('ready');
-  if (swipe.dx >= need) {
-    haptic();
-    goBack();
-  }
-});
-
-
-// ---------- Вид спорта в профиле ----------
-const SPORTS = {
-  athletics: ['🏃', 'Лёгкая атлетика'],
-  running: ['👟', 'Бег'],
-  football: ['⚽', 'Футбол'],
-  basketball: ['🏀', 'Баскетбол'],
-  volleyball: ['🏐', 'Волейбол'],
-  hockey: ['🏒', 'Хоккей'],
-  swimming: ['🏊', 'Плавание'],
-  cycling: ['🚴', 'Велоспорт'],
-  triathlon: ['🏅', 'Триатлон'],
-  combat: ['🥊', 'Единоборства'],
-  tennis: ['🎾', 'Теннис'],
-  fitness: ['🏋️', 'Фитнес'],
-  other: ['✨', 'Другое'],
-};
-// Подсказки дисциплин (можно выбрать или написать свою)
-const DISCIPLINES = {
-  athletics: ['Спринт', 'Барьерный бег', 'Средние дистанции', 'Длинные дистанции', 'Прыжки', 'Метания', 'Многоборье', 'Спортивная ходьба'],
-  running: ['5–10 км', 'Полумарафон', 'Марафон', 'Трейл'],
-  swimming: ['Спринт', 'Длинные дистанции', 'Открытая вода'],
-  football: ['Вратарь', 'Защитник', 'Полузащитник', 'Нападающий'],
-  combat: ['Бокс', 'Борьба', 'ММА', 'Дзюдо', 'Карате'],
-};
-
-// «🏃 Лёгкая атлетика · Спринт» или пусто, если вид спорта не выбран
-function sportLabel(u, { short = false } = {}) {
-  const s = SPORTS[u?.sport];
-  if (!s) return '';
-  if (short) return u.discipline ? `${s[0]} ${u.discipline}` : `${s[0]} ${s[1]}`;
-  return `${s[0]} ${s[1]}${u.discipline ? ' · ' + u.discipline : ''}`;
-}
-
-function renderMySport() {
-  const tag = $('profileSport');
-  const label = sportLabel(currentUser);
-  tag.textContent = label || '＋ Укажи вид спорта';
-  tag.classList.toggle('empty', !label);
-}
-
-let sportDraft = { sport: null, discipline: '' };
-
-function renderSportSheet() {
-  const grid = $('sportGrid');
-  grid.innerHTML = '';
-  Object.entries(SPORTS).forEach(([key, [emoji, name]]) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'sport-chip' + (sportDraft.sport === key ? ' active' : '');
-    b.innerHTML = `<span>${emoji}</span>${esc(name)}`;
-    b.addEventListener('click', () => {
-      if (sportDraft.sport !== key) sportDraft.discipline = '';
-      sportDraft.sport = key;
-      $('disciplineInput').value = sportDraft.discipline;
-      haptic();
-      renderSportSheet();
-    });
-    grid.appendChild(b);
-  });
-
-  $('disciplineBlock').classList.toggle('hidden', !sportDraft.sport);
-  const chips = $('disciplineChips');
-  chips.innerHTML = '';
-  (DISCIPLINES[sportDraft.sport] || []).forEach((d) => {
-    const c = document.createElement('button');
-    c.type = 'button';
-    c.className = 'chip' + (sportDraft.discipline === d ? ' active' : '');
-    c.textContent = d;
-    c.addEventListener('click', () => {
-      sportDraft.discipline = sportDraft.discipline === d ? '' : d;
-      $('disciplineInput').value = sportDraft.discipline;
-      renderSportSheet();
-    });
-    chips.appendChild(c);
-  });
-  $('sportClearBtn').classList.toggle('hidden', !currentUser?.sport);
-}
-
-function openSportSheet() {
-  sportDraft = { sport: currentUser?.sport || null, discipline: currentUser?.discipline || '' };
-  $('disciplineInput').value = sportDraft.discipline;
-  renderSportSheet();
-  $('sportSheet').classList.remove('hidden');
-}
-function closeSportSheet() { $('sportSheet').classList.add('hidden'); }
-
-async function saveSport(sport, discipline) {
-  try {
-    const res = await api('/api/auth/sport', { method: 'POST', body: JSON.stringify({ sport, discipline }) });
-    currentUser.sport = res.sport;
-    currentUser.discipline = res.discipline;
-    renderMySport();
-    closeSportSheet();
-    haptic('success');
-  } catch (err) {
-    console.error(err);
-    alertMsg(err.data?.error || 'Не удалось сохранить. Попробуй ещё раз.');
-  }
-}
-
-$('profileSport').addEventListener('click', openSportSheet);
-$('sportCancelBtn').addEventListener('click', closeSportSheet);
-$('sportSheet').addEventListener('click', (e) => { if (e.target === $('sportSheet')) closeSportSheet(); });
-$('disciplineInput').addEventListener('input', (e) => {
-  sportDraft.discipline = e.target.value;
-  $('disciplineChips').querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c.textContent === e.target.value.trim()));
-});
-$('sportSaveBtn').addEventListener('click', () => {
-  if (!sportDraft.sport) return alertMsg('Выбери вид спорта 🙂');
-  saveSport(sportDraft.sport, sportDraft.discipline.trim());
-});
-$('sportClearBtn').addEventListener('click', () => saveSport(null, null));
-
-
-// ---------- Синяя галочка: по нажатию всплывает подпись ----------
-const VERIFIED_TIP = 'Ряльный 2ko5';
-let badgeTipTimer = null;
-
-function showBadgeTip(badge) {
-  let tip = document.getElementById('badgeTip');
-  if (!tip) {
-    tip = document.createElement('div');
-    tip.id = 'badgeTip';
-    tip.className = 'badge-tip';
-    document.body.appendChild(tip);
-  }
-  tip.textContent = VERIFIED_TIP;
-  tip.classList.remove('show');
-  const r = badge.getBoundingClientRect();
-  // ставим над галочкой, но не даём вылезти за края экрана
-  tip.style.visibility = 'hidden';
-  tip.style.display = 'block';
-  const w = tip.offsetWidth;
-  const h = tip.offsetHeight;
-  const left = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2));
-  const above = r.top - h - 10 > 8;
-  tip.style.left = `${left}px`;
-  tip.style.top = `${above ? r.top - h - 10 : r.bottom + 10}px`;
-  tip.style.setProperty('--arrow-x', `${r.left + r.width / 2 - left}px`);
-  tip.classList.toggle('below', !above);
-  tip.style.visibility = '';
-  void tip.offsetWidth;
-  tip.classList.add('show');
-  haptic();
-  clearTimeout(badgeTipTimer);
-  badgeTipTimer = setTimeout(hideBadgeTip, 2200);
-}
-function hideBadgeTip() {
-  document.getElementById('badgeTip')?.classList.remove('show');
-}
-// Ловим нажатие раньше всех, чтобы тап по галочке не открывал профиль или запись
-document.addEventListener('click', (e) => {
-  const badge = e.target.closest?.('.verified');
-  if (badge) {
-    e.preventDefault();
-    e.stopPropagation();
-    showBadgeTip(badge);
-  } else {
-    hideBadgeTip();
-  }
-}, true);
-window.addEventListener('scroll', hideBadgeTip, { passive: true });
-
-// ---------- Розыгрыши подарков ----------
-let giftData = null;
-
-// «1 билет», «2 билета», «5 билетов»
-function ticketsLabel(n) {
-  const m10 = n % 10, m100 = n % 100;
-  const w = m10 === 1 && m100 !== 11 ? 'билет' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'билета' : 'билетов';
-  return `${ico('ticket')} ${n} ${w}`;
-}
-
-// «через 2 дн 5 ч», «через 3 ч», «через 25 мин»
-function untilLabel(iso) {
-  const ms = new Date(iso) - Date.now();
-  if (ms <= 0) return 'подводим итоги…';
-  const h = Math.floor(ms / 3600000);
-  const d = Math.floor(h / 24);
-  if (d >= 1) return `итоги через ${d} дн ${h % 24} ч`;
-  if (h >= 1) return `итоги через ${h} ч`;
-  return `итоги через ${Math.max(1, Math.floor(ms / 60000))} мин`;
-}
-
-function winnerName(w) {
-  return [w.first_name, w.last_name].filter(Boolean).join(' ') || (w.username ? '@' + w.username : 'Спортсмен');
-}
-
-// Какие подарки могут выпасть — крутятся в «барабане» на карточке розыгрыша
-const GIFT_POOL = {
-  week: [['🧸', 'Мишка'], ['💝', 'Сердце'], ['🎁', 'Подарок'], ['🌹', 'Роза']],
-  month: [['🎂', 'Торт'], ['💐', 'Букет'], ['🚀', 'Ракета'], ['🍾', 'Шампанское'], ['🏆', 'Кубок'], ['💍', 'Кольцо'], ['💎', 'Алмаз']],
-};
-const giftSlotIndex = { week: 0, month: 0 };
-const REDUCED_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
-// Показать следующий подарок в барабане (с анимацией прокрутки)
-function spinSlot(slot, fast = false) {
-  const kind = slot.dataset.kind;
-  const pool = GIFT_POOL[kind];
-  giftSlotIndex[kind] = (giftSlotIndex[kind] + 1) % pool.length;
-  const [emoji, name] = pool[giftSlotIndex[kind]];
-  const old = slot.querySelector('.gift-slot-item:not(.out)');
-  const item = document.createElement('span');
-  item.className = 'gift-slot-item' + (REDUCED_MOTION ? '' : fast ? ' in fast' : ' in');
-  item.textContent = emoji;
-  slot.appendChild(item);
-  if (old) {
-    if (REDUCED_MOTION) old.remove();
-    else { old.classList.add('out'); if (fast) old.classList.add('fast'); setTimeout(() => old.remove(), fast ? 120 : 380); }
-  }
-  const nameEl = slot.closest('.gift-row')?.querySelector('.gift-slot-name');
-  if (nameEl) nameEl.textContent = name;
-}
-
-// Нажал на барабан — он быстро прокручивается и останавливается на случайном подарке
-function spinSlotFast(slot) {
-  if (slot.dataset.spinning) return;
-  slot.dataset.spinning = '1';
-  haptic();
-  const turns = 8 + Math.floor(Math.random() * GIFT_POOL[slot.dataset.kind].length);
-  let i = 0;
-  const step = () => {
-    spinSlot(slot, i < turns - 2);
-    i++;
-    if (i < turns) setTimeout(step, 60 + i * i * 2.2);
-    else { delete slot.dataset.spinning; haptic('medium'); }
-  };
-  step();
-}
-
-setInterval(() => {
-  if (document.hidden) return;
-  document.querySelectorAll('.gift-slot').forEach((slot) => { if (!slot.dataset.spinning) spinSlot(slot); });
-}, 1300);
-
-function renderGiveaway() {
-  if (!giftData) return;
-  $('giftCard').classList.remove('hidden');
-  $('giftStreak').innerHTML = `Твоя честная серия: <b>${esc(giftData.honest_streak)} дн.</b> ${ico('flame')}`;
-  const rows = $('giftRows');
-  rows.innerHTML = '';
-  ['week', 'month'].forEach((kind) => {
-    const g = giftData[kind];
-    if (!g) return;
-    const progress = Math.min(100, Math.round((giftData.honest_streak / g.min_streak) * 100));
-    const [emoji, name] = GIFT_POOL[kind][giftSlotIndex[kind]];
-    const row = document.createElement('div');
-    row.className = `gift-row ${kind}` + (g.eligible ? ' in' : '');
-    row.innerHTML = `
-      <div class="gift-row-top">
-        <button type="button" class="gift-slot" data-kind="${kind}" aria-label="Какие подарки могут выпасть"><span class="gift-slot-item">${emoji}</span></button>
-        <div class="gift-row-main">
-          <div class="gift-title">${ico(kind === 'week' ? 'flame' : 'diamond')} ${esc(kind === 'week' ? 'Неделя' : 'Месяц')} <span class="muted">· ${esc(g.prize)}</span></div>
-          <div class="gift-maybe">Может выпасть: <b class="gift-slot-name">${esc(name)}</b></div>
-          <div class="gift-when">${esc(untilLabel(g.draw_at))}</div>
-        </div>
-        ${g.eligible ? `<span class="gift-badge">${ticketsLabel(Number(g.tickets) || 0)}</span>` : ''}
-      </div>
-      ${g.eligible
-        ? `<div class="gift-status ok">${ico('check')} Ты участвуешь</div>`
-        : `<div class="gift-bar"><i style="width:${progress}%"></i></div>
-           <div class="gift-status">Ещё ${esc(g.need_days)} дн. честной серии — и ты в игре</div>`}`;
-    row.querySelector('.gift-slot').addEventListener('click', (e) => spinSlotFast(e.currentTarget));
-    rows.appendChild(row);
-  });
-}
-
-async function loadGiveaway() {
-  try {
-    giftData = await api('/api/bot/giveaway');
-    renderGiveaway();
-  } catch (err) {
-    console.error('Giveaway failed', err);
-  }
-}
-
-function openGiftSheet() {
-  const box = $('giftWinners');
-  box.innerHTML = '';
-  ['week', 'month'].forEach((kind) => {
-    const g = giftData?.[kind];
-    if (!g?.last_winners?.length) return;
-    const block = document.createElement('div');
-    block.className = 'gift-winners';
-    block.innerHTML = `<div class="card-label">${ico(kind === 'week' ? 'flame' : 'diamond')} Последние победители · ${kind === 'week' ? 'неделя' : 'месяц'}</div>` +
-      g.last_winners.map((w) => `<div class="gift-winner">${ico('trophy')} ${esc(winnerName(w))}${w.username ? ` <span class="muted">@${esc(w.username)}</span>` : ''} <span class="muted">· серия ${esc(w.streak)} дн.</span></div>`).join('');
-    box.appendChild(block);
-  });
-  $('giftSheet').classList.remove('hidden');
-}
-$('giftRulesBtn').addEventListener('click', openGiftSheet);
-$('giftCloseBtn').addEventListener('click', () => $('giftSheet').classList.add('hidden'));
-$('giftSheet').addEventListener('click', (e) => { if (e.target === $('giftSheet')) $('giftSheet').classList.add('hidden'); });
-setInterval(renderGiveaway, 60000); // обновляем «итоги через…»
-
-// ---------- Анкета спортсмена (видит только сам человек и Fom) ----------
-let athleteProfile = {};
-const LEVEL_NAMES = { beginner: 'новичок', amateur: 'любитель', ranked: 'разрядник', kms: 'КМС', ms: 'МС и выше' };
-
-function yearsWord(n) {
-  const m10 = n % 10, m100 = n % 100;
-  return m10 === 1 && m100 !== 11 ? 'год' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'года' : 'лет';
-}
-
-function renderAthleteSummary() {
-  const p = athleteProfile || {};
-  const parts = [];
-  if (p.sex) parts.push(p.sex === 'f' ? 'Ж' : 'М');
-  if (p.birth_year) { const a = new Date().getFullYear() - p.birth_year; parts.push(`${a} ${yearsWord(a)}`); }
-  if (p.height_cm) parts.push(`${p.height_cm} см`);
-  if (p.weight_kg) parts.push(`${Number(p.weight_kg)} кг`);
-  if (p.rest_hr) parts.push(`пульс в покое ${p.rest_hr}`);
-  if (p.experience_years != null) parts.push(`стаж ${p.experience_years} ${yearsWord(p.experience_years)}`);
-  if (p.level) parts.push(LEVEL_NAMES[p.level]);
-  const filled = parts.length || p.records || p.goal || p.injuries;
-  $('athleteSummary').innerHTML = filled
-    ? [esc(parts.join(' · ')), p.goal ? `${ico('target')} ${esc(p.goal)}` : ''].filter(Boolean).join('<br>')
-    : 'Рост, вес, возраст, стаж и цели — чтобы Fom понимал, с кем имеет дело.';
-  $('athleteEditBtn').textContent = filled ? 'Изменить' : 'Заполнить';
-}
-
-async function loadAthleteProfile() {
-  try {
-    const { profile } = await api('/api/auth/athlete');
-    athleteProfile = profile || {};
-    renderAthleteSummary();
-  } catch (err) {
-    console.error('Athlete profile failed', err);
-  }
-}
-
-let afSex = null;
-let afLevel = null;
-function paintAthleteChoices() {
-  $('afSex').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.sex === afSex));
-  $('afLevel').querySelectorAll('.chip').forEach((b) => b.classList.toggle('active', b.dataset.level === afLevel));
-}
-$('afSex').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => {
-  afSex = afSex === b.dataset.sex ? null : b.dataset.sex; paintAthleteChoices();
-}));
-$('afLevel').querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => {
-  afLevel = afLevel === b.dataset.level ? null : b.dataset.level; paintAthleteChoices();
-}));
-
-function openAthleteSheet() {
-  const p = athleteProfile || {};
-  afSex = p.sex || null;
-  afLevel = p.level || null;
-  $('afBirth').value = p.birth_year ?? '';
-  $('afHeight').value = p.height_cm ?? '';
-  $('afWeight').value = p.weight_kg != null ? Number(p.weight_kg) : '';
-  $('afRestHr').value = p.rest_hr ?? '';
-  $('afExp').value = p.experience_years ?? '';
-  $('afRecords').value = p.records || '';
-  $('afGoal').value = p.goal || '';
-  $('afInjuries').value = p.injuries || '';
-  paintAthleteChoices();
-  $('athleteSheet').classList.remove('hidden');
-  growAll($('athleteSheet'));
-}
-function closeAthleteSheet() { $('athleteSheet').classList.add('hidden'); }
-
-$('athleteEditBtn').addEventListener('click', openAthleteSheet);
-$('afCancelBtn').addEventListener('click', closeAthleteSheet);
-$('athleteSheet').addEventListener('click', (e) => { if (e.target === $('athleteSheet')) closeAthleteSheet(); });
-$('afSaveBtn').addEventListener('click', async () => {
-  const btn = $('afSaveBtn');
-  btn.disabled = true;
-  try {
-    const { profile } = await api('/api/auth/athlete', {
-      method: 'POST',
-      body: JSON.stringify({
-        sex: afSex, level: afLevel,
-        birth_year: $('afBirth').value, height_cm: $('afHeight').value, weight_kg: $('afWeight').value,
-        rest_hr: $('afRestHr').value, experience_years: $('afExp').value,
-        records: $('afRecords').value, goal: $('afGoal').value, injuries: $('afInjuries').value,
-      }),
-    });
-    athleteProfile = profile;
-    renderAthleteSummary();
-    closeAthleteSheet();
-    haptic('success');
-  } catch (err) {
-    console.error(err);
-    alertMsg(err.data?.error || 'Не удалось сохранить анкету.');
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-// =====================================================================
-//  КЛАВИАТУРА, ПОЛЯ ВВОДА, ЗУМ
-// =====================================================================
-// Пока печатаешь — нижняя панель прячется, чтобы не висела над клавиатурой
-const TYPING_SEL = 'textarea, input:not([type=checkbox]):not([type=range]):not([type=radio]):not([type=file]):not([type=date])';
-function updateKeyboardState() {
-  const a = document.activeElement;
-  const typing = !!a && !!a.matches && a.matches(TYPING_SEL);
-  document.body.classList.toggle('kb-open', typing);
-  if (typing && document.body.classList.contains('chat-open')) {
-    // в чате держим окно прижатым к верху, а сообщения — прокрученными вниз
-    setTimeout(() => { window.scrollTo(0, 0); $('chatMessages').scrollTop = $('chatMessages').scrollHeight; }, 60);
-  }
-}
-document.addEventListener('focusin', updateKeyboardState);
-document.addEventListener('focusout', () => setTimeout(updateKeyboardState, 60));
-
-// Реальная видимая высота экрана (без клавиатуры) — для чата
-function updateAppHeight() {
-  const h = window.visualViewport?.height || window.innerHeight;
-  document.documentElement.style.setProperty('--app-h', `${Math.round(h)}px`);
-}
-window.visualViewport?.addEventListener('resize', updateAppHeight);
-window.addEventListener('resize', updateAppHeight);
-try { tg?.onEvent?.('viewportChanged', updateAppHeight); } catch (e) {}
-updateAppHeight();
-
-// Поле текста растёт вместе с текстом, а не прячет его внутри
-function autoGrow(el) {
-  if (!el || el.tagName !== 'TEXTAREA') return;
-  if (!el.offsetParent) { el.style.height = ''; return; } // скрытое поле не трогаем
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight + 2}px`;
-}
-function growAll(root) { root.querySelectorAll('textarea').forEach(autoGrow); }
-
-// Пишешь в конце длинного текста — страница сама подкручивается, чтобы строка была видна
-function keepCaretVisible(el) {
-  if (el.selectionEnd !== el.value.length) return;
-  const vv = window.visualViewport;
-  const bottom = vv ? vv.height + vv.offsetTop : window.innerHeight;
-  const over = el.getBoundingClientRect().bottom - (bottom - 16);
-  if (over > 0) window.scrollBy(0, over);
-}
-document.addEventListener('input', (e) => {
-  if (e.target.tagName !== 'TEXTAREA') return;
-  autoGrow(e.target);
-  keepCaretVisible(e.target);
-});
-document.addEventListener('focusin', (e) => { if (e.target.tagName === 'TEXTAREA') autoGrow(e.target); });
-
-// Запрещаем увеличивать страницу двумя пальцами (в обрезке фото щипок работает сам по себе)
-document.addEventListener('gesturestart', (e) => e.preventDefault());
-document.addEventListener('touchmove', (e) => { if (e.scale && e.scale !== 1) e.preventDefault(); }, { passive: false });
-try { tg?.disableVerticalSwipes?.(); } catch (e) {}
-
-// =====================================================================
-//  ЗНАКОМСТВО С ПРИЛОЖЕНИЕМ (один раз для новичка + кнопка в профиле)
-// =====================================================================
-const TOUR_KEY = 'forma_tour_done';
-const TOUR_SLIDES = [
-  { art: '<span class="tour-logo">Forma<span class="logo-dot"></span></span>', title: 'Привет! Это Forma',
-    text: 'Дневник тренировок с ИИ-помощником Fom. Покажу за 20 секунд, как тут всё устроено.' },
-  { icon: 'sparkle', title: 'Запись за минуту',
-    text: 'Нажми «+» внизу и заполни поля. Или просто опиши тренировку своими словами в «Умном вводе» — Fom сам разложит всё по полям.' },
-  { art: '<span class="fom-badge tour-fom">F</span>', title: 'Fom — твой помощник',
-    text: 'После тренировки Fom даёт короткий отзыв: объём, темп, пульс, восстановление. В «Разборе» — итоги недели и месяца, во вкладке Fom — чат.' },
-  { icon: 'flame', title: 'Держи серию',
-    text: 'Каждый записанный день — тренировка или отдых — продлевает серию. Записывать можно только за сегодня и вчера. За серию от 7 дней — розыгрыши подарков.' },
-  { icon: 'people', title: 'Друзья',
-    text: 'Добавляй друзей по @username, смотри их открытые тренировки, ставь реакции. Что показывать друзьям — решаешь ты.' },
-  { icon: 'lock', title: 'Расскажи о себе',
-    text: 'Укажи вид спорта и заполни анкету в профиле — так Fom поймёт, с кем имеет дело. Анкету видишь только ты и Fom.', extra: true },
-];
-let tourIndex = 0;
-
-function tourStorage(set) {
-  try {
-    if (set) localStorage.setItem(TOUR_KEY, '1');
-    return localStorage.getItem(TOUR_KEY) === '1';
-  } catch (e) { return false; }
-}
-
-function openTour() {
-  const track = $('tourTrack');
-  track.innerHTML = TOUR_SLIDES.map((sl) => `
-    <div class="tour-slide">
-      <div class="tour-art">${sl.art || ico(sl.icon)}</div>
-      <div class="tour-title">${esc(sl.title)}</div>
-      <div class="tour-text">${esc(sl.text)}</div>
-      ${sl.extra ? '<button type="button" class="ghost-btn tour-fill" id="tourFillBtn">Заполнить профиль сейчас</button>' : ''}
-    </div>`).join('');
-  $('tourDots').innerHTML = TOUR_SLIDES.map(() => '<i></i>').join('');
-  $('tourFillBtn').addEventListener('click', () => {
-    closeTour();
-    openProfile();
-    setTimeout(() => (currentUser?.sport ? openAthleteSheet() : openSportSheet()), 250);
-  });
-  tourIndex = 0;
-  $('tour').classList.remove('hidden', 'closing');
-  track.scrollLeft = 0;
-  paintTour();
-}
-
-function paintTour() {
-  $('tourDots').querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i === tourIndex));
-  $('tourNext').textContent = tourIndex === TOUR_SLIDES.length - 1 ? 'Начать' : 'Дальше';
-}
-
-function closeTour() {
-  tourStorage(true);
-  $('tour').classList.add('closing');
-  setTimeout(() => $('tour').classList.add('hidden'), 250);
-}
-
-$('tourTrack').addEventListener('scroll', () => {
-  const t = $('tourTrack');
-  const i = Math.round(t.scrollLeft / Math.max(1, t.clientWidth));
-  if (i !== tourIndex) { tourIndex = i; paintTour(); haptic(); }
-}, { passive: true });
-$('tourNext').addEventListener('click', () => {
-  if (tourIndex >= TOUR_SLIDES.length - 1) return closeTour();
-  const t = $('tourTrack');
-  t.scrollTo({ left: (tourIndex + 1) * t.clientWidth, behavior: 'smooth' });
-});
-$('tourSkip').addEventListener('click', closeTour);
-$('tourAgainBtn').addEventListener('click', openTour);
-
-// =====================================================================
-//  ВЕЧЕРНЕЕ НАПОМИНАНИЕ (настройка в профиле)
-// =====================================================================
-$('reminderToggle').addEventListener('change', async (e) => {
-  const enabled = e.target.checked;
-  try {
-    await api('/api/auth/reminder', { method: 'POST', body: JSON.stringify({ enabled }) });
-    if (currentUser) currentUser.remind_enabled = enabled;
-    haptic();
-  } catch (err) {
-    console.error(err);
-    e.target.checked = !enabled;
-    alertMsg('Не удалось сохранить настройку. Попробуй ещё раз.');
-  }
-});
-
-// =====================================================================
-//  ВИБРАЦИЯ НА НАЖАТИЯ И ЖЕСТЫ
-// =====================================================================
-// Переключатели, фишки, вкладки, дни календаря — лёгкий «щелчок выбора»,
-// обычные кнопки — лёгкий толчок, кнопка «+» — чуть сильнее.
-document.addEventListener('click', (e) => {
-  const el = e.target.closest('button, .cal-cell, .history-item, .toggle-row, a');
-  if (!el || el.disabled) return;
-  if (el.matches('.nav-plus')) return haptic('medium');
-  if (el.matches('.seg-btn, .chip, .nav-btn, .cal-cell, .sport-chip, .toggle-row, [data-shift]')) return haptic('select');
-  haptic('light');
-}); // «всплытие»: особая вибрация кнопки (реакция, барабан) срабатывает первой
-
-// Ползунки самочувствия и нагрузки — щелчок на каждом делении
-document.addEventListener('input', (e) => {
-  if (e.target.matches('input[type="range"]') && !e.target.classList.contains('crop-zoom')) haptic('select');
-});
-
-// Поддержка — чат с автором в Telegram
-const SUPPORT_USERNAME = 'MAKSIMSHELIKH';
-$('supportBtn').addEventListener('click', () => {
-  const url = `https://t.me/${SUPPORT_USERNAME}`;
-  if (tg?.openTelegramLink) tg.openTelegramLink(url);
-  else window.open(url, '_blank');
-});
-
-hydrateIcons();
-
-init();
+/* =====================================================================
+   Forma — тёмный стиль: глубокий фон, стеклянные карточки,
+   неоново-салатовый акцент, широкий шрифт Unbounded для заголовков
+   ===================================================================== */
+:root {
+  --bg: #0a0c11;
+  --card-top: #1b202b;
+  --card-bottom: #12151c;
+  --card-solid: #161a22;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --input: rgba(255, 255, 255, 0.045);
+  --text: #f3f5f8;
+  --muted: #8b93a7;
+  --lime: #b4f53c;
+  --lime-2: #6fdc3a;
+  --purple: #9b6bff;
+  --danger: #ff5a4f;
+  --grad-lime: linear-gradient(90deg, #c2f74a 0%, #6fdc3a 100%);
+  --grad-plus: radial-gradient(circle at 30% 30%, #d6ff6a 0%, #8ee043 45%, #9b6bff 100%);
+  --radius: 20px;
+  --nav-space: 104px; /* место под нижнюю панель */
+  --font-head: 'Unbounded', 'Manrope', -apple-system, sans-serif;
+  --font: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html { background: var(--bg); touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  color: var(--text);
+  background:
+    radial-gradient(600px 400px at 100% -10%, rgba(155, 107, 255, 0.14), transparent 60%),
+    radial-gradient(500px 360px at -10% 30%, rgba(180, 245, 60, 0.07), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  min-height: 100vh;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: calc(var(--nav-space) + env(safe-area-inset-bottom, 0px));
+}
+
+button, input, textarea { font-family: inherit; }
+button { color: inherit; }
+
+.hidden { display: none !important; }
+.muted { color: var(--muted); font-size: 13px; }
+
+/* ---------- Шапка ---------- */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px 10px;
+}
+.logo {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+}
+.logo-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 12px var(--lime);
+  margin-bottom: 7px;
+}
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.streak-pill {
+  display: flex; align-items: center; gap: 4px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--input);
+  border: 1px solid var(--border);
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 600;
+}
+.avatar-btn {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(180, 245, 60, 0.6);
+  background: var(--card-solid);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+}
+.avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---------- Экраны ---------- */
+.screen { padding: 4px 16px 24px; }
+
+.page-title, .title {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.15;
+  margin: 6px 0 14px;
+  letter-spacing: -0.3px;
+}
+.title { margin: 2px 0 12px; }
+.title.small { font-size: 17px; margin: 2px 0 0; }
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--lime);
+}
+.eyebrow.light { color: rgba(255, 255, 255, 0.75); }
+
+.section-title {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 22px 0 10px;
+}
+
+/* ---------- Карточки ---------- */
+.card {
+  background: linear-gradient(180deg, var(--card-top), var(--card-bottom));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.card-hero { padding-bottom: 14px; }
+.card-label {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-head { margin-bottom: 10px; }
+.card-head .card-label { margin-bottom: 2px; }
+.card-hint { color: var(--muted); font-size: 12px; }
+.optional { color: var(--muted); font-weight: 500; font-size: 12px; }
+
+/* ---------- Статистика (3 плитки) ---------- */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.stat {
+  background: linear-gradient(180deg, var(--card-top), var(--card-bottom));
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 12px 8px;
+  text-align: center;
+}
+.stat-icon {
+  width: 34px; height: 34px;
+  margin: 0 auto 6px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+}
+.stat-num {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1.1;
+}
+.stat-num.accent { color: var(--lime); text-shadow: 0 0 18px rgba(180, 245, 60, 0.35); }
+.stat-label { color: var(--muted); font-size: 11px; margin-top: 3px; line-height: 1.2; }
+
+/* ---------- Поля ввода ---------- */
+textarea, input[type="text"], input[type="number"] {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--input);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+  resize: none;
+  transition: border-color 0.15s ease;
+}
+textarea:focus, input[type="text"]:focus, input[type="number"]:focus { border-color: rgba(180, 245, 60, 0.55); }
+::placeholder { color: #5f6778; }
+/* убираем стрелочки у числовых полей — на телефоне они только мешают */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ---------- Переключатели (сегменты) ---------- */
+.segmented {
+  display: flex;
+  background: var(--card-solid);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 4px;
+  margin: 0 0 12px;
+}
+.seg-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+.seg-btn.active { background: var(--grad-lime); color: #0b0d10; }
+
+/* ---------- Выбор даты ---------- */
+.date-picker-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chip {
+  border: 1px solid var(--border);
+  background: var(--input);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chip.active { background: var(--grad-lime); color: #0b0d10; border-color: transparent; }
+.date-input-wrap {
+  display: flex; align-items: center; gap: 6px;
+  flex: 1 1 150px;
+  font-size: 14px;
+}
+.date-input-wrap input[type="date"] {
+  flex: 1; min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--input);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color-scheme: dark;
+}
+
+/* ---------- Строки: беговые отрезки ---------- */
+.set-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 30px;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.set-row input { padding: 10px 8px; font-size: 14px; border-radius: 12px; }
+
+/* ---------- Строки: силовая / ОФП ---------- */
+.ex-row {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: 16px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.ex-top { display: grid; grid-template-columns: 1fr 30px; gap: 6px; margin-bottom: 6px; }
+.ex-bottom { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ex-row input { padding: 10px; font-size: 14px; border-radius: 12px; }
+
+.row-del {
+  border: none; background: none;
+  color: var(--danger);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0;
+}
+.add-btn {
+  width: 100%;
+  padding: 11px;
+  border-radius: 14px;
+  border: 1px dashed rgba(180, 245, 60, 0.4);
+  background: rgba(180, 245, 60, 0.05);
+  color: var(--lime);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ---------- Ползунки ---------- */
+.slider-row { margin: 6px 0 14px; }
+.slider-row:last-child { margin-bottom: 4px; }
+.slider-top { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: var(--muted); }
+.slider-top b { color: var(--text); font-family: var(--font-head); font-size: 14px; }
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff5a4f, #ffc14d 50%, var(--lime));
+  outline: none;
+}
+/* самочувствие: плохо (красный) → отлично (зелёный) */
+input[type="range"].range-good { background: linear-gradient(90deg, #ff5a4f, #ffc14d 50%, var(--lime)); }
+/* нагрузка: легко (зелёный) → на пределе (красный) */
+input[type="range"].range-load { background: linear-gradient(90deg, var(--lime), #ffc14d 50%, #ff5a4f); }
+.slider-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 6px; }
+.slider-hint { font-size: 12px; margin-top: 6px; }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--bg);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--bg);
+}
+
+/* ---------- Умный ввод ---------- */
+.smart-card {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(180deg, var(--card-top), var(--card-bottom)) padding-box,
+    linear-gradient(120deg, rgba(180, 245, 60, 0.7), rgba(155, 107, 255, 0.7)) border-box;
+}
+.smart-hint { margin: -4px 0 10px; }
+.smart-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(90deg, #9b6bff, #6f8bff);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(155, 107, 255, 0.3);
+}
+.smart-btn:disabled { opacity: 0.6; }
+
+/* ---------- Пульс ---------- */
+.hr-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.hr-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
+.hr-field input { padding: 10px 6px; text-align: center; font-size: 15px; }
+.hr-hint { font-size: 12px; margin-top: 8px; line-height: 1.35; }
+
+/* ---------- Переключатель «Показывать друзьям» ---------- */
+.toggle-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.toggle-row input { display: none; }
+.toggle {
+  width: 42px; height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+  transition: background 0.2s ease;
+  flex: 0 0 auto;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+}
+.toggle-row input:checked + .toggle { background: var(--lime-2); }
+.toggle-row input:checked + .toggle::after { transform: translateX(18px); }
+
+/* ---------- Кнопки ---------- */
+.primary-btn {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px;
+  border-radius: 999px;
+  border: none;
+  background: var(--grad-lime);
+  color: #0b0d10;
+  font-family: var(--font-head);
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 6px;
+  cursor: pointer;
+  box-shadow: 0 8px 28px rgba(140, 230, 60, 0.25);
+}
+.primary-btn:disabled { opacity: 0.6; }
+.primary-btn:active { transform: scale(0.99); }
+.plus-ico { font-size: 20px; line-height: 1; }
+
+.btn-row { display: flex; gap: 8px; margin-top: 10px; }
+.ghost-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ghost-btn.danger { color: var(--danger); border-color: rgba(255, 90, 79, 0.35); }
+
+.small-btn {
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: none;
+  background: var(--grad-lime);
+  color: #0b0d10;
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.round-btn {
+  flex: 0 0 auto;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--card-solid);
+  color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease;
+}
+.round-btn:disabled { opacity: 0.3; cursor: default; }
+.round-btn:active { opacity: 0.7; }
+
+.status-msg { text-align: center; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.empty-hint { color: var(--muted); font-size: 13px; padding: 8px 2px; }
+
+/* ---------- Карточка «запись сохранена» ---------- */
+.done-card { border-color: rgba(180, 245, 60, 0.25); }
+.done-title { font-family: var(--font-head); font-weight: 600; font-size: 16px; margin-bottom: 10px; }
+.done-summary { white-space: pre-line; font-size: 14px; line-height: 1.6; color: #d9dde6; }
+.done-hint { text-align: center; margin-top: 12px; font-size: 12px; }
+
+/* ---------- Fom ---------- */
+.fom-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  border-radius: 8px;
+  background: var(--grad-plus);
+  color: #0b0d10;
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 13px;
+}
+.fom-badge.big { width: 42px; height: 42px; border-radius: 14px; font-size: 20px; }
+.ai-box {
+  margin-top: 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ai-box-title { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 8px; }
+.ai-box-big { margin-top: 14px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+.ai-box-big strong { color: var(--lime); }
+
+/* ---------- Профиль: большое фото ---------- */
+.profile-hero {
+  position: relative;
+  height: 300px;
+  border-radius: 24px;
+  overflow: hidden;
+  isolation: isolate;
+  margin-bottom: 12px;
+  background-color: var(--card-solid);
+  background-size: cover;
+  background-position: center;
+  /* тонкая аккуратная рамка тенью — без яркой полосы по краю фото */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+/* мягкая «мутность» снизу фото — под именем */
+.profile-hero::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 48%;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 65%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 65%);
+}
+.profile-hero.no-photo {
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(180, 245, 60, 0.5), transparent 55%),
+    radial-gradient(circle at 80% 70%, rgba(155, 107, 255, 0.55), transparent 55%);
+}
+.profile-hero-shade {
+  position: absolute; inset: -2px;
+  background: linear-gradient(180deg, rgba(10, 12, 17, 0) 42%, rgba(10, 12, 17, 0.45) 70%, rgba(10, 12, 17, 0.88) 100%);
+}
+.profile-hero-bottom {
+  position: absolute; left: 16px; right: 16px; bottom: 16px;
+  display: flex; flex-direction: column; align-items: flex-start;
+}
+/* вид спорта — строка над именем */
+.hero-sport {
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #d9c8ff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  text-align: left;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+button.hero-sport { cursor: pointer; }
+.hero-sport.empty { color: rgba(255, 255, 255, 0.75); text-decoration: underline dashed rgba(255, 255, 255, 0.4); text-underline-offset: 4px; }
+.profile-name {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.1;
+  margin: 4px 0 8px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  word-break: break-word;
+}
+.profile-tags { display: flex; gap: 6px; flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.profile-tags::-webkit-scrollbar { display: none; }
+.profile-tags .tag { flex: 0 0 auto; white-space: nowrap; }
+
+/* фирменная синяя галочка */
+.verified { width: 0.8em; height: 0.8em; margin-left: 6px; vertical-align: -0.06em; flex: 0 0 auto; }
+.friend-name .verified { width: 16px; height: 16px; margin-left: 4px; vertical-align: -3px; }
+.tag {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(180, 245, 60, 0.6);
+  color: var(--lime);
+  font-size: 12px;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
+}
+.photo-btn {
+  position: absolute;
+  top: 12px; right: 12px;
+  z-index: 2;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+.photo-btn:active { transform: scale(0.94); }
+
+/* ---------- Меню «Фото» ---------- */
+.sheet-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 50;
+  display: flex; align-items: flex-end;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--card-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: 24px;
+  padding: 16px;
+}
+.sheet-title { text-align: center; font-weight: 700; margin-bottom: 12px; }
+.sheet-btn {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sheet-btn.muted-btn { background: transparent; border-color: transparent; color: var(--muted); margin-bottom: 0; }
+
+/* ---------- Календарь ---------- */
+.cal-header { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 10px; }
+.cal-title { font-family: var(--font-head); font-weight: 600; font-size: 16px; }
+.cal-weekdays, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-weekdays span { text-align: center; font-size: 11px; color: var(--muted); padding-bottom: 4px; }
+.cal-cell {
+  aspect-ratio: 1 / 1;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.cal-cell.empty { background: transparent; cursor: default; }
+.cal-cell.has-training { background: var(--grad-lime); color: #0b0d10; font-weight: 800; }
+.cal-cell.has-rest { background: transparent; box-shadow: inset 0 0 0 2px rgba(155, 107, 255, 0.7); }
+.cal-cell.today { outline: 2px solid #fff; outline-offset: 1px; }
+.cal-cell.future { opacity: 0.3; cursor: default; }
+.cal-cell.too-old { opacity: 0.4; }
+.cal-cell:not(.future):not(.empty):active { opacity: 0.7; }
+.cal-legend { display: flex; gap: 16px; justify-content: center; font-size: 12px; color: var(--muted); margin-top: 12px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; }
+.dot-training { background: var(--grad-lime); }
+.dot-rest { box-shadow: inset 0 0 0 2px rgba(155, 107, 255, 0.8); }
+.cal-summary { text-align: center; margin-top: 8px; }
+.cal-help { text-align: center; margin-top: 6px; font-size: 12px; }
+
+/* ---------- Последние записи ---------- */
+.history-item {
+  width: 100%;
+  display: flex; align-items: center; gap: 12px;
+  text-align: left;
+  background: linear-gradient(180deg, var(--card-top), var(--card-bottom));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.history-ico {
+  width: 38px; height: 38px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+.history-ico.tr { background: rgba(180, 245, 60, 0.12); }
+.history-ico.rs { background: rgba(155, 107, 255, 0.15); }
+.history-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.history-date { font-weight: 700; font-size: 14px; }
+.history-sub { color: var(--muted); font-size: 12px; }
+.history-arrow { color: var(--muted); font-size: 22px; }
+.history-item:active { opacity: 0.7; }
+
+/* ---------- Друзья ---------- */
+.add-friend-row { display: flex; gap: 8px; margin-top: 10px; }
+.add-friend-row input { flex: 1 1 auto; min-width: 0; }
+.friend-item {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(180deg, var(--card-top), var(--card-bottom));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.friend-ava {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--grad-plus);
+  color: #0b0d10;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head);
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.friend-name { flex: 1; font-weight: 700; min-width: 0; }
+.friend-streak { font-family: var(--font-head); font-weight: 600; }
+.friend-actions { display: flex; gap: 6px; }
+.mini-btn { border: none; border-radius: 10px; padding: 7px 12px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.mini-btn.accept { background: var(--grad-lime); color: #0b0d10; }
+.mini-btn.decline { background: rgba(255, 90, 79, 0.15); color: var(--danger); }
+
+/* ---------- Чат с Fom ---------- */
+.chat-section {
+  display: flex;
+  flex-direction: column;
+  /* высота экрана минус шапка и нижняя панель — строка ввода всегда видна */
+  height: calc(var(--app-h, 100vh) - 64px - var(--nav-space) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  padding-bottom: 8px;
+}
+.chat-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--card-top), var(--card-bottom));
+  border: 1px solid var(--border);
+}
+.chat-head-name { font-family: var(--font-head); font-weight: 700; font-size: 16px; }
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+}
+.chat-empty { color: var(--muted); font-size: 14px; line-height: 1.5; text-align: center; margin: auto 10px; }
+.chat-bubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.chat-bubble.user { align-self: flex-end; background: var(--grad-lime); color: #0b0d10; border-bottom-right-radius: 6px; font-weight: 600; }
+.chat-bubble.assistant { align-self: flex-start; background: var(--card-solid); border: 1px solid var(--border); border-bottom-left-radius: 6px; }
+.chat-bubble.assistant strong { color: var(--lime); }
+.chat-bubble.typing { color: var(--muted); }
+
+/* строка ввода — как в мессенджере */
+.chat-input-row { display: flex; align-items: center; gap: 8px; }
+.chat-input-row input { flex: 1 1 auto; min-width: 0; border-radius: 999px; padding: 12px 18px; }
+.send-btn {
+  flex: 0 0 auto;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--grad-lime);
+  color: #0b0d10;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.send-btn svg { margin-left: 2px; }
+.send-btn:active { opacity: 0.7; }
+
+/* ---------- Шапка экрана редактирования ---------- */
+.screen-head { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; }
+
+/* ---------- Нижняя панель (всегда внизу, не двигается) ---------- */
+.bottom-nav {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  width: min(calc(100% - 24px), 440px);
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 6px;
+  border-radius: 26px;
+  background: rgba(20, 23, 31, 0.82);
+  border: 1px solid var(--border-strong);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 40;
+}
+.nav-btn {
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: none;
+  color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.nav-btn.active { color: var(--lime); }
+.nav-btn.active svg { filter: drop-shadow(0 0 6px rgba(180, 245, 60, 0.6)); }
+.nav-plus {
+  flex: 0 0 auto;
+  width: 60px; height: 60px;
+  margin: 0 4px;
+  transform: translateY(-14px);
+  border-radius: 50%;
+  border: 4px solid var(--bg);
+  background: var(--grad-plus);
+  color: #0b0d10;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(155, 107, 255, 0.45), 0 0 18px rgba(180, 245, 60, 0.35);
+  transition: transform 0.15s ease;
+}
+.nav-plus:active { transform: translateY(-14px) scale(0.94); }
+.nav-plus.active { box-shadow: 0 6px 28px rgba(155, 107, 255, 0.6), 0 0 26px rgba(180, 245, 60, 0.6); }
+
+/* =====================================================================
+   Друзья: лента, профиль друга, реакции, комментарии, активность
+   ===================================================================== */
+.ghost-btn.wide { display: block; width: 100%; margin-top: 12px; }
+
+/* значки с числом новых событий */
+.nav-btn { position: relative; }
+.nav-badge {
+  position: absolute;
+  top: 8px; left: calc(50% + 6px);
+  min-width: 17px; height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-style: normal;
+  font-size: 10px; font-weight: 800;
+  line-height: 17px;
+  text-align: center;
+  box-shadow: 0 0 0 2px #10131a;
+}
+.tab-badge {
+  display: inline-block;
+  min-width: 18px; height: 18px;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px; font-weight: 800;
+  line-height: 18px;
+}
+
+/* аватарки: фото поверх буквы (если фото не загрузилось — видна буква) */
+.friend-ava { position: relative; overflow: hidden; }
+.friend-ava img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.friend-ava.small { width: 30px; height: 30px; font-size: 13px; }
+
+/* список друзей — строки нажимаются */
+.friend-item.clickable { width: 100%; text-align: left; color: var(--text); cursor: pointer; font-family: inherit; }
+.friend-item.clickable:active { opacity: 0.75; }
+.friend-sub { display: block; font-weight: 500; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* ---------- Карточка тренировки в ленте ---------- */
+.wk-card { padding: 14px; transition: box-shadow 0.4s ease; }
+.wk-head { display: flex; align-items: center; gap: 10px; }
+.wk-head-main { min-width: 0; flex: 1; }
+.wk-author {
+  display: block;
+  padding: 0; border: none; background: none;
+  color: var(--text);
+  font-weight: 800; font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+.wk-author .verified { width: 15px; height: 15px; margin-left: 4px; vertical-align: -2px; }
+.wk-date { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.wk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.wk-chip {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  font-size: 12px; font-weight: 800;
+}
+.wk-body { white-space: pre-line; font-size: 14px; line-height: 1.55; color: #d9dde6; margin-top: 10px; }
+.wk-card.flash { box-shadow: 0 0 0 2px var(--lime), 0 0 28px rgba(180, 245, 60, 0.35); }
+
+/* ---------- Реакции ---------- */
+.social { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.react-bar { display: flex; gap: 6px; flex-wrap: wrap; }
+.react-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 34px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 13px; font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.react-btn .react-emoji { font-size: 16px; line-height: 1; filter: grayscale(0.6); opacity: 0.75; transition: filter 0.15s, opacity 0.15s; }
+.react-btn.has .react-emoji, .react-btn.mine .react-emoji { filter: none; opacity: 1; }
+.react-btn.mine { background: rgba(180, 245, 60, 0.14); border-color: rgba(180, 245, 60, 0.7); color: var(--lime); }
+.react-btn:active { transform: scale(0.92); }
+.react-btn.comment-btn { margin-left: auto; }
+.react-btn.pop .react-emoji { animation: react-pop 0.45s ease; }
+@keyframes react-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.6) rotate(-10deg); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- Комментарии ---------- */
+.thread { margin-top: 12px; }
+.thread-loading, .thread-empty { font-size: 13px; padding: 4px 2px 8px; }
+.who-reacted { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.who-reacted .verified { width: 12px; height: 12px; margin-left: 2px; vertical-align: -2px; }
+.comment { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 10px; }
+.comment-main {
+  flex: 1; min-width: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px 14px 14px 14px;
+  padding: 8px 11px;
+}
+.comment-top { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-bottom: 2px; }
+.comment-top .verified { width: 13px; height: 13px; margin-left: 3px; vertical-align: -2px; }
+.comment-text { font-size: 14px; line-height: 1.4; word-break: break-word; }
+.comment-del { border: none; background: none; color: var(--muted); font-size: 13px; padding: 6px 2px; cursor: pointer; }
+.comment-form { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.comment-form input { flex: 1; min-width: 0; padding: 10px 14px; border-radius: 999px; font-size: 14px; }
+.send-btn.small { width: 38px; height: 38px; }
+
+/* ---------- Активность ---------- */
+.activity-card { border-color: rgba(155, 107, 255, 0.35); }
+.activity-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 8px 4px;
+  border: none; border-radius: 12px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.activity-item + .activity-item { border-top: 1px solid var(--border); border-radius: 0; }
+.activity-item.unread .activity-text::before {
+  content: '';
+  display: inline-block;
+  width: 7px; height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 8px var(--lime);
+  vertical-align: 1px;
+}
+.activity-text { flex: 1; min-width: 0; }
+.activity-text .verified { width: 13px; height: 13px; margin-left: 2px; vertical-align: -2px; }
+.activity-time { flex: 0 0 auto; font-size: 11px; }
+
+/* ---------- Пустая лента ---------- */
+.empty-feed { text-align: center; padding: 26px 18px; }
+.empty-feed-ico { font-size: 34px; margin-bottom: 8px; }
+.empty-feed-title { font-family: var(--font-head); font-weight: 600; font-size: 16px; margin-bottom: 6px; }
+.empty-feed .muted { line-height: 1.45; }
+
+/* ---------- Календарь друга ---------- */
+.cal-cell.readonly:disabled { cursor: default; }
+/* закрытый день: видно, что он был, но без подробностей — с замочком */
+.cal-cell.locked { position: relative; }
+.cal-cell.has-training.locked { background: rgba(180, 245, 60, 0.28); color: var(--text); box-shadow: inset 0 0 0 1.5px rgba(180, 245, 60, 0.75); }
+.cal-cell.locked::after {
+  content: '🔒';
+  position: absolute;
+  top: 1px; right: 2px;
+  font-size: 9px;
+  line-height: 1;
+}
+
+/* ---------- Приватность ---------- */
+.privacy-row { margin-top: 8px; }
+.privacy-hint { font-size: 12px; line-height: 1.4; margin-top: 8px; }
+
+/* метка «рекорд серии» — спокойнее основной */
+.tag.tag-soft { border-color: rgba(255, 255, 255, 0.25); color: rgba(255, 255, 255, 0.85); }
+.tag-btn { font-family: inherit; cursor: pointer; }
+.tag-btn:active { opacity: 0.7; }
+
+/* ---------- Обрезка фото ---------- */
+.crop-backdrop { z-index: 60; align-items: center; }
+.crop-sheet { max-width: 420px; margin: 0 auto; }
+.crop-view {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #000;
+  touch-action: none; /* палец двигает фото, а не страницу */
+  cursor: grab;
+}
+.crop-view img {
+  position: absolute; left: 0; top: 0;
+  max-width: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+/* подсказка: круг, который увидят в аватарке, остальное чуть затемнено */
+.crop-guide {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.35);
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: -2px;
+  pointer-events: none;
+}
+.crop-zoom-row { display: flex; align-items: center; gap: 10px; margin: 14px 4px 6px; color: var(--muted); font-weight: 800; }
+.crop-zoom { flex: 1; background: rgba(255, 255, 255, 0.15) !important; }
+.crop-hint { text-align: center; font-size: 12px; margin-bottom: 4px; }
+.crop-save { background: var(--grad-lime); color: #0b0d10; border-color: transparent; }
+.crop-save:disabled { opacity: 0.6; }
+
+/* ---------- Компактная шапка профиля ---------- */
+.mini-head {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  width: min(calc(100% - 24px), 440px);
+  margin-left: calc(min(calc(100% - 24px), 440px) / -2);
+  z-index: 40;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 8px 8px 16px;
+  border-radius: 22px;
+  background: rgba(20, 23, 31, 0.82);
+  border: 1px solid var(--border-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+}
+.mini-head.shown { pointer-events: auto; }
+.mini-main { min-width: 0; }
+.mini-name { font-family: var(--font-head); font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-name .verified { width: 15px; height: 15px; margin-left: 4px; vertical-align: -2px; }
+.mini-stats { font-size: 13px; font-weight: 700; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+.mini-ava {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--grad-plus);
+  color: #0b0d10;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-weight: 700;
+  box-shadow: 0 0 0 2px var(--lime);
+  transition: transform 0.05s linear;
+}
+.mini-ava img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* ---------- Жест «назад» ---------- */
+.swipe-back {
+  position: fixed;
+  left: 0; top: 50%;
+  z-index: 70;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-strong);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transform: translate(-40px, -50%) scale(0.7);
+  pointer-events: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.swipe-back.ready { background: var(--grad-lime); color: #0b0d10; border-color: transparent; }
+
+/* ---------- Вид спорта ---------- */
+.sport-sheet { max-height: 86vh; overflow-y: auto; }
+.sport-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
+.sport-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 14px; font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.sport-chip span { font-size: 18px; }
+.sport-chip.active { background: rgba(180, 245, 60, 0.14); border-color: rgba(180, 245, 60, 0.75); color: var(--lime); }
+.sport-sub { margin-bottom: 8px; }
+.discipline-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+#disciplineInput { width: 100%; margin-bottom: 4px; }
+
+/* ---------- Подпись у синей галочки ---------- */
+.verified { cursor: pointer; }
+.badge-tip {
+  position: fixed;
+  z-index: 80;
+  display: none;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: #2AABEE;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(42, 171, 238, 0.45);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px) scale(0.85);
+  transform-origin: var(--arrow-x, 50%) 100%;
+  transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.badge-tip.below { transform-origin: var(--arrow-x, 50%) 0; transform: translateY(-6px) scale(0.85); }
+.badge-tip.show { opacity: 1; transform: none; }
+/* хвостик-стрелочка к галочке */
+.badge-tip::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  bottom: -5px;
+  width: 10px; height: 10px;
+  margin-left: -5px;
+  background: #2AABEE;
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+.badge-tip.below::after { bottom: auto; top: -5px; }
+
+/* ---------- Розыгрыши ---------- */
+.gift-card {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(180deg, var(--card-top), var(--card-bottom)) padding-box,
+    linear-gradient(120deg, rgba(255, 196, 77, 0.75), rgba(155, 107, 255, 0.7)) border-box;
+}
+.gift-head { display: flex; justify-content: space-between; align-items: center; }
+.gift-head .card-label { margin-bottom: 0; }
+.gift-rules-btn {
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+}
+.gift-sub { margin: 4px 0 10px; }
+.gift-row {
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  margin-top: 8px;
+}
+.gift-row.month { background: linear-gradient(135deg, rgba(155, 107, 255, 0.16), rgba(255, 196, 77, 0.08)); border-color: rgba(155, 107, 255, 0.35); }
+.gift-row.in { border-color: rgba(180, 245, 60, 0.55); }
+.gift-row-top { display: flex; align-items: center; gap: 10px; }
+
+.gift-row-main { flex: 1; min-width: 0; }
+.gift-title { font-weight: 800; font-size: 14px; }
+.gift-title .muted { font-weight: 600; font-size: 12px; }
+.gift-when { font-size: 12px; color: #ffc44d; font-weight: 700; margin-top: 2px; }
+.gift-badge {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(180, 245, 60, 0.14);
+  border: 1px solid rgba(180, 245, 60, 0.6);
+  color: var(--lime);
+  font-size: 12px; font-weight: 800;
+}
+.gift-bar { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); margin-top: 10px; overflow: hidden; }
+.gift-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #ffc44d, var(--lime)); }
+.gift-row.month .gift-bar i { background: linear-gradient(90deg, var(--purple), #ffc44d); }
+.gift-status { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.gift-status.ok { color: var(--lime); font-weight: 700; }
+.gift-sheet { max-height: 86vh; overflow-y: auto; }
+.gift-rules p { font-size: 14px; line-height: 1.45; color: #d9dde6; margin: 0 0 10px; }
+.gift-winners { margin: 12px 0 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+.gift-winner { font-size: 14px; padding: 4px 0; }
+
+/* ---------- Вторая тренировка за день ---------- */
+.done-block + .done-block { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.done-block-title { font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+.done-block .ai-box { margin-top: 10px; }
+.add-second-btn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(180, 245, 60, 0.6);
+  background: rgba(180, 245, 60, 0.07);
+  color: var(--lime);
+  font-size: 14px; font-weight: 800;
+  cursor: pointer;
+}
+.add-second-btn:active { transform: scale(0.99); }
+/* во второй тренировке нельзя выбрать «Отдых» */
+.second-mode [data-f="typeSwitch"] { display: none; }
+/* в календаре — маленькая метка «×2» на днях с двумя тренировками */
+.cal-cell.double { position: relative; }
+.cal-cell.double::after {
+  content: '×2';
+  position: absolute;
+  top: 1px; right: 3px;
+  font-size: 8px; font-weight: 900;
+  color: #0b0d10;
+}
+#editSessionSwitch { margin-bottom: 12px; }
+
+/* ---------- Анкета для Fom ---------- */
+.athlete-card { border-color: rgba(155, 107, 255, 0.3); }
+.athlete-summary { white-space: pre-line; font-size: 14px; line-height: 1.5; margin: 8px 0 4px; color: #d9dde6; }
+.athlete-note { font-size: 12px; }
+.athlete-note.center { text-align: center; margin: -6px 0 12px; }
+.athlete-sheet { max-height: 88vh; overflow-y: auto; }
+.af-label { margin: 14px 0 8px; }
+.af-sex { margin-bottom: 4px; }
+.af-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.af-grid input { padding: 10px 6px; text-align: center; font-size: 15px; }
+.athlete-sheet textarea { width: 100%; }
+.athlete-sheet .btn-row { margin-top: 16px; }
+
+
+/* =====================================================================
+   Наши иконки
+   ===================================================================== */
+.ico { width: 1.15em; height: 1.15em; flex: 0 0 auto; vertical-align: -0.2em; overflow: visible; }
+.stat-icon .ico { width: 21px; height: 21px; }
+.streak-pill .ico { width: 17px; height: 17px; }
+.card-label .ico { width: 20px; height: 20px; }
+.date-input-wrap .ico { width: 20px; height: 20px; color: var(--muted); margin-bottom: 8px; }
+.history-ico .ico { width: 21px; height: 21px; }
+.seg-btn .ico { width: 18px; height: 18px; vertical-align: -0.25em; }
+.seg-btn.active .ico { color: #0b0d10; }
+.ghost-btn .ico { width: 17px; height: 17px; vertical-align: -0.22em; }
+.tag .ico, .mini-stats .ico, .friend-streak .ico, .gift-badge .ico, .gift-status .ico { width: 1.05em; height: 1.05em; vertical-align: -0.18em; }
+.sheet-title .ico { width: 20px; height: 20px; vertical-align: -0.22em; }
+.gift-rules .ico, .gift-sub .ico, .athlete-summary .ico, .wk-date .ico, .gift-winner .ico { width: 1.1em; height: 1.1em; vertical-align: -0.2em; }
+.done-title { display: flex; align-items: center; gap: 8px; }
+.done-title .ico { width: 22px; height: 22px; }
+.done-block-title { display: flex; align-items: center; gap: 6px; }
+.done-block-title .ico { width: 18px; height: 18px; }
+.gift-title .ico { width: 16px; height: 16px; vertical-align: -0.2em; }
+
+/* =====================================================================
+   Барабан подарков в розыгрыше
+   ===================================================================== */
+.gift-slot {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px; height: 52px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 196, 77, 0.45);
+  background: radial-gradient(circle at 50% 35%, rgba(255, 196, 77, 0.22), rgba(255, 255, 255, 0.03) 70%);
+  box-shadow: inset 0 0 14px rgba(255, 196, 77, 0.15), 0 0 16px rgba(255, 196, 77, 0.12);
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+}
+.gift-row.month .gift-slot {
+  border-color: rgba(155, 107, 255, 0.6);
+  background: radial-gradient(circle at 50% 35%, rgba(155, 107, 255, 0.3), rgba(255, 255, 255, 0.03) 70%);
+  box-shadow: inset 0 0 14px rgba(155, 107, 255, 0.2), 0 0 18px rgba(155, 107, 255, 0.2);
+}
+/* блик сверху и снизу — как у настоящего барабана */
+.gift-slot::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(10, 12, 17, 0.55), transparent 30%, transparent 70%, rgba(10, 12, 17, 0.55));
+  pointer-events: none;
+}
+.gift-slot-item {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  line-height: 1;
+}
+.gift-slot-item.in { animation: slot-in 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.gift-slot-item.out { animation: slot-out 0.38s ease-in both; }
+.gift-slot-item.fast.in { animation-duration: 0.12s; animation-timing-function: linear; }
+.gift-slot-item.fast.out { animation-duration: 0.12s; animation-timing-function: linear; }
+@keyframes slot-in { from { transform: translateY(100%); filter: blur(2px); } to { transform: none; filter: none; } }
+@keyframes slot-out { from { transform: none; } to { transform: translateY(-100%); filter: blur(2px); } }
+.gift-slot:active { transform: scale(0.95); }
+.gift-maybe { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.gift-maybe b { color: var(--text); font-weight: 700; }
+
+/* =====================================================================
+   Наше окно-сообщение
+   ===================================================================== */
+.dlg-backdrop {
+  position: fixed; inset: 0; z-index: 95;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: rgba(5, 6, 10, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: dlg-fade 0.18s ease both;
+}
+.dlg-backdrop.closing { animation: dlg-fade-out 0.16s ease both; }
+.dlg {
+  width: min(100%, 340px);
+  padding: 22px 20px 16px;
+  border-radius: 26px;
+  text-align: center;
+  background: linear-gradient(180deg, #1f2533, #141820);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(155, 107, 255, 0.12);
+  animation: dlg-pop 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.dlg-backdrop.closing .dlg { animation: dlg-pop-out 0.16s ease both; }
+.dlg-icon {
+  width: 56px; height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: #cfd5e2;
+}
+.dlg-icon .ico { width: 30px; height: 30px; }
+.dlg-title { font-family: var(--font-head); font-weight: 700; font-size: 17px; line-height: 1.25; margin-bottom: 8px; }
+.dlg-text { color: #c3c9d6; font-size: 14px; line-height: 1.5; }
+.dlg-btns { display: flex; gap: 8px; margin-top: 18px; }
+.dlg-btn {
+  flex: 1;
+  padding: 13px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 700; font-size: 15px;
+  cursor: pointer;
+}
+.dlg-btn.main { background: var(--grad-lime); color: #0b0d10; border-color: transparent; }
+.dlg-btn.main.danger { background: var(--danger); color: #fff; }
+.dlg-btn:active { transform: scale(0.97); }
+@keyframes dlg-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dlg-fade-out { to { opacity: 0; } }
+@keyframes dlg-pop { from { opacity: 0; transform: scale(0.9) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes dlg-pop-out { to { opacity: 0; transform: scale(0.95); } }
+
+/* =====================================================================
+   Клавиатура открыта: прячем нижнюю панель, чат — на всю высоту
+   ===================================================================== */
+.bottom-nav { transition: opacity 0.15s ease, transform 0.15s ease; }
+body.kb-open .bottom-nav { opacity: 0; pointer-events: none; transform: translate(-50%, 24px); visibility: hidden; }
+body.kb-open { padding-bottom: 24px; }
+body.kb-open .swipe-back { display: none; }
+body.chat-open.kb-open .topbar { display: none; }
+body.chat-open.kb-open .chat-section {
+  height: calc(var(--app-h, 100vh) - env(safe-area-inset-top, 0px) - 12px);
+  padding-top: 8px;
+}
+body.chat-open.kb-open { padding-bottom: 0; }
+
+/* =====================================================================
+   Знакомство с приложением
+   ===================================================================== */
+.tour {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; flex-direction: column;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 0 calc(20px + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(500px 380px at 100% 0%, rgba(155, 107, 255, 0.22), transparent 60%),
+    radial-gradient(460px 360px at 0% 100%, rgba(180, 245, 60, 0.12), transparent 60%),
+    var(--bg);
+  animation: dlg-fade 0.3s ease both;
+}
+.tour.closing { animation: dlg-fade-out 0.25s ease both; }
+.tour-skip {
+  align-self: flex-end;
+  margin-right: 16px;
+  border: none; background: none;
+  color: var(--muted);
+  font-size: 14px; font-weight: 700;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+.tour-track {
+  flex: 1;
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.tour-track::-webkit-scrollbar { display: none; }
+.tour-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+  padding: 0 30px;
+}
+.tour-art {
+  width: 128px; height: 128px;
+  margin-bottom: 28px;
+  border-radius: 40px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, var(--card-top), var(--card-bottom));
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 60px rgba(155, 107, 255, 0.18);
+  color: #cfd5e2;
+}
+.tour-art .ico { width: 64px; height: 64px; }
+.tour-logo { font-family: var(--font-head); font-weight: 700; font-size: 26px; display: flex; align-items: flex-end; gap: 3px; }
+.tour-fom { width: 64px; height: 64px; font-size: 30px; border-radius: 20px; }
+.tour-title { font-family: var(--font-head); font-weight: 700; font-size: 23px; line-height: 1.2; margin-bottom: 12px; }
+.tour-text { color: #c3c9d6; font-size: 15px; line-height: 1.55; max-width: 340px; }
+.tour-fill { margin-top: 20px; }
+.tour-dots { display: flex; justify-content: center; gap: 7px; margin: 14px 0 16px; }
+.tour-dots i { width: 7px; height: 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); transition: width 0.2s ease, background 0.2s ease; }
+.tour-dots i.on { width: 22px; background: var(--lime); box-shadow: 0 0 10px rgba(180, 245, 60, 0.6); }
+.tour-next { margin: 0 20px; width: auto; }
+
+/* ---------- Поддержка (внизу профиля) ---------- */
+.support-card { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
+.support-ico {
+  width: 42px; height: 42px; flex: 0 0 auto;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(155, 107, 255, 0.14);
+  border: 1px solid rgba(155, 107, 255, 0.3);
+  color: #cfd5e2;
+}
+.support-ico .ico { width: 22px; height: 22px; }
+.support-main { flex: 1; min-width: 0; }
+.support-title { font-weight: 800; font-size: 15px; margin-bottom: 2px; }
