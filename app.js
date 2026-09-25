@@ -198,6 +198,61 @@ function showScreen(targetId) {
 // =====================================================================
 //  ФОРМА ЗАПИСИ — одна и та же для «новой записи» и «редактирования»
 // =====================================================================
+// ---------- Старты и личные рекорды ----------
+const COMP_DISCIPLINES = ['60 м', '100 м', '200 м', '400 м', '800 м', '1500 м', '3000 м', '5000 м', '10 000 м',
+  '60 м с/б', '100 м с/б', '110 м с/б', '400 м с/б', '3000 м с/п', 'Полумарафон', 'Марафон',
+  'Длина', 'Тройной', 'Высота', 'Шест', 'Ядро', 'Диск', 'Копьё', 'Молот'];
+
+// Прыжки и метания — «больше = лучше» (метры), бег — «меньше = лучше» (время)
+const FIELD_EVENT_RE = /прыж|длин|тройн|высот|шест|ядр|диск|копь|молот|метан|толк/i;
+function higherIsBetter(discipline) { return FIELD_EVENT_RE.test(discipline || ''); }
+// «10.95» → 10.95, «1:58.4» → 118.4, «7,12 м» → 7.12
+function parseResult(result, discipline) {
+  const token = String(result || '').replace(/,/g, '.').match(/\d[\d:.]*/)?.[0];
+  if (!token) return null;
+  if (higherIsBetter(discipline)) { const n = parseFloat(token); return Number.isFinite(n) ? n : null; }
+  const parts = token.split(':').map(Number);
+  if (parts.some((x) => !Number.isFinite(x))) return null;
+  return parts.reduce((acc, x) => acc * 60 + x, 0);
+}
+function disciplineKey(d) {
+  return String(d || '').toLowerCase().replace(/метр(ов|а)?/g, 'м').replace(/\s+/g, '').replace(/ё/g, 'е');
+}
+// Лучший результат в каждой дисциплине (по моим записям)
+function bestResults(list = myWorkouts) {
+  const best = {};
+  list.forEach((w) => {
+    const c = w.competition;
+    if (!c?.discipline || !c?.result) return;
+    const v = parseResult(c.result, c.discipline);
+    if (v == null) return;
+    const key = disciplineKey(c.discipline);
+    const cur = best[key];
+    if (!cur || (higherIsBetter(c.discipline) ? v > cur.value : v < cur.value)) best[key] = { value: v, w };
+  });
+  return best;
+}
+// Этот старт — личный рекорд? (лучше всех прошлых стартов в этой дисциплине; первый старт тоже рекорд)
+function isPersonalBest(w) {
+  const c = w?.competition;
+  if (!c?.discipline || !c?.result) return false;
+  const v = parseResult(c.result, c.discipline);
+  if (v == null) return false;
+  const others = myWorkouts.filter((x) => x.id !== w.id && x.date <= w.date);
+  const prev = bestResults(others)[disciplineKey(c.discipline)];
+  return !prev || (higherIsBetter(c.discipline) ? v > prev.value : v < prev.value);
+}
+function competitionLine(c) {
+  if (!c) return '';
+  return [c.name, [c.discipline, c.result].filter(Boolean).join(' — '), c.place ? `${c.place} место` : ''].filter(Boolean).join(' · ');
+}
+function entryKindLabel(w) {
+  if (w.type === 'rest') return 'Отдых';
+  if (w.competition) return 'Старт';
+  return w.session > 1 ? 'Вторая тренировка' : 'Тренировка';
+}
+function entryKindIco(w) { return w.type === 'rest' ? 'moon' : w.competition ? 'trophy' : 'runner'; }
+
 const FORM_TEMPLATE = `
   <section class="card smart-card">
     <div class="card-label">${ico('sparkle')}Умный ввод</div>
@@ -207,10 +262,26 @@ const FORM_TEMPLATE = `
     <div class="status-msg" data-f="smartStatus"></div>
   </section>
 
-  <div class="segmented" data-f="typeSwitch">
+  <button type="button" class="repeat-btn" data-f="repeatBtn">↻ Повторить прошлую тренировку</button>
+
+  <div class="segmented seg-3" data-f="typeSwitch">
     <button type="button" class="seg-btn active" data-type="training">${ico('runner')} Тренировка</button>
+    <button type="button" class="seg-btn" data-type="competition">${ico('trophy')} Старт</button>
     <button type="button" class="seg-btn" data-type="rest">${ico('moon')} Отдых</button>
   </div>
+
+  <section class="card comp-card hidden" data-f="compFields">
+    <div class="card-label">${ico('trophy')}Старт</div>
+    <input type="text" data-f="compName" maxlength="80" placeholder="Соревнование: например, Первенство города" />
+    <div class="card-label comp-sub">Дисциплина</div>
+    <div class="comp-chips" data-f="compChips"></div>
+    <input type="text" data-f="compDiscipline" maxlength="40" placeholder="Или напиши свою" />
+    <div class="comp-row">
+      <label class="hr-field"><span>Результат</span><input type="text" data-f="compResult" maxlength="20" inputmode="decimal" placeholder="10.95" /></label>
+      <label class="hr-field"><span>Место <i class="optional">необяз.</i></span><input type="number" data-f="compPlace" inputmode="numeric" min="1" max="9999" placeholder="—" /></label>
+    </div>
+    <div class="muted hr-hint">Бег — в секундах или мин:сек (1:58.4), прыжки и метания — в метрах (7.12). Лучший результат в каждой дисциплине попадёт в «Рекорды» профиля.</div>
+  </section>
 
   <div data-f="trainingFields">
     <section class="card">
@@ -283,14 +354,44 @@ function createWorkoutForm(root) {
   const f = (name) => root.querySelector(`[data-f="${name}"]`);
 
   let type = 'training';
+  let mode = 'training'; // training | competition | rest
   let sets = [];      // беговые отрезки: { distance_m, reps, time_or_pace, rest_between }
   let exercises = []; // силовая/ОФП:     { name, sets, reps, weight }
 
   function setType(t) {
-    type = t === 'rest' ? 'rest' : 'training';
-    f('typeSwitch').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.type === type));
+    mode = t === 'rest' ? 'rest' : t === 'competition' ? 'competition' : 'training';
+    type = mode === 'rest' ? 'rest' : 'training';
+    f('typeSwitch').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.type === mode));
     f('trainingFields').classList.toggle('hidden', type !== 'training');
+    f('compFields').classList.toggle('hidden', mode !== 'competition');
   }
+
+  // --- старт: быстрый выбор дисциплины ---
+  function paintCompChips() {
+    const cur = f('compDiscipline').value.trim();
+    f('compChips').querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c.textContent === cur));
+  }
+  f('compChips').innerHTML = COMP_DISCIPLINES.map((d) => `<button type="button" class="chip">${esc(d)}</button>`).join('');
+  f('compChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => {
+    f('compDiscipline').value = f('compDiscipline').value.trim() === c.textContent ? '' : c.textContent;
+    paintCompChips();
+  }));
+  f('compDiscipline').addEventListener('input', paintCompChips);
+  function setCompetition(c) {
+    f('compName').value = c?.name || '';
+    f('compDiscipline').value = c?.discipline || '';
+    f('compResult').value = c?.result || '';
+    f('compPlace').value = c?.place || '';
+    paintCompChips();
+  }
+
+  // --- повторить прошлую тренировку ---
+  f('repeatBtn').addEventListener('click', () => openRepeatSheet((w) => {
+    const keepVisibility = f('visibility').checked;
+    setData({ ...w, notes: '', competition: null, visibility: keepVisibility ? 'public' : 'private' });
+    setType('training');
+    f('smartStatus').textContent = '';
+  }));
   f('typeSwitch').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => setType(b.dataset.type)));
 
   // --- беговые отрезки ---
@@ -409,26 +510,9 @@ function createWorkoutForm(root) {
     }
   });
 
-  return {
-    get type() { return type; },
-    getPayload() {
-      return {
-        type,
-        warmup: f('warmup').value,
-        cooldown: f('cooldown').value,
-        feeling: Number(f('feeling').value),
-        rpe: Number(f('rpe').value),
-        notes: f('notes').value,
-        visibility: f('visibility').checked ? 'public' : 'private',
-        sets: type === 'training' ? sets : [],
-        exercises: type === 'training' ? exercises : [],
-        hr_avg: f('hrAvg').value,
-        hr_max: f('hrMax').value,
-        hr_min: f('hrMin').value,
-      };
-    },
-    setData(w) {
-      setType(w.type);
+  function setData(w) {
+      setType(w.type === 'rest' ? 'rest' : w.competition ? 'competition' : 'training');
+      setCompetition(w.competition);
       f('warmup').value = w.warmup || '';
       f('cooldown').value = w.cooldown || '';
       f('notes').value = w.notes || '';
@@ -447,7 +531,39 @@ function createWorkoutForm(root) {
       renderSets();
       renderExercises();
       growAll(root);
+  }
+
+  return {
+    get type() { return type; },
+    get mode() { return mode; },
+    // что не так с заполнением (или пусто, если всё хорошо)
+    problem() {
+      if (mode === 'competition' && (!f('compDiscipline').value.trim() || !f('compResult').value.trim())) {
+        return 'Укажи дисциплину и результат старта 🏆';
+      }
+      return '';
     },
+    getPayload() {
+      return {
+        competition: mode === 'competition' ? {
+          name: f('compName').value, discipline: f('compDiscipline').value,
+          result: f('compResult').value, place: f('compPlace').value,
+        } : null,
+        type,
+        warmup: f('warmup').value,
+        cooldown: f('cooldown').value,
+        feeling: Number(f('feeling').value),
+        rpe: Number(f('rpe').value),
+        notes: f('notes').value,
+        visibility: f('visibility').checked ? 'public' : 'private',
+        sets: type === 'training' ? sets : [],
+        exercises: type === 'training' ? exercises : [],
+        hr_avg: f('hrAvg').value,
+        hr_max: f('hrMax').value,
+        hr_min: f('hrMin').value,
+      };
+    },
+    setData,
     reset() {
       this.setData({ type: 'training', visibility: f('visibility').checked ? 'public' : 'private' });
       f('smartText').value = '';
@@ -630,9 +746,10 @@ function renderEntryState() {
   list.forEach((w) => {
     const block = document.createElement('div');
     block.className = 'done-block';
-    const title = w.type === 'rest' ? 'День отдыха' : list.length > 1 ? `Тренировка ${w.session || 1}` : 'Тренировка';
+    const pb = w.competition && isPersonalBest(w);
+    const title = w.type === 'rest' ? 'День отдыха' : w.competition ? 'Старт' : list.length > 1 ? `Тренировка ${w.session || 1}` : 'Тренировка';
     block.innerHTML = `
-      <div class="done-block-title">${ico(w.type === 'rest' ? 'moon' : 'runner')}${esc(title)}</div>
+      <div class="done-block-title">${ico(entryKindIco(w))}${esc(title)}${pb ? '<span class="pb-badge">Личный рекорд!</span>' : ''}</div>
       <div class="done-summary"></div>
       ${w.ai_feedback ? '<div class="ai-box"><div class="ai-box-title"><span class="fom-badge">F</span> Fom</div><div class="fb"></div></div>' : ''}
       <div class="btn-row">
@@ -671,6 +788,8 @@ $('entryBackBtn')?.addEventListener('click', () => {
 $('saveBtn').addEventListener('click', async () => {
   const statusEl = $('statusMsg');
   const saveBtn = $('saveBtn');
+  const problem = mainForm.problem();
+  if (problem) { $('statusMsg').textContent = problem; haptic('warning'); return; }
   const payload = { date: entryDate, session: entrySession, ...mainForm.getPayload() };
   if (entrySession === 2) payload.type = 'training';
 
@@ -690,7 +809,14 @@ $('saveBtn').addEventListener('click', async () => {
     }
 
     statusEl.textContent = '';
-    haptic('success');
+    const savedW = myWorkouts.find((x) => x.id === result.workout?.id);
+    if (savedW && isPersonalBest(savedW)) {
+      haptic('heavy');
+      setTimeout(() => haptic('success'), 180);
+      showDialog({ icon: 'trophy', title: 'Личный рекорд! 🎉', text: `${savedW.competition.discipline} — ${savedW.competition.result}. Так держать!`, ok: 'Ура!' });
+    } else {
+      haptic('success');
+    }
     justSavedDate = entryDate;
     entrySession = 1;
     loadGiveaway(); // серия могла вырасти — обновим статус розыгрышей
@@ -719,6 +845,7 @@ async function loadProfileScreen() {
 
   renderCalendar(); // сразу рисуем по тому, что уже загружено
   renderHistory();
+  renderRecords();
 
   // число друзей — метка в профиле, по нажатию открывается список друзей
   api('/api/friends')
@@ -732,6 +859,7 @@ async function loadProfileScreen() {
     await loadMyWorkouts();
     renderCalendar();
     renderHistory();
+    renderRecords();
   } catch (err) {
     console.error('Failed to load history', err);
   }
@@ -773,6 +901,7 @@ function renderCalendar() {
     if (w) {
       cell.classList.add(w.type === 'training' ? 'has-training' : 'has-rest');
       if (dayList.length > 1) cell.classList.add('double'); // две тренировки за день
+      if (dayList.some((x) => x.competition)) cell.classList.add('has-comp'); // старт
       dayList.forEach((x) => { if (x.type === 'training') trainings++; else rests++; });
     }
     if (ds === today) cell.classList.add('today');
@@ -1009,7 +1138,7 @@ function buildWorkoutCard(w, { showAuthor = true } = {}) {
       ${showAuthor ? avatarHtml(w.author) : ''}
       <div class="wk-head-main">
         ${showAuthor ? `<button type="button" class="wk-author">${nameHtml(w.author)}${isMine ? ' <span class="muted">· ты</span>' : ''}</button>` : ''}
-        <div class="wk-date">${esc(formatWithWeekday(normDate(w.date)))} · ${w.type === 'rest' ? ico('moon') + ' Отдых' : w.session > 1 ? ico('runner') + ' Вторая тренировка' : ico('runner') + ' Тренировка'}</div>
+        <div class="wk-date">${esc(formatWithWeekday(normDate(w.date)))} · ${ico(entryKindIco(w))} ${entryKindLabel(w)}</div>
       </div>
     </div>
     ${chips.length ? `<div class="wk-chips">${chips.join('')}</div>` : ''}
@@ -1535,7 +1664,7 @@ async function loadInsight() {
   }
 }
 
-$('insightsBtn').addEventListener('click', () => showScreen('insightsScreen'));
+$('insightsBtn').addEventListener('click', () => { showScreen('insightsScreen'); renderCharts(); });
 
 document.querySelectorAll('#insightsScreen .seg-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -1627,6 +1756,7 @@ function formatExercise(e) {
 
 function buildDetailLines(w) {
   const lines = [];
+  if (w.type === 'training' && w.competition) lines.push(`🏆 ${competitionLine(w.competition)}`);
   if (w.type === 'training') {
     if (w.warmup) lines.push(`Разминка: ${w.warmup}`);
     const setLines = (Array.isArray(w.sets) ? w.sets : [])
@@ -1663,7 +1793,7 @@ function buildDetailLines(w) {
 
 function buildShareText(w) {
   const lines = [];
-  lines.push(w.type === 'rest' ? '😴 День отдыха' : w.session > 1 ? '🏃 Вторая тренировка' : '🏃 Тренировка');
+  lines.push(w.type === 'rest' ? '😴 День отдыха' : w.competition ? (isPersonalBest(w) ? '🏆 Старт — личный рекорд!' : '🏆 Старт') : w.session > 1 ? '🏃 Вторая тренировка' : '🏃 Тренировка');
   lines.push(`📅 ${formatWithWeekday(normDate(w.date))}`);
   lines.push(...buildDetailLines(w));
   lines.push('— записано в Forma');
@@ -1730,7 +1860,7 @@ async function openEditScreen(workoutId, returnTo = 'profileScreen') {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'seg-btn' + (w.id === workout.id ? ' active' : '');
-      b.innerHTML = w.type === 'rest' ? `${ico('moon')} Отдых` : `${ico('runner')} Тренировка ${w.session || 1}`;
+      b.innerHTML = w.type === 'rest' ? `${ico('moon')} Отдых` : w.competition ? `${ico('trophy')} Старт` : `${ico('runner')} Тренировка ${w.session || 1}`;
       b.addEventListener('click', () => { if (w.id !== workout.id) openEditScreen(w.id, editReturnScreen); });
       sw.appendChild(b);
     });
@@ -1752,6 +1882,8 @@ $('editBackBtn').addEventListener('click', leaveEditScreen);
 $('editSaveBtn').addEventListener('click', async () => {
   if (!currentEditWorkout) return;
   const statusEl = $('editStatusMsg');
+  const problem = editForm.problem();
+  if (problem) { statusEl.textContent = problem; haptic('warning'); return; }
   statusEl.textContent = 'Сохраняю...';
 
   try {
@@ -1992,6 +2124,7 @@ function goBack() {
   const screen = document.querySelector('.screen:not(.hidden)')?.id;
   if (dialogOpen()) return closeDialog();
   if (!$('tour').classList.contains('hidden')) return;
+  if (!$('repeatSheet').classList.contains('hidden')) return closeRepeatSheet();
   if (!$('cropSheet').classList.contains('hidden')) return closeCropper();
   if (!$('photoSheet').classList.contains('hidden')) return $('photoSheet').classList.add('hidden');
   if (!$('sportSheet').classList.contains('hidden')) return closeSportSheet();
@@ -2609,6 +2742,246 @@ $('supportBtn').addEventListener('click', () => {
   const url = `https://t.me/${SUPPORT_USERNAME}`;
   if (tg?.openTelegramLink) tg.openTelegramLink(url);
   else window.open(url, '_blank');
+});
+
+// =====================================================================
+//  ЛИЧНЫЕ РЕКОРДЫ (профиль)
+// =====================================================================
+function renderRecords() {
+  const box = $('recordsList');
+  if (!box) return;
+  const best = Object.values(bestResults());
+  const order = (d) => { const i = COMP_DISCIPLINES.findIndex((x) => disciplineKey(x) === disciplineKey(d)); return i < 0 ? 999 : i; };
+  best.sort((a, b) => order(a.w.competition.discipline) - order(b.w.competition.discipline));
+  if (!best.length) {
+    box.innerHTML = '<div class="muted records-empty">Отметь «Старт» в записи — лучший результат в каждой дисциплине появится здесь.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  best.forEach(({ w }) => {
+    const c = w.competition;
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'record-row';
+    row.innerHTML = `
+      <span class="record-disc">${esc(c.discipline)}</span>
+      <span class="record-main">
+        <b class="record-res">${esc(c.result)}</b>
+        <span class="record-sub">${esc(formatDayMonth(w.date))}${c.name ? ' · ' + esc(c.name) : ''}</span>
+      </span>
+      <span class="history-arrow">›</span>`;
+    row.addEventListener('click', () => openEditScreen(w.id, 'profileScreen'));
+    box.appendChild(row);
+  });
+}
+
+// =====================================================================
+//  ПОВТОРИТЬ ПРОШЛУЮ ТРЕНИРОВКУ
+// =====================================================================
+let repeatCallback = null;
+function openRepeatSheet(cb) {
+  repeatCallback = cb;
+  const list = $('repeatList');
+  const items = myWorkouts
+    .filter((w) => w.type === 'training' && ((w.sets || []).length || (w.exercises || []).length || w.warmup))
+    .slice(0, 8);
+  list.innerHTML = items.length ? '' : '<div class="empty-hint">Пока нет прошлых тренировок — запиши первую 🙂</div>';
+  items.forEach((w) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'repeat-row';
+    // коротко: «Разминка: 3 км · 400м x5 65 · присед 5×5, 80 кг»
+    const lines = buildDetailLines(w)
+      .filter((l) => !/^(Самочувствие|RPE|Заметка|❤️|🏆|Беговая работа:|Силовая \/ ОФП:)/.test(l))
+      .map((l) => l.replace(/^\d+\.\s*/, ''));
+    row.innerHTML = `
+      <span class="history-ico tr">${ico(entryKindIco(w))}</span>
+      <span class="history-main">
+        <span class="history-date">${esc(formatWithWeekday(w.date))}</span>
+        <span class="history-sub repeat-sub">${esc(lines.slice(0, 3).join(' · ') || 'Тренировка')}</span>
+      </span>`;
+    row.addEventListener('click', () => {
+      closeRepeatSheet();
+      repeatCallback?.(w);
+      haptic('success');
+    });
+    list.appendChild(row);
+  });
+  $('repeatSheet').classList.remove('hidden');
+}
+function closeRepeatSheet() { $('repeatSheet').classList.add('hidden'); }
+$('repeatCancelBtn').addEventListener('click', closeRepeatSheet);
+$('repeatSheet').addEventListener('click', (e) => { if (e.target === $('repeatSheet')) closeRepeatSheet(); });
+
+// =====================================================================
+//  ГРАФИКИ ПО НЕДЕЛЯМ («Разбор»)
+// =====================================================================
+const CHART_WEEKS = 8;
+const CHART_COLORS = { km: '#b4f53c', count: '#9b6bff', feel: '#5ea818', rpe: '#9b6bff' };
+const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+// Беговой объём записи в км: отрезки (метры × кол-во) + «N км» в разминке и заминке
+function volumeKm(w) {
+  if (w.type !== 'training') return 0;
+  let m = 0;
+  (w.sets || []).forEach((s) => { m += (Number(s.distance_m) || 0) * (Number(s.reps) || 1); });
+  const text = [w.warmup, w.cooldown].filter(Boolean).join(' ');
+  for (const x of text.matchAll(/(\d+(?:[.,]\d+)?)\s*км/gi)) {
+    const km = Number(x[1].replace(',', '.'));
+    if (km > 0 && km < 100) m += km * 1000;
+  }
+  return m / 1000;
+}
+
+function weekStats() {
+  const weeks = [];
+  const thisMonday = mondayOf(localDateStr());
+  for (let i = CHART_WEEKS - 1; i >= 0; i--) {
+    const from = addDays(thisMonday, -7 * i);
+    const to = addDays(from, 6);
+    const list = myWorkouts.filter((w) => w.date >= from && w.date <= to);
+    const tr = list.filter((w) => w.type === 'training');
+    const avg = (arr) => (arr.length ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null);
+    weeks.push({
+      from, to,
+      km: Math.round(tr.reduce((a, w) => a + volumeKm(w), 0) * 10) / 10,
+      count: tr.length,
+      feel: avg(list.map((w) => Number(w.feeling)).filter((v) => v > 0)),
+      rpe: avg(tr.map((w) => Number(w.rpe)).filter((v) => v > 0)),
+    });
+  }
+  return weeks;
+}
+
+function weekLabel(wk) {
+  const a = parseDateStr(wk.from), b = parseDateStr(wk.to);
+  return a.getMonth() === b.getMonth()
+    ? `${a.getDate()}–${b.getDate()} ${MONTHS_SHORT[b.getMonth()]}`
+    : `${a.getDate()} ${MONTHS_SHORT[a.getMonth()]} – ${b.getDate()} ${MONTHS_SHORT[b.getMonth()]}`;
+}
+function fmtNum(v) { return String(v).replace('.', ','); }
+
+// «Красивый» верх шкалы: 1, 2, 5, 10, 20, 50…
+function niceMax(v) {
+  if (v <= 0) return 1;
+  const p = 10 ** Math.floor(Math.log10(v));
+  for (const k of [1, 2, 2.5, 5, 10]) if (k * p >= v) return k * p;
+  return 10 * p;
+}
+
+// Общая рамка графика: сетка, подписи осей, области нажатия по неделям
+function chartFrame(el, weeks, max, ticks, drawMarks, tipText) {
+  const W = Math.max(280, el.clientWidth || 320), H = 150;
+  const L = 30, R = 6, T = 18, B = 22;
+  const band = (W - L - R) / weeks.length;
+  const y = (v) => T + (H - T - B) * (1 - v / max);
+  const cx = (i) => L + band * i + band / 2;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img">`;
+  ticks.forEach((t) => {
+    svg += `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" class="c-grid"/>`;
+    svg += `<text x="${L - 6}" y="${y(t) + 3.5}" class="c-axis" text-anchor="end">${fmtNum(t)}</text>`;
+  });
+  weeks.forEach((wk, i) => {
+    const d = parseDateStr(wk.from);
+    svg += `<text x="${cx(i)}" y="${H - 6}" class="c-axis${i === weeks.length - 1 ? ' c-now' : ''}" text-anchor="middle">${i === weeks.length - 1 ? 'эта' : `${d.getDate()}.${pad2(d.getMonth() + 1)}`}</text>`;
+  });
+  svg += drawMarks({ W, H, L, R, T, B, band, y, cx });
+  weeks.forEach((wk, i) => {
+    svg += `<rect x="${L + band * i}" y="0" width="${band}" height="${H}" fill="transparent" class="c-hit" data-i="${i}"/>`;
+  });
+  svg += '</svg>';
+  el.innerHTML = svg;
+  el.querySelectorAll('.c-hit').forEach((r) => {
+    const show = () => showChartTip(el, cx(Number(r.dataset.i)), tipText(weeks[Number(r.dataset.i)]), Number(r.dataset.i));
+    r.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') show(); });
+    r.addEventListener('click', show);
+  });
+  el.onpointerleave = (e) => { if (e.pointerType === 'mouse') hideChartTip(); };
+}
+
+// Столбики одной серии; подпись — только у самого большого и у текущей недели
+function barChart(el, weeks, key, color, unit) {
+  const vals = weeks.map((w) => w[key] || 0);
+  const maxV = Math.max(...vals);
+  const max = niceMax(maxV * 1.1);
+  const ticks = [0, max / 2, max].map((t) => Math.round(t * 10) / 10);
+  const iMax = vals.indexOf(maxV);
+  chartFrame(el, weeks, max, ticks, ({ band, y, cx, H, B }) => {
+    let g = '';
+    const bw = Math.min(24, band * 0.56);
+    vals.forEach((v, i) => {
+      if (!v) return;
+      const x = cx(i) - bw / 2, top = y(v), base = H - B, r = Math.min(4, (base - top) / 2);
+      g += `<path d="M${x},${base} V${top + r} Q${x},${top} ${x + r},${top} H${x + bw - r} Q${x + bw},${top} ${x + bw},${top + r} V${base} Z" fill="${color}" class="c-bar" data-i="${i}"/>`;
+      if (i === iMax || i === vals.length - 1) g += `<text x="${cx(i)}" y="${top - 5}" class="c-val" text-anchor="middle">${fmtNum(v)}</text>`;
+    });
+    return g;
+  }, (wk) => `${weekLabel(wk)}: <b>${fmtNum(wk[key] || 0)}</b> ${unit}`);
+}
+
+// Две линии на одной шкале 1–10: самочувствие и нагрузка
+function lineChart(el, weeks) {
+  chartFrame(el, weeks, 10, [0, 5, 10], ({ y, cx }) => {
+    let g = '';
+    [['feel', CHART_COLORS.feel], ['rpe', CHART_COLORS.rpe]].forEach(([k, color]) => {
+      let d = '', pen = false;
+      weeks.forEach((wk, i) => {
+        if (wk[k] == null) { pen = false; return; }
+        d += `${pen ? 'L' : 'M'}${cx(i)},${y(wk[k])} `;
+        pen = true;
+      });
+      if (d) g += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      weeks.forEach((wk, i) => {
+        if (wk[k] != null) g += `<circle cx="${cx(i)}" cy="${y(wk[k])}" r="4" fill="${color}" stroke="#161a22" stroke-width="2"/>`;
+      });
+    });
+    return g;
+  }, (wk) => `${weekLabel(wk)}: самочувствие <b>${wk.feel == null ? '—' : fmtNum(wk.feel)}</b> · RPE <b>${wk.rpe == null ? '—' : fmtNum(wk.rpe)}</b>`);
+}
+
+function showChartTip(el, x, html, i) {
+  const tip = $('chartTip');
+  const card = $('chartsCard');
+  tip.innerHTML = html;
+  tip.classList.remove('hidden');
+  const cr = card.getBoundingClientRect(), er = el.getBoundingClientRect();
+  const left = Math.min(Math.max(8, er.left - cr.left + x - tip.offsetWidth / 2), cr.width - tip.offsetWidth - 8);
+  tip.style.left = `${left}px`;
+  tip.style.top = `${er.top - cr.top - tip.offsetHeight - 4}px`;
+  card.querySelectorAll('.c-bar').forEach((b) => b.classList.toggle('dim', b.closest('.chart') === el && Number(b.dataset.i) !== i));
+  haptic('select');
+}
+function hideChartTip() {
+  $('chartTip').classList.add('hidden');
+  $('chartsCard').querySelectorAll('.c-bar.dim').forEach((b) => b.classList.remove('dim'));
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.c-hit')) hideChartTip();
+}, true);
+
+function renderCharts() {
+  if (!$('chartsCard')) return;
+  const weeks = weekStats();
+  const any = weeks.some((w) => w.count || w.feel != null);
+  $('chartsCard').classList.toggle('empty', !any);
+  if (!any) {
+    ['chartKm', 'chartCount', 'chartFeel'].forEach((id) => { $(id).innerHTML = ''; });
+    $('chartKm').innerHTML = '<div class="muted chart-empty">Графики появятся, когда в дневнике будут записи за последние недели.</div>';
+    return;
+  }
+  hideChartTip();
+  barChart($('chartKm'), weeks, 'km', CHART_COLORS.km, 'км');
+  barChart($('chartCount'), weeks, 'count', CHART_COLORS.count, 'трен.');
+  lineChart($('chartFeel'), weeks);
+  // та же информация таблицей
+  $('chartTable').innerHTML = `<table><thead><tr><th>Неделя</th><th>км</th><th>трен.</th><th>самоч.</th><th>RPE</th></tr></thead><tbody>${
+    weeks.slice().reverse().map((w) => `<tr><td>${esc(weekLabel(w))}</td><td>${fmtNum(w.km)}</td><td>${w.count}</td><td>${w.feel == null ? '—' : fmtNum(w.feel)}</td><td>${w.rpe == null ? '—' : fmtNum(w.rpe)}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+$('chartsTableBtn').addEventListener('click', () => {
+  const t = $('chartTable');
+  t.classList.toggle('hidden');
+  $('chartsTableBtn').textContent = t.classList.contains('hidden') ? 'Таблица' : 'Скрыть';
 });
 
 hydrateIcons();
