@@ -14,7 +14,12 @@ let justSavedDate = null; // дата, которую только что сох
 
 // Все мои записи (для календаря, статистики и карточки «запись уже есть»)
 let myWorkouts = [];
-let workoutsByDate = {}; // 'ГГГГ-ММ-ДД' -> запись
+let workoutsByDate = {}; // 'ГГГГ-ММ-ДД' -> список записей дня (основная + вторая тренировка)
+
+// Номер тренировки, которую сейчас заполняем на главной: 1 — основная, 2 — вторая за день
+let entrySession = 1;
+// Новые записи — только за сегодня и вчера (так серия остаётся честной)
+const MAX_BACKFILL_DAYS = 1;
 
 // Дата, за которую сейчас заполняется форма на главном экране
 let entryDate = null;
@@ -440,6 +445,7 @@ async function init() {
     await loadMyWorkouts();
     renderEntryState();
     loadGiveaway();
+    loadAthleteProfile();
   } catch (err) {
     console.error('Login failed', err);
     $('statusMsg').textContent = 'Не удалось связаться с сервером. Попробуй открыть приложение ещё раз.';
@@ -451,7 +457,8 @@ async function loadMyWorkouts() {
   const { workouts, streak } = await api('/api/workouts');
   myWorkouts = workouts.map((w) => ({ ...w, date: normDate(w.date) }));
   workoutsByDate = {};
-  myWorkouts.forEach((w) => { workoutsByDate[w.date] = w; });
+  myWorkouts.forEach((w) => { (workoutsByDate[w.date] ||= []).push(w); });
+  Object.values(workoutsByDate).forEach((list) => list.sort((a, b) => (a.session || 1) - (b.session || 1)));
   if (currentUser && streak) {
     currentUser.current_streak = streak.current;
     currentUser.longest_streak = streak.longest;
@@ -515,12 +522,16 @@ function updateAvatar() {
 // ---------- Выбор даты записи ----------
 function setEntryDate(dateStr) {
   const today = localDateStr();
+  const minDate = addDays(today, -MAX_BACKFILL_DAYS);
   if (!dateStr || dateStr > today) dateStr = today; // в будущее писать нельзя
+  if (dateStr < minDate) dateStr = minDate;        // и слишком далеко в прошлое тоже
+  entrySession = 1;
 
   entryDate = dateStr;
 
   const input = $('entryDate');
   input.max = today;
+  input.min = minDate;
   input.value = dateStr;
 
   $('entryTitle').textContent = `Запись за ${relativeDateLabel(dateStr)}`;
@@ -540,33 +551,54 @@ function setEntryDate(dateStr) {
 //  - на выбранную дату записи ещё нет → показываем форму;
 //  - запись уже есть (или только что сохранена) → прячем форму и показываем карточку с итогом.
 function renderEntryState() {
-  const existing = workoutsByDate[entryDate];
+  const list = workoutsByDate[entryDate] || [];
   const form = $('entryForm');
   const done = $('entryDone');
+  const label = relativeDateLabel(entryDate);
 
-  if (!existing) {
+  // режим «вторая тренировка»: форма только для тренировки, без «Отдыха»
+  $('mainFormFields').classList.toggle('second-mode', entrySession === 2);
+
+  if (!list.length || entrySession === 2) {
     done.classList.add('hidden');
     form.classList.remove('hidden');
+    $('entryTitle').textContent = entrySession === 2 ? `Вторая тренировка за ${label}` : `Запись за ${label}`;
+    $('entryBackBtn')?.classList.toggle('hidden', entrySession !== 2);
     return;
   }
 
+  $('entryTitle').textContent = `Запись за ${label}`;
   form.classList.add('hidden');
   done.classList.remove('hidden');
 
-  const label = relativeDateLabel(entryDate);
   $('doneTitle').textContent =
     justSavedDate === entryDate ? `✅ Запись за ${label} сохранена` : `✅ За ${label} запись уже есть`;
 
-  const lines = [existing.type === 'rest' ? '😴 День отдыха' : '🏃 Тренировка', ...buildDetailLines(existing)];
-  $('doneSummary').textContent = lines.join('\n');
+  // каждая запись дня — отдельный блок со своими кнопками
+  const box = $('doneList');
+  box.innerHTML = '';
+  list.forEach((w) => {
+    const block = document.createElement('div');
+    block.className = 'done-block';
+    const title = w.type === 'rest' ? '😴 День отдыха' : list.length > 1 ? `🏃 Тренировка ${w.session || 1}` : '🏃 Тренировка';
+    block.innerHTML = `
+      <div class="done-block-title">${esc(title)}</div>
+      <div class="done-summary"></div>
+      ${w.ai_feedback ? '<div class="ai-box"><div class="ai-box-title"><span class="fom-badge">F</span> Fom</div><div class="fb"></div></div>' : ''}
+      <div class="btn-row">
+        <button type="button" class="ghost-btn share">📤 Поделиться</button>
+        <button type="button" class="ghost-btn edit">✏️ Изменить</button>
+      </div>`;
+    block.querySelector('.done-summary').textContent = buildDetailLines(w).join('\n');
+    if (w.ai_feedback) block.querySelector('.fb').textContent = w.ai_feedback;
+    block.querySelector('.share').addEventListener('click', () => shareWorkout(w));
+    block.querySelector('.edit').addEventListener('click', () => openEditScreen(w.id, 'mainScreen'));
+    box.appendChild(block);
+  });
 
-  const fbBox = $('doneFeedbackBox');
-  if (existing.ai_feedback) {
-    $('doneFeedbackText').textContent = existing.ai_feedback;
-    fbBox.classList.remove('hidden');
-  } else {
-    fbBox.classList.add('hidden');
-  }
+  // вторую тренировку можно добавить, если первая — тренировка и второй ещё нет
+  const canAdd = list.length === 1 && list[0].type === 'training';
+  $('doneAddBtn').classList.toggle('hidden', !canAdd);
 }
 
 document.querySelectorAll('.date-picker-row .chip').forEach((chip) => {
@@ -574,20 +606,23 @@ document.querySelectorAll('.date-picker-row .chip').forEach((chip) => {
 });
 $('entryDate').addEventListener('change', (e) => setEntryDate(e.target.value));
 
-$('doneEditBtn').addEventListener('click', () => {
-  const existing = workoutsByDate[entryDate];
-  if (existing) openEditScreen(existing.id, 'mainScreen');
+$('doneAddBtn').addEventListener('click', () => {
+  entrySession = 2;
+  mainForm.reset();
+  renderEntryState();
+  window.scrollTo(0, 0);
 });
-$('doneShareBtn').addEventListener('click', () => {
-  const existing = workoutsByDate[entryDate];
-  if (existing) shareWorkout(existing);
+$('entryBackBtn')?.addEventListener('click', () => {
+  entrySession = 1;
+  renderEntryState();
 });
 
 // ---------- Сохранение новой записи ----------
 $('saveBtn').addEventListener('click', async () => {
   const statusEl = $('statusMsg');
   const saveBtn = $('saveBtn');
-  const payload = { date: entryDate, ...mainForm.getPayload() };
+  const payload = { date: entryDate, session: entrySession, ...mainForm.getPayload() };
+  if (entrySession === 2) payload.type = 'training';
 
   saveBtn.disabled = true;
   statusEl.textContent = payload.type === 'training' ? 'Сохраняю, Fom смотрит тренировку...' : 'Сохраняю...';
@@ -601,11 +636,12 @@ $('saveBtn').addEventListener('click', async () => {
       await loadMyWorkouts();
     } catch (e) {
       const w = { ...result.workout, date: normDate(result.workout.date) };
-      workoutsByDate[w.date] = w;
+      (workoutsByDate[w.date] ||= []).push(w);
     }
 
     statusEl.textContent = '';
     justSavedDate = entryDate;
+    entrySession = 1;
     loadGiveaway(); // серия могла вырасти — обновим статус розыгрышей
     mainForm.reset();
     renderEntryState();
@@ -675,7 +711,8 @@ function renderCalendar() {
 
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = localDateStr(new Date(y, m, d));
-    const w = workoutsByDate[ds];
+    const dayList = workoutsByDate[ds] || [];
+    const w = dayList[0];
     const cell = document.createElement('button');
     cell.type = 'button';
     cell.className = 'cal-cell';
@@ -683,7 +720,8 @@ function renderCalendar() {
 
     if (w) {
       cell.classList.add(w.type === 'training' ? 'has-training' : 'has-rest');
-      if (w.type === 'training') trainings++; else rests++;
+      if (dayList.length > 1) cell.classList.add('double'); // две тренировки за день
+      dayList.forEach((x) => { if (x.type === 'training') trainings++; else rests++; });
     }
     if (ds === today) cell.classList.add('today');
 
@@ -694,9 +732,11 @@ function renderCalendar() {
       cell.addEventListener('click', () => {
         if (w) {
           openEditScreen(w.id, 'profileScreen');
-        } else {
+        } else if (ds >= addDays(today, -MAX_BACKFILL_DAYS)) {
           setEntryDate(ds); // пустой день — форма новой записи на эту дату
           showScreen('mainScreen');
+        } else {
+          alertMsg('Новые записи можно добавлять только за сегодня и вчера — так серия остаётся честной 💪');
         }
       });
     }
@@ -729,7 +769,7 @@ function renderHistory() {
       <span class="history-ico ${isTraining ? 'tr' : 'rs'}">${isTraining ? '🏃' : '😴'}</span>
       <span class="history-main">
         <span class="history-date">${esc(formatWithWeekday(w.date))}</span>
-        <span class="history-sub">${isTraining ? 'Тренировка' : 'Отдых'}${bits.length ? ' · ' + esc(bits.join(' · ')) : ''}</span>
+        <span class="history-sub">${isTraining ? (w.session > 1 ? 'Вторая тренировка' : 'Тренировка') : 'Отдых'}${bits.length ? ' · ' + esc(bits.join(' · ')) : ''}</span>
       </span>
       <span class="history-arrow">›</span>`;
     item.addEventListener('click', () => openEditScreen(w.id, 'profileScreen'));
@@ -863,7 +903,7 @@ function buildWorkoutCard(w, { showAuthor = true } = {}) {
       ${showAuthor ? avatarHtml(w.author) : ''}
       <div class="wk-head-main">
         ${showAuthor ? `<button type="button" class="wk-author">${nameHtml(w.author)}${isMine ? ' <span class="muted">· ты</span>' : ''}</button>` : ''}
-        <div class="wk-date">${esc(formatWithWeekday(normDate(w.date)))} · ${w.type === 'rest' ? '😴 Отдых' : '🏃 Тренировка'}</div>
+        <div class="wk-date">${esc(formatWithWeekday(normDate(w.date)))} · ${w.type === 'rest' ? '😴 Отдых' : w.session > 1 ? '🏃 Вторая тренировка' : '🏃 Тренировка'}</div>
       </div>
     </div>
     ${chips.length ? `<div class="wk-chips">${chips.join('')}</div>` : ''}
@@ -1016,7 +1056,9 @@ function buildSocial(w, { openThread = false } = {}) {
 // ---------- Значок на кнопке «Друзья»: новые реакции, комментарии, заявки ----------
 async function updateFriendsBadge() {
   try {
-    const { unread, requests } = await api('/api/friends/activity/count');
+    const res = await api('/api/friends/activity/count');
+    const unread = res.unread || 0;
+    const requests = res.requests || 0;
     const total = unread + requests;
     const badge = $('friendsBadge');
     badge.textContent = total > 9 ? '9+' : total;
@@ -1515,7 +1557,7 @@ function buildDetailLines(w) {
 
 function buildShareText(w) {
   const lines = [];
-  lines.push(w.type === 'rest' ? '😴 День отдыха' : '🏃 Тренировка');
+  lines.push(w.type === 'rest' ? '😴 День отдыха' : w.session > 1 ? '🏃 Вторая тренировка' : '🏃 Тренировка');
   lines.push(`📅 ${formatWithWeekday(normDate(w.date))}`);
   lines.push(...buildDetailLines(w));
   lines.push('— записано в Forma');
@@ -1572,6 +1614,20 @@ async function openEditScreen(workoutId, returnTo = 'profileScreen') {
     editForm.setData(workout);
     $('editStatusMsg').textContent = '';
     renderEditSocial(workout);
+
+    // если за день две тренировки — переключатель между ними
+    const sameDay = workoutsByDate[workout.date] || [];
+    const sw = $('editSessionSwitch');
+    sw.innerHTML = '';
+    sw.classList.toggle('hidden', sameDay.length < 2);
+    sameDay.forEach((w) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'seg-btn' + (w.id === workout.id ? ' active' : '');
+      b.textContent = w.type === 'rest' ? '😴 Отдых' : `🏃 Тренировка ${w.session || 1}`;
+      b.addEventListener('click', () => { if (w.id !== workout.id) openEditScreen(w.id, editReturnScreen); });
+      sw.appendChild(b);
+    });
   } catch (err) {
     console.error('Failed to load workout', err);
     $('editStatusMsg').textContent = 'Не удалось загрузить запись.';
@@ -1831,6 +1887,7 @@ function goBack() {
   if (!$('photoSheet').classList.contains('hidden')) return $('photoSheet').classList.add('hidden');
   if (!$('sportSheet').classList.contains('hidden')) return closeSportSheet();
   if (!$('giftSheet').classList.contains('hidden')) return $('giftSheet').classList.add('hidden');
+  if (!$('athleteSheet').classList.contains('hidden')) return closeAthleteSheet();
   if (screen === 'editScreen') return $('editBackBtn').click();
   if (screen === 'friendProfileScreen') return $('fpBackBtn').click();
   // обычные вкладки: возвращаемся на предыдущую, а если её нет — на главную
@@ -2127,5 +2184,99 @@ $('giftRulesBtn').addEventListener('click', openGiftSheet);
 $('giftCloseBtn').addEventListener('click', () => $('giftSheet').classList.add('hidden'));
 $('giftSheet').addEventListener('click', (e) => { if (e.target === $('giftSheet')) $('giftSheet').classList.add('hidden'); });
 setInterval(renderGiveaway, 60000); // обновляем «итоги через…»
+
+// ---------- Анкета спортсмена (видит только сам человек и Fom) ----------
+let athleteProfile = {};
+const LEVEL_NAMES = { beginner: 'новичок', amateur: 'любитель', ranked: 'разрядник', kms: 'КМС', ms: 'МС и выше' };
+
+function yearsWord(n) {
+  const m10 = n % 10, m100 = n % 100;
+  return m10 === 1 && m100 !== 11 ? 'год' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'года' : 'лет';
+}
+
+function renderAthleteSummary() {
+  const p = athleteProfile || {};
+  const parts = [];
+  if (p.sex) parts.push(p.sex === 'f' ? 'Ж' : 'М');
+  if (p.birth_year) { const a = new Date().getFullYear() - p.birth_year; parts.push(`${a} ${yearsWord(a)}`); }
+  if (p.height_cm) parts.push(`${p.height_cm} см`);
+  if (p.weight_kg) parts.push(`${Number(p.weight_kg)} кг`);
+  if (p.rest_hr) parts.push(`❤️ ${p.rest_hr} в покое`);
+  if (p.experience_years != null) parts.push(`стаж ${p.experience_years} ${yearsWord(p.experience_years)}`);
+  if (p.level) parts.push(LEVEL_NAMES[p.level]);
+  const filled = parts.length || p.records || p.goal || p.injuries;
+  $('athleteSummary').textContent = filled
+    ? [parts.join(' · '), p.goal ? `🎯 ${p.goal}` : ''].filter(Boolean).join('\n')
+    : 'Рост, вес, возраст, стаж и цели — чтобы Fom понимал, с кем имеет дело.';
+  $('athleteEditBtn').textContent = filled ? 'Изменить' : 'Заполнить';
+}
+
+async function loadAthleteProfile() {
+  try {
+    const { profile } = await api('/api/auth/athlete');
+    athleteProfile = profile || {};
+    renderAthleteSummary();
+  } catch (err) {
+    console.error('Athlete profile failed', err);
+  }
+}
+
+let afSex = null;
+let afLevel = null;
+function paintAthleteChoices() {
+  $('afSex').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.sex === afSex));
+  $('afLevel').querySelectorAll('.chip').forEach((b) => b.classList.toggle('active', b.dataset.level === afLevel));
+}
+$('afSex').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => {
+  afSex = afSex === b.dataset.sex ? null : b.dataset.sex; paintAthleteChoices();
+}));
+$('afLevel').querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => {
+  afLevel = afLevel === b.dataset.level ? null : b.dataset.level; paintAthleteChoices();
+}));
+
+function openAthleteSheet() {
+  const p = athleteProfile || {};
+  afSex = p.sex || null;
+  afLevel = p.level || null;
+  $('afBirth').value = p.birth_year ?? '';
+  $('afHeight').value = p.height_cm ?? '';
+  $('afWeight').value = p.weight_kg != null ? Number(p.weight_kg) : '';
+  $('afRestHr').value = p.rest_hr ?? '';
+  $('afExp').value = p.experience_years ?? '';
+  $('afRecords').value = p.records || '';
+  $('afGoal').value = p.goal || '';
+  $('afInjuries').value = p.injuries || '';
+  paintAthleteChoices();
+  $('athleteSheet').classList.remove('hidden');
+}
+function closeAthleteSheet() { $('athleteSheet').classList.add('hidden'); }
+
+$('athleteEditBtn').addEventListener('click', openAthleteSheet);
+$('afCancelBtn').addEventListener('click', closeAthleteSheet);
+$('athleteSheet').addEventListener('click', (e) => { if (e.target === $('athleteSheet')) closeAthleteSheet(); });
+$('afSaveBtn').addEventListener('click', async () => {
+  const btn = $('afSaveBtn');
+  btn.disabled = true;
+  try {
+    const { profile } = await api('/api/auth/athlete', {
+      method: 'POST',
+      body: JSON.stringify({
+        sex: afSex, level: afLevel,
+        birth_year: $('afBirth').value, height_cm: $('afHeight').value, weight_kg: $('afWeight').value,
+        rest_hr: $('afRestHr').value, experience_years: $('afExp').value,
+        records: $('afRecords').value, goal: $('afGoal').value, injuries: $('afInjuries').value,
+      }),
+    });
+    athleteProfile = profile;
+    renderAthleteSummary();
+    closeAthleteSheet();
+    haptic();
+  } catch (err) {
+    console.error(err);
+    alertMsg(err.data?.error || 'Не удалось сохранить анкету.');
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 init();
