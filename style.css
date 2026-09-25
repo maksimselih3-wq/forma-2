@@ -1697,3 +1697,45 @@ body[data-screen="profileScreen"] .topbar-right { opacity: 0; visibility: hidden
 }
 .st-goal { margin-top: 0; }
 #startsList, #achievementsGrid { margin-top: 12px; }
+
+/* =====================================================================
+   Группы, тренер, приглашения
+   ===================================================================== */
+#friendsTabs .seg-btn { padding: 10px 4px; }
+.invite-card { border-color: rgba(155, 107, 255, 0.4); background: linear-gradient(135deg, rgba(155, 107, 255, 0.14), var(--card-bottom) 70%); }
+.invite-text { font-size: 13px; line-height: 1.45; }
+.invite-text b { color: var(--text); }
+.invite-stats { font-size: 13px; margin: 10px 0 2px; color: #c3c9d6; }
+.invite-stats b { color: var(--lime); }
+.group-row { margin-bottom: 8px; }
+.group-actions { margin: 4px 0 10px; }
+.group-coach-note { font-size: 12.5px; line-height: 1.45; margin: -2px 2px 12px; }
+.rank-row {
+  width: 100%;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--card-top), var(--card-bottom));
+  text-align: left;
+  color: var(--text);
+  font-family: inherit;
+}
+button.rank-row { cursor: pointer; }
+.rank-row.me { border-color: rgba(180, 245, 60, 0.45); }
+.rank-n { width: 22px; text-align: center; font-family: var(--font-head); font-weight: 700; color: var(--muted); }
+.rank-n.top { color: #ffd15a; }
+.rank-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rank-name { font-weight: 800; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-streak { font-family: var(--font-head); font-weight: 600; font-size: 13px; white-space: nowrap; }
+.rank-streak .ico { width: 14px; height: 14px; vertical-align: -0.15em; }
+.rank-hint { font-size: 11.5px; text-align: center; margin: 8px 0 14px; }
+.coach-tag { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 999px; background: rgba(155, 107, 255, 0.2); color: #c9b5ff; vertical-align: 1px; }
+.gc-kind { margin: 10px 0 8px; }
+.gc-hint { font-size: 12.5px; line-height: 1.45; margin-bottom: 12px; }
+#groupCreateSheet input[type="text"], #groupJoinSheet input[type="text"] { margin-bottom: 4px; }
+.private-wk { border-style: dashed; }
+.private-wk .wk-date::after { content: ' · 🔒 закрытая'; color: var(--muted); }
+.member-well .morning-sum { font-size: 14px; }
