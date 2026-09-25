@@ -2183,6 +2183,56 @@ document.addEventListener('touchend', () => {
 });
 
 
+// ---------- «Назад» на компьютере ----------
+// Мак: двумя пальцами по тачпаду вправо (как «назад» в Safari). Тачпад присылает это как
+// горизонтальную прокрутку, поэтому копим её и показываем ту же стрелку, что и на телефоне.
+const pad = { sum: 0, timer: null, locked: false };
+const PAD_NEED = 140;           // сколько «протянуть», чтобы сработало
+const PAD_SKIP = '.comp-chips, .tour-track, .crop-view, .chart-table, .profile-tags, .sheet, .dlg';
+
+function padArrow(p) {
+  const arrow = $('swipeBack');
+  arrow.style.opacity = p;
+  arrow.style.transform = `translate(${-40 + p * 56}px, -50%) scale(${0.7 + p * 0.3})`;
+  arrow.classList.toggle('ready', p >= 1);
+}
+function padReset() {
+  pad.sum = 0;
+  padArrow(0);
+}
+
+window.addEventListener('wheel', (e) => {
+  if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) * 1.2) return;   // обычная прокрутка вверх-вниз
+  if (e.target.closest?.(PAD_SKIP)) return;                     // там своя горизонтальная прокрутка
+  clearTimeout(pad.timer);
+  pad.timer = setTimeout(() => { pad.locked = false; padReset(); }, 220); // палец отпустили — сброс
+  if (pad.locked) return; // уже сработало — ждём конца жеста
+  pad.sum = Math.max(0, pad.sum - e.deltaX); // пальцы вправо → deltaX отрицательный
+  const p = Math.min(1, pad.sum / PAD_NEED);
+  padArrow(p);
+  if (p >= 1) {
+    pad.locked = true;
+    haptic();
+    goBack();
+    setTimeout(padReset, 120);
+  }
+}, { passive: true });
+
+// Клавиши: Esc закрывает окно или шторку, Cmd/Ctrl + [ и Alt + ← — «назад».
+// Боковая кнопка мыши «назад» тоже работает.
+document.addEventListener('keydown', (e) => {
+  const typing = e.target.matches?.('input, textarea');
+  if (e.key === 'Escape' || ((e.metaKey || e.ctrlKey) && e.key === '[') || (e.altKey && e.key === 'ArrowLeft')) {
+    if (typing && e.key !== 'Escape') return;
+    if (typing) { e.target.blur(); return; }
+    e.preventDefault();
+    goBack();
+  }
+});
+window.addEventListener('mouseup', (e) => {
+  if (e.button === 3) { e.preventDefault(); goBack(); }
+});
+
 // ---------- Вид спорта в профиле ----------
 const SPORTS = {
   athletics: ['🏃', 'Лёгкая атлетика'],
