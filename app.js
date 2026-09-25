@@ -1861,7 +1861,10 @@ function buildShareText(w) {
   return lines.join('\n');
 }
 
-function shareWorkout(w) {
+// «Поделиться» открывает окно с карточкой для сторис; текстом — отдельная кнопка там же
+function shareWorkout(w) { openShareSheet(w); }
+
+function shareWorkoutText(w) {
   const text = buildShareText(w);
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent('')}&text=${encodeURIComponent(text)}`;
   if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl);
@@ -2185,6 +2188,7 @@ function goBack() {
   const screen = document.querySelector('.screen:not(.hidden)')?.id;
   if (dialogOpen()) return closeDialog();
   if (!$('tour').classList.contains('hidden')) return;
+  if (!$('shareSheet').classList.contains('hidden')) return closeShareSheet();
   if (!$('watchSheet').classList.contains('hidden')) return closeWatchHelp();
   if (!$('repeatSheet').classList.contains('hidden')) return closeRepeatSheet();
   if (!$('cropSheet').classList.contains('hidden')) return closeCropper();
@@ -3443,6 +3447,344 @@ function animateScreenIn(targetId) {
   el.classList.add('screen-in', dir > 0 ? 'from-right' : dir < 0 ? 'from-left' : 'from-none');
 }
 window.addEventListener('resize', () => moveNavIndicator(document.querySelector('.screen:not(.hidden)')?.id));
+
+// =====================================================================
+//  КАРТОЧКА ДЛЯ СТОРИС (картинка 1080×1920 в стиле Forma)
+// =====================================================================
+const STORY_W = 1080, STORY_H = 1920;
+const BOT_LINK = 't.me/forma2ko5_bot';
+const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+function daysWordRu(n) {
+  const a = n % 100, b = n % 10;
+  return a > 10 && a < 20 ? 'дней' : b === 1 ? 'день' : b >= 2 && b <= 4 ? 'дня' : 'дней';
+}
+
+// скруглённый прямоугольник
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// перенос текста по словам; возвращает строки (не больше maxLines, последняя с «…»)
+function wrapLines(ctx, text, maxW, maxLines = 3) {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    const t = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(t).width <= maxW) cur = t;
+    else { if (cur) lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  if (lines.length > maxLines) {
+    const cut = lines.slice(0, maxLines);
+    let last = cut[maxLines - 1];
+    while (last && ctx.measureText(last + '…').width > maxW) last = last.slice(0, -1);
+    cut[maxLines - 1] = last + '…';
+    return cut;
+  }
+  return lines;
+}
+
+// шрифт уменьшается, пока текст не влезет по ширине
+function fitFont(ctx, text, weight, family, maxSize, maxW, minSize = 40) {
+  let size = maxSize;
+  do { ctx.font = `${weight} ${size}px ${family}`; size -= 4; } while (ctx.measureText(text).width > maxW && size > minSize);
+}
+
+// Что крупно показать на карточке
+function storyHero(w) {
+  if (w.type === 'rest') return { kind: 'rest' };
+  if (w.competition?.result) return { kind: 'comp' };
+  const sets = (w.sets || []).filter((s) => s.distance_m || s.reps);
+  if (sets.length) {
+    return {
+      kind: 'sets',
+      lines: sets.slice(0, 4).map((s) => ({
+        big: `${s.reps && s.reps > 1 ? `${s.reps} × ` : ''}${s.distance_m ? distLabel(s.distance_m).replace(/м$/, ' м') : ''}`.trim(),
+        small: [s.time_or_pace, s.rest_between && `отдых ${s.rest_between}`].filter(Boolean).join(' · '),
+      })),
+      more: sets.length - 4,
+    };
+  }
+  const km = volumeKm(w);
+  if (km >= 1) return { kind: 'km', km };
+  if ((w.exercises || []).length) return { kind: 'ofp' };
+  return { kind: 'text' };
+}
+
+async function drawStoryCard(w) {
+  try { await Promise.all(['700 80px Unbounded', '800 40px Manrope', '600 40px Manrope'].map((f) => document.fonts.load(f))); } catch (e) {}
+  const c = document.createElement('canvas');
+  c.width = STORY_W; c.height = STORY_H;
+  const ctx = c.getContext('2d');
+  const HEAD = "'Unbounded', 'Manrope', sans-serif";
+  const BODY = "'Manrope', -apple-system, sans-serif";
+  const X = 90, CW = STORY_W - 2 * X;
+
+  // фон со свечением, как в приложении
+  ctx.fillStyle = '#0a0c11';
+  ctx.fillRect(0, 0, STORY_W, STORY_H);
+  let g = ctx.createRadialGradient(STORY_W, 0, 0, STORY_W, 0, 1100);
+  g.addColorStop(0, 'rgba(155,107,255,0.38)'); g.addColorStop(1, 'rgba(155,107,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, STORY_W, STORY_H);
+  g = ctx.createRadialGradient(0, STORY_H, 0, 0, STORY_H, 1000);
+  g.addColorStop(0, 'rgba(180,245,60,0.22)'); g.addColorStop(1, 'rgba(180,245,60,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, STORY_W, STORY_H);
+
+  // логотип
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#f3f5f8';
+  ctx.font = `700 78px ${HEAD}`;
+  ctx.fillText('Forma', X, 200);
+  const lw = ctx.measureText('Forma').width;
+  ctx.save();
+  ctx.shadowColor = 'rgba(180,245,60,0.8)'; ctx.shadowBlur = 24;
+  ctx.fillStyle = '#b4f53c';
+  ctx.beginPath(); ctx.arc(X + lw + 20, 186, 12, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  // дата справа
+  const d = parseDateStr(w.date);
+  ctx.font = `600 38px ${BODY}`;
+  ctx.fillStyle = '#8b93a7';
+  ctx.textAlign = 'right';
+  ctx.fillText(`${d.getDate()} ${MONTHS_GEN[d.getMonth()]}`, STORY_W - X, 196);
+  ctx.textAlign = 'left';
+
+  // метка вида записи
+  const pb = w.competition && isPersonalBest(w);
+  const label = w.type === 'rest' ? 'ДЕНЬ ОТДЫХА' : w.competition ? 'СТАРТ' : w.session > 1 ? 'ВТОРАЯ ТРЕНИРОВКА' : 'ТРЕНИРОВКА';
+  ctx.font = `800 34px ${BODY}`;
+  const chipW = ctx.measureText(label).width + 64 + label.length * 3;
+  rrect(ctx, X, 300, chipW, 72, 36);
+  ctx.fillStyle = w.competition ? 'rgba(255,196,77,0.14)' : 'rgba(180,245,60,0.12)';
+  ctx.fill();
+  ctx.strokeStyle = w.competition ? 'rgba(255,196,77,0.7)' : 'rgba(180,245,60,0.6)';
+  ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = w.competition ? '#ffd15a' : '#b4f53c';
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '4px';
+  ctx.fillText(label, X + 32, 348);
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+
+  // главное — крупно
+  const hero = storyHero(w);
+  let y = 560;
+  if (hero.kind === 'comp') {
+    const c0 = w.competition;
+    ctx.fillStyle = '#c3c9d6';
+    ctx.font = `700 60px ${BODY}`;
+    ctx.fillText(c0.discipline || '', X, y);
+    y += 250;
+    fitFont(ctx, c0.result, 700, HEAD, 260, CW, 120);
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,196,77,0.45)'; ctx.shadowBlur = 40;
+    ctx.fillStyle = '#ffd15a';
+    ctx.fillText(c0.result, X, y);
+    ctx.restore();
+    y += 110;
+    const sub = [c0.place ? `${c0.place} место` : '', c0.name].filter(Boolean).join(' · ');
+    if (sub) {
+      ctx.font = `600 46px ${BODY}`; ctx.fillStyle = '#d9dde6';
+      wrapLines(ctx, sub, CW, 2).forEach((l) => { ctx.fillText(l, X, y); y += 62; });
+    }
+    if (pb) {
+      y += 30;
+      ctx.font = `800 40px ${BODY}`;
+      const t = '🏆 ЛИЧНЫЙ РЕКОРД';
+      const bw = ctx.measureText(t).width + 70;
+      const gg = ctx.createLinearGradient(X, 0, X + bw, 0);
+      gg.addColorStop(0, '#ffe98a'); gg.addColorStop(1, '#ffae1f');
+      rrect(ctx, X, y - 58, bw, 86, 43); ctx.fillStyle = gg; ctx.fill();
+      ctx.fillStyle = '#0b0d10'; ctx.fillText(t, X + 35, y);
+    }
+  } else if (hero.kind === 'sets') {
+    const big = hero.lines.length === 1 ? 170 : hero.lines.length === 2 ? 120 : 92;
+    y = 520 + big;
+    hero.lines.forEach((l) => {
+      fitFont(ctx, l.big, 700, HEAD, big, CW, 60);
+      ctx.fillStyle = '#f3f5f8';
+      ctx.fillText(l.big, X, y);
+      y += Math.round(big * 0.55);
+      if (l.small) {
+        ctx.font = `600 ${hero.lines.length === 1 ? 50 : 40}px ${BODY}`;
+        ctx.fillStyle = '#b4f53c';
+        wrapLines(ctx, l.small, CW, 2).forEach((s) => { ctx.fillText(s, X, y); y += hero.lines.length === 1 ? 64 : 52; });
+      }
+      y += Math.round(big * 0.7);
+    });
+    if (hero.more > 0) { ctx.font = `600 40px ${BODY}`; ctx.fillStyle = '#8b93a7'; ctx.fillText(`и ещё ${hero.more}`, X, y - Math.round(big * 0.4)); }
+  } else if (hero.kind === 'km') {
+    y = 820;
+    ctx.fillStyle = '#f3f5f8';
+    ctx.font = `700 230px ${HEAD}`;
+    const kmText = fmtNum(Math.round(hero.km * 10) / 10);
+    ctx.fillText(kmText, X, y);
+    const kw = ctx.measureText(kmText).width;
+    ctx.font = `700 80px ${HEAD}`; ctx.fillStyle = '#b4f53c';
+    ctx.fillText('км', X + kw + 24, y);
+    y += 110;
+    if (w.warmup) {
+      ctx.font = `600 46px ${BODY}`; ctx.fillStyle = '#c3c9d6';
+      wrapLines(ctx, w.warmup, CW, 3).forEach((l) => { ctx.fillText(l, X, y); y += 62; });
+    }
+  } else if (hero.kind === 'ofp') {
+    ctx.font = `700 130px ${HEAD}`; ctx.fillStyle = '#f3f5f8';
+    ctx.fillText('ОФП', X, y + 80);
+    y += 190;
+    ctx.font = `600 50px ${BODY}`; ctx.fillStyle = '#d9dde6';
+    w.exercises.slice(0, 6).forEach((e) => { ctx.fillText(formatExercise(e).slice(0, 34), X, y); y += 72; });
+  } else if (hero.kind === 'rest') {
+    ctx.font = `700 120px ${HEAD}`; ctx.fillStyle = '#f3f5f8';
+    ctx.fillText('Отдых', X, y + 80);
+    ctx.font = `600 50px ${BODY}`; ctx.fillStyle = '#c3c9d6';
+    y += 190;
+    ['Восстановление —', 'тоже часть тренировки 💜'].forEach((l) => { ctx.fillText(l, X, y); y += 68; });
+  } else {
+    ctx.font = `600 56px ${BODY}`; ctx.fillStyle = '#d9dde6';
+    wrapLines(ctx, w.warmup || w.notes || 'Тренировка записана', CW, 5).forEach((l) => { ctx.fillText(l, X, y); y += 76; });
+  }
+
+  // плитки с цифрами
+  const tiles = [];
+  const km = volumeKm(w);
+  if (km >= 0.4 && hero.kind !== 'km') tiles.push(['объём', `${fmtNum(Math.round(km * 10) / 10)} км`]);
+  if (w.hr_avg) tiles.push(['пульс ср.', String(w.hr_avg)]);
+  if (w.rpe && w.type === 'training') tiles.push(['нагрузка', `${w.rpe}/10`]);
+  if (w.feeling && tiles.length < 3) tiles.push(['самочувствие', `${w.feeling}/10`]);
+  if (tiles.length) {
+    const n = Math.min(3, tiles.length), gap = 24, tw = (CW - gap * (n - 1)) / n, ty = 1330, th = 190;
+    tiles.slice(0, 3).forEach(([k, v], i) => {
+      const tx = X + i * (tw + gap);
+      rrect(ctx, tx, ty, tw, th, 36);
+      ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 2; ctx.stroke();
+      fitFont(ctx, v, 700, HEAD, 64, tw - 50, 36);
+      ctx.fillStyle = '#f3f5f8';
+      ctx.fillText(v, tx + 30, ty + 98);
+      ctx.font = `600 32px ${BODY}`; ctx.fillStyle = '#8b93a7';
+      ctx.fillText(k, tx + 30, ty + 150);
+    });
+  }
+
+  // серия и имя
+  const streak = currentUser?.current_streak || 0;
+  let by = 1640;
+  if (streak >= 2) {
+    ctx.font = `800 56px ${BODY}`; ctx.fillStyle = '#b4f53c';
+    ctx.fillText(`🔥 ${streak} ${daysWordRu(streak)} подряд`, X, by);
+    by += 80;
+  }
+  const name = [currentUser?.first_name, currentUser?.last_name].filter(Boolean).join(' ') || (currentUser?.username ? '@' + currentUser.username : '');
+  if (name) {
+    ctx.font = `700 44px ${BODY}`; ctx.fillStyle = '#f3f5f8';
+    ctx.fillText(name.slice(0, 32), X, by);
+  }
+  // подвал: где записано
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(X, 1770, CW, 2);
+  ctx.font = `700 36px ${BODY}`; ctx.fillStyle = '#c3c9d6';
+  ctx.textAlign = 'right';
+  ctx.fillText(BOT_LINK, STORY_W - X, 1836);
+  const linkW = ctx.measureText(BOT_LINK).width;
+  ctx.textAlign = 'left';
+  ctx.font = `600 34px ${BODY}`; ctx.fillStyle = '#8b93a7';
+  // подпись слева — самая длинная, какая влезает рядом со ссылкой
+  const tag = ['Дневник тренировок с Fom', 'Дневник тренировок', 'Записано в Forma']
+    .find((t) => ctx.measureText(t).width + linkW + 40 <= CW) || '';
+  ctx.fillText(tag, X, 1836);
+  return c;
+}
+
+// ---------- Окно «Поделиться» ----------
+let shareState = { w: null, blob: null, url: null, dataUrl: '' };
+
+async function openShareSheet(w) {
+  shareState = { w, blob: null, url: null, dataUrl: '' };
+  $('sharePreview').removeAttribute('src');
+  $('shareSheet').classList.remove('hidden');
+  $('shareStatus').textContent = 'Рисую карточку...';
+  const canStory = !!tg?.shareToStory && (tg.isVersionAtLeast?.('7.8') ?? false) && !/tdesktop|macos|web/.test(tg.platform || '');
+  $('shareStoryBtn').classList.toggle('hidden', !canStory);
+  try {
+    const canvas = await drawStoryCard(w);
+    shareState.dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    shareState.blob = await new Promise((ok) => canvas.toBlob(ok, 'image/jpeg', 0.9));
+    $('sharePreview').src = shareState.dataUrl;
+    $('shareStatus').textContent = '';
+  } catch (err) {
+    console.error(err);
+    $('shareStatus').textContent = 'Не получилось нарисовать карточку — можно отправить текстом.';
+  }
+}
+function closeShareSheet() { $('shareSheet').classList.add('hidden'); }
+
+// Картинку кладём на сервер — Telegram берёт её по ссылке
+async function uploadStoryImage() {
+  if (shareState.url) return shareState.url;
+  const res = await fetch(API_BASE + '/api/bot/story', {
+    method: 'POST',
+    headers: { 'Content-Type': 'image/jpeg', 'X-Telegram-Init-Data': tg?.initData || '' },
+    body: shareState.blob,
+  });
+  if (!res.ok) throw new Error('upload failed');
+  shareState.url = (await res.json()).url;
+  return shareState.url;
+}
+
+$('shareStoryBtn').addEventListener('click', async () => {
+  if (!shareState.blob) return;
+  $('shareStatus').textContent = 'Готовлю сторис...';
+  try {
+    const url = await uploadStoryImage();
+    tg.shareToStory(url, {
+      text: 'Моя тренировка в Forma 🔥',
+      widget_link: { url: 'https://' + BOT_LINK, name: 'Forma' },
+    });
+    $('shareStatus').textContent = '';
+    closeShareSheet();
+  } catch (err) {
+    console.error(err);
+    $('shareStatus').textContent = 'Не получилось открыть сторис. Попробуй «Сохранить картинку».';
+  }
+});
+
+$('shareSaveBtn').addEventListener('click', async () => {
+  if (!shareState.blob) return;
+  const fileName = `forma-${shareState.w.date}.jpg`;
+  try {
+    // 1) системное «Поделиться» с картинкой — сразу в Instagram, Галерею и т.д.
+    const file = new File([shareState.blob], fileName, { type: 'image/jpeg' });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file] });
+      return;
+    }
+    // 2) скачивание через Telegram (новые версии)
+    if (tg?.downloadFile && tg.isVersionAtLeast?.('8.0')) {
+      const url = await uploadStoryImage();
+      tg.downloadFile({ url, file_name: fileName });
+      return;
+    }
+    // 3) обычное скачивание (компьютер)
+    const a = document.createElement('a');
+    a.href = shareState.dataUrl; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (err) {
+    if (err?.name === 'AbortError') return; // сам закрыл окно
+    console.error(err);
+    $('shareStatus').textContent = 'Не получилось сохранить. Зажми картинку выше и выбери «Сохранить».';
+  }
+});
+
+$('shareTextBtn').addEventListener('click', () => { closeShareSheet(); shareWorkoutText(shareState.w); });
+$('shareCancelBtn').addEventListener('click', closeShareSheet);
+$('shareSheet').addEventListener('click', (e) => { if (e.target === $('shareSheet')) closeShareSheet(); });
 
 hydrateIcons();
 
