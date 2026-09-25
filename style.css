@@ -1199,7 +1199,8 @@ button.hero-sport { cursor: pointer; }
 }
 .add-second-btn:active { transform: scale(0.99); }
 /* во второй тренировке нельзя выбрать «Отдых» */
-.second-mode [data-f="typeSwitch"] { display: none; }
+.second-mode [data-f="typeSwitch"] [data-type="rest"] { display: none; }
+#editFormFields [data-f="repeatBtn"] { display: none; }
 /* в календаре — маленькая метка «×2» на днях с двумя тренировками */
 .cal-cell.double { position: relative; }
 .cal-cell.double::after {
@@ -1430,3 +1431,117 @@ body.chat-open.kb-open { padding-bottom: 0; }
 .support-ico .ico { width: 22px; height: 22px; }
 .support-main { flex: 1; min-width: 0; }
 .support-title { font-weight: 800; font-size: 15px; margin-bottom: 2px; }
+
+/* =====================================================================
+   Старты и личные рекорды
+   ===================================================================== */
+.seg-3 .seg-btn { padding: 10px 4px; font-size: 13px; white-space: nowrap; }
+.seg-3 .seg-btn .ico { width: 16px; height: 16px; }
+.comp-card { border-color: rgba(255, 196, 77, 0.4); background: linear-gradient(180deg, rgba(255, 196, 77, 0.08), var(--card-bottom) 60%); }
+.comp-sub { margin: 12px 0 8px; font-size: 13px; color: var(--muted); }
+.comp-chips {
+  display: flex; gap: 6px;
+  overflow-x: auto; scrollbar-width: none;
+  margin: 0 -16px 10px; padding: 0 16px 2px;
+}
+.comp-chips::-webkit-scrollbar { display: none; }
+.comp-chips .chip { flex: 0 0 auto; white-space: nowrap; }
+.comp-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; margin-top: 12px; }
+.comp-row .hr-field .optional { font-style: normal; font-size: 11px; }
+.pb-badge {
+  margin-left: auto;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ffe98a, #ffae1f);
+  color: #0b0d10;
+  font-size: 11px; font-weight: 800;
+  box-shadow: 0 0 14px rgba(255, 196, 77, 0.45);
+}
+/* день со стартом в календаре — золотая обводка */
+.cal-cell.has-comp { box-shadow: inset 0 0 0 2px #ffc44d, 0 0 12px rgba(255, 196, 77, 0.35); }
+
+.records-empty { font-size: 13px; line-height: 1.45; }
+.record-row {
+  width: 100%;
+  display: flex; align-items: center; gap: 12px;
+  text-align: left;
+  padding: 10px 0;
+  border: none; border-top: 1px solid var(--border);
+  background: none;
+  cursor: pointer;
+}
+.record-row:first-child { border-top: none; padding-top: 2px; }
+.record-disc { flex: 0 0 92px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.record-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.record-res { font-family: var(--font-head); font-size: 18px; font-weight: 700; color: #ffd15a; }
+.record-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Повторить прошлую тренировку ---------- */
+.repeat-btn {
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px dashed rgba(180, 245, 60, 0.45);
+  background: rgba(180, 245, 60, 0.05);
+  color: var(--lime);
+  font-weight: 700; font-size: 14px;
+  cursor: pointer;
+}
+.repeat-btn:active { transform: scale(0.98); }
+.repeat-sheet { max-height: 80vh; overflow-y: auto; }
+.repeat-hint { font-size: 13px; margin: -4px 0 12px; }
+.center { text-align: center; }
+.repeat-row {
+  width: 100%;
+  display: flex; align-items: center; gap: 12px;
+  text-align: left;
+  padding: 10px;
+  margin-bottom: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+.repeat-row:active { background: rgba(180, 245, 60, 0.08); }
+.repeat-sub { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* =====================================================================
+   Графики по неделям
+   ===================================================================== */
+.charts-card { position: relative; }
+.charts-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.chart-block { margin-top: 12px; }
+.chart-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+.chart-title .muted { font-weight: 500; font-size: 12px; }
+.chart { position: relative; }
+.chart svg { display: block; overflow: visible; }
+.c-grid { stroke: #252b37; stroke-width: 1; }
+.c-axis { fill: #6f7789; font-size: 10px; font-family: var(--font); }
+.c-axis.c-now { fill: var(--text); font-weight: 700; }
+.c-val { fill: var(--text); font-size: 11px; font-weight: 700; font-family: var(--font); }
+.c-bar { transition: opacity 0.15s ease; }
+.c-bar.dim { opacity: 0.35; }
+.c-hit { cursor: pointer; }
+.chart-legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin: 2px 0 2px; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.key { display: inline-block; width: 14px; height: 3px; border-radius: 2px; }
+.key-feel { background: #5ea818; }
+.key-rpe { background: #9b6bff; }
+.chart-tip {
+  position: absolute; z-index: 5;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #242a37;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  font-size: 12px; white-space: nowrap;
+  pointer-events: none;
+}
+.chart-tip b { font-weight: 800; }
+.chart-empty { padding: 10px 0; }
+.charts-card.empty .chart-block:not(:first-of-type), .charts-card.empty .charts-head .gift-rules-btn { display: none; }
+.chart-table { margin-top: 14px; overflow-x: auto; }
+.chart-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.chart-table th { text-align: left; color: var(--muted); font-weight: 700; padding: 6px 4px; border-bottom: 1px solid var(--border); }
+.chart-table td { padding: 6px 4px; border-bottom: 1px solid var(--border); white-space: nowrap; }
