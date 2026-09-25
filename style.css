@@ -1552,3 +1552,54 @@ body.chat-open.kb-open { padding-bottom: 0; }
 /* в своём профиле серия и фото уже крупно на экране — в шапке их не дублируем */
 .topbar-right { transition: opacity 0.2s ease; }
 body[data-screen="profileScreen"] .topbar-right { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* ---------- Файл с часов ---------- */
+.watch-row { display: flex; gap: 8px; margin-top: 8px; }
+.watch-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(155, 107, 255, 0.35);
+  background: rgba(155, 107, 255, 0.08);
+  color: #c9b5ff;
+  font-weight: 700; font-size: 13px;
+  cursor: pointer;
+}
+.watch-btn:disabled { opacity: 0.6; }
+.watch-help {
+  flex: 0 0 40px;
+  border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-weight: 800; font-size: 15px;
+  cursor: pointer;
+}
+.watch-sheet { max-height: 86vh; overflow-y: auto; }
+.watch-steps { margin: 4px 0 12px; padding-left: 22px; }
+.watch-steps li { font-size: 14px; line-height: 1.45; color: #d9dde6; margin-bottom: 8px; }
+.watch-note { font-size: 13px; line-height: 1.45; margin-bottom: 8px; }
+
+/* ---------- Иконка на нажатой кнопке: целиком тёмная, чтобы салатовые детали не сливались ---------- */
+.seg-btn.active .ico [fill^="url"], .chip.active .ico [fill^="url"] { fill: #0b0d10; }
+.seg-btn.active .ico [stroke^="url"], .chip.active .ico [stroke^="url"] { stroke: #0b0d10; }
+
+/* ---------- Плавная нижняя панель ---------- */
+.nav-indicator {
+  position: absolute;
+  left: 0; bottom: 7px;
+  width: 28px; height: 3px;
+  border-radius: 999px;
+  background: var(--lime);
+  box-shadow: 0 0 10px rgba(180, 245, 60, 0.8);
+  transition: transform 0.38s cubic-bezier(0.3, 1.3, 0.5, 1), opacity 0.2s ease;
+  pointer-events: none;
+}
+.nav-indicator.off { opacity: 0; }
+.nav-btn svg, .nav-btn span { transition: transform 0.25s ease, color 0.2s ease; }
+.nav-btn.active svg { transform: translateY(-2px) scale(1.08); }
+.screen.screen-in { animation: screen-in 0.28s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+.screen.screen-in.from-right { --from: 26px; }
+.screen.screen-in.from-left { --from: -26px; }
+.screen.screen-in.from-none { --from: 0px; }
+@keyframes screen-in { from { opacity: 0; transform: translateX(var(--from, 0)); } to { opacity: 1; transform: none; } }
