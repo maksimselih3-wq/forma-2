@@ -1860,7 +1860,8 @@ function buildShareText(w) {
   lines.push(w.type === 'rest' ? '😴 День отдыха' : w.competition ? (isPersonalBest(w) ? '🏆 Старт — личный рекорд!' : '🏆 Старт') : w.session > 1 ? '🏃 Вторая тренировка' : '🏃 Тренировка');
   lines.push(`📅 ${formatWithWeekday(normDate(w.date))}`);
   lines.push(...buildDetailLines(w));
-  lines.push('— записано в Forma');
+  // ссылка на бота — Telegram сделает её кликабельной, друг сразу откроет Forma
+  lines.push('', '— записано в Forma 👉 t.me/forma2ko5_bot');
   return lines.join('\n');
 }
 
