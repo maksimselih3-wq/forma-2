@@ -670,6 +670,10 @@ async function init() {
     renderEntryState();
     loadGiveaway();
     loadAthleteProfile();
+    loadMorning();
+    loadStarts();
+    // достижения: через пару секунд, когда подгрузятся анкета и утренние отметки
+    setTimeout(() => { achievementsReady = true; renderAchievements(); }, 2500);
     // новичку — короткое знакомство с приложением
     if (!myWorkouts.length && !tourStorage()) setTimeout(openTour, 1500);
   } catch (err) {
@@ -721,6 +725,7 @@ function updateStats() {
   // рекорд серии — не отдельной плиткой, а маленькой меткой в профиле
   $('profileRecord').innerHTML = `${ico('trophy')} рекорд ${best} дн.`;
   $('profileRecord').classList.toggle('hidden', best < 2);
+  try { renderChallenges(); } catch (e) {}
 }
 
 // ---------- Аватар: своё фото → фото из Telegram → значок ----------
@@ -879,6 +884,7 @@ $('saveBtn').addEventListener('click', async () => {
     }
     justSavedDate = entryDate;
     entrySession = 1;
+    setTimeout(renderAchievements, 900); // вдруг открылось новое достижение
     loadGiveaway(); // серия могла вырасти — обновим статус розыгрышей
     mainForm.reset();
     renderEntryState();
@@ -906,6 +912,8 @@ async function loadProfileScreen() {
   renderCalendar(); // сразу рисуем по тому, что уже загружено
   renderHistory();
   renderRecords();
+  renderAchievements();
+  renderStarts();
 
   // число друзей — метка в профиле, по нажатию открывается список друзей
   api('/api/friends')
@@ -1777,23 +1785,49 @@ async function sendChatMessage() {
   $('chatMessages').scrollTop = $('chatMessages').scrollHeight;
 
   try {
-    const { reply } = await api('/api/chat', {
+    const { reply, left } = await api('/api/chat', {
       method: 'POST',
       body: JSON.stringify({ message, history: chatHistory.slice(0, -1) }),
     });
     chatHistory.push({ role: 'assistant', content: reply || 'Не смог ответить, попробуй переформулировать.' });
+    renderChatLimit(left);
   } catch (err) {
     console.error('Chat failed', err);
-    chatHistory.push({ role: 'assistant', content: 'Ошибка связи с сервером. Попробуй ещё раз.' });
+    if (err.data?.left === 0) {
+      chatHistory.pop(); // сообщение не ушло — вернём текст в поле
+      input.value = message;
+      renderChatLimit(0);
+      chatHistory.push({ role: 'assistant', content: err.data.error });
+    } else {
+      chatHistory.push({ role: 'assistant', content: 'Ошибка связи с сервером. Попробуй ещё раз.' });
+    }
   }
   renderChatMessages();
+}
+
+// Сколько сообщений Fom осталось сегодня (лимит 7 в день)
+function renderChatLimit(left) {
+  const el = $('chatLimit');
+  if (left == null) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.classList.toggle('empty', left === 0);
+  el.textContent = left === 0
+    ? 'Сообщения на сегодня закончились — Fom снова ответит завтра'
+    : `Осталось сообщений сегодня: ${left}`;
+}
+async function loadChatLimit() {
+  try { const { left } = await api('/api/chat/limit'); renderChatLimit(left); } catch (e) {}
 }
 
 $('chatBtn').addEventListener('click', () => {
   showScreen('chatScreen');
   renderChatMessages();
+  loadChatLimit();
 });
 $('chatSendBtn').addEventListener('click', sendChatMessage);
+// Кнопка отправки не забирает фокус у поля: клавиатура остаётся открытой, экран не прыгает
+// и нажатие не «теряется» (как в мессенджерах)
+$('chatSendBtn').addEventListener('mousedown', (e) => e.preventDefault());
 $('chatInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') sendChatMessage();
 });
@@ -2188,6 +2222,7 @@ function goBack() {
   const screen = document.querySelector('.screen:not(.hidden)')?.id;
   if (dialogOpen()) return closeDialog();
   if (!$('tour').classList.contains('hidden')) return;
+  if (!$('startSheet').classList.contains('hidden')) return closeStartSheet();
   if (!$('shareSheet').classList.contains('hidden')) return closeShareSheet();
   if (!$('watchSheet').classList.contains('hidden')) return closeWatchHelp();
   if (!$('repeatSheet').classList.contains('hidden')) return closeRepeatSheet();
@@ -2720,6 +2755,7 @@ $('afSaveBtn').addEventListener('click', async () => {
     });
     athleteProfile = profile;
     renderAthleteSummary();
+    renderAchievements();
     closeAthleteSheet();
     haptic('success');
   } catch (err) {
@@ -3785,6 +3821,349 @@ $('shareSaveBtn').addEventListener('click', async () => {
 $('shareTextBtn').addEventListener('click', () => { closeShareSheet(); shareWorkoutText(shareState.w); });
 $('shareCancelBtn').addEventListener('click', closeShareSheet);
 $('shareSheet').addEventListener('click', (e) => { if (e.target === $('shareSheet')) closeShareSheet(); });
+
+// =====================================================================
+//  УТРЕННЯЯ ОТМЕТКА: сон, самочувствие, пульс покоя (10 секунд)
+// =====================================================================
+let morningChecks = [];
+const mDraft = { sleep: null, mood: null };
+const MOOD_EMOJI = { 1: '😫', 2: '😕', 3: '😐', 4: '🙂', 5: '🤩' };
+
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+async function loadMorning() {
+  try { morningChecks = (await api('/api/auth/morning')).checks || []; } catch (e) { morningChecks = []; }
+  renderMorning();
+  renderAchievements();
+}
+
+// Пульс покоя сегодня заметно выше обычного? (среднее за прошлые дни)
+function restHrJump() {
+  const today = localDateStr();
+  const t = morningChecks.find((c) => c.date === today);
+  const prev = morningChecks.filter((c) => c.date !== today && c.rest_hr).map((c) => c.rest_hr);
+  if (!t?.rest_hr || prev.length < 3) return 0;
+  const avg = prev.reduce((a, b) => a + b, 0) / prev.length;
+  return Math.round(t.rest_hr - avg);
+}
+
+function renderMorning() {
+  const card = $('morningCard');
+  const today = localDateStr();
+  const hour = new Date().getHours();
+  const t = morningChecks.find((c) => c.date === today);
+  if (!currentUser || lsGet('forma_morning_hide') === today || hour < 4 || hour >= (t ? 12 : 15)) {
+    card.classList.add('hidden');
+    return;
+  }
+  card.classList.remove('hidden');
+  $('morningForm').classList.toggle('hidden', !!t);
+  $('morningDone').classList.toggle('hidden', !t);
+  if (t) {
+    const bits = [t.sleep_h != null && `сон ${fmtNum(t.sleep_h)} ч`, t.mood && MOOD_EMOJI[t.mood], t.rest_hr && `пульс ${t.rest_hr}`].filter(Boolean);
+    const jump = restHrJump();
+    $('morningDone').innerHTML = `<div class="morning-sum">${ico('check')} ${esc(bits.join(' · '))}</div>` +
+      (jump >= 5 ? `<div class="morning-warn">${ico('warn')} Пульс покоя на ${jump} выше обычного — прислушайся к себе и скажи тренеру, если что-то не так.</div>` : '');
+  } else {
+    $('mSleep').querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', Number(c.dataset.v) === mDraft.sleep));
+    $('mMood').querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', Number(c.dataset.v) === mDraft.mood));
+  }
+}
+
+$('mSleep').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => { mDraft.sleep = Number(c.dataset.v); renderMorning(); }));
+$('mMood').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => { mDraft.mood = Number(c.dataset.v); renderMorning(); }));
+$('morningClose').addEventListener('click', () => { lsSet('forma_morning_hide', localDateStr()); renderMorning(); });
+$('morningSave').addEventListener('click', async () => {
+  const hr = $('mHr').value;
+  if (mDraft.sleep == null && mDraft.mood == null && !hr) return alertMsg('Отметь сон или самочувствие 🙂');
+  const btn = $('morningSave');
+  btn.disabled = true;
+  try {
+    const { check } = await api('/api/auth/morning', {
+      method: 'POST',
+      body: JSON.stringify({ date: localDateStr(), sleep_h: mDraft.sleep, mood: mDraft.mood, rest_hr: hr }),
+    });
+    morningChecks = [check, ...morningChecks.filter((c) => c.date !== check.date)];
+    haptic('success');
+    renderMorning();
+    renderAchievements();
+  } catch (err) {
+    alertMsg(err.data?.error || 'Не удалось сохранить. Попробуй ещё раз.');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// =====================================================================
+//  КАЛЕНДАРЬ СТАРТОВ + ОБРАТНЫЙ ОТСЧЁТ
+// =====================================================================
+let plannedStarts = [];
+
+function daysUntil(dateStr) {
+  return Math.round((parseDateStr(dateStr) - parseDateStr(localDateStr())) / 86400000);
+}
+function daysLabel(n) {
+  const a = n % 100, b = n % 10;
+  return a > 10 && a < 20 ? 'дней' : b === 1 ? 'день' : b >= 2 && b <= 4 ? 'дня' : 'дней';
+}
+
+async function loadStarts() {
+  try { plannedStarts = (await api('/api/auth/starts')).starts || []; } catch (e) { plannedStarts = []; }
+  renderStarts();
+}
+
+function renderStarts() {
+  // отсчёт на главной — ближайший старт в пределах 90 дней
+  const next = plannedStarts.find((s) => daysUntil(s.date) >= 0);
+  const cd = $('countdownCard');
+  if (next && daysUntil(next.date) <= 90) {
+    const n = daysUntil(next.date);
+    const when = n === 0 ? 'Сегодня старт! Удачи 🔥' : n === 1 ? 'Старт уже завтра' : `До старта ${n} ${daysLabel(n)}`;
+    cd.innerHTML = `
+      <span class="cd-num">${n === 0 ? '🔥' : n}</span>
+      <span class="cd-main">
+        <span class="cd-when">${esc(when)}</span>
+        <span class="cd-name">${esc(next.name)}${next.discipline ? ' · ' + esc(next.discipline) : ''}${next.goal ? ' · цель ' + esc(next.goal) : ''}</span>
+      </span>
+      ${ico('trophy')}`;
+    cd.classList.remove('hidden');
+  } else {
+    cd.classList.add('hidden');
+  }
+  // список в профиле
+  const box = $('startsList');
+  if (!plannedStarts.length) {
+    box.innerHTML = '<div class="muted records-empty">Добавь соревнования, к которым готовишься, — на главной появится обратный отсчёт, а Fom будет учитывать их в разборах.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  plannedStarts.forEach((st) => {
+    const n = daysUntil(st.date);
+    const row = document.createElement('div');
+    row.className = 'start-row' + (n < 0 ? ' past' : '');
+    row.innerHTML = `
+      <span class="start-date"><b>${parseDateStr(st.date).getDate()}</b>${esc(MONTHS_SHORT[parseDateStr(st.date).getMonth()])}</span>
+      <span class="record-main">
+        <b class="start-name">${esc(st.name)}</b>
+        <span class="record-sub">${esc([st.discipline, st.goal && `цель ${st.goal}`].filter(Boolean).join(' · ') || (n < 0 ? 'прошёл' : ''))}</span>
+      </span>
+      <span class="start-left">${n < 0 ? 'прошёл' : n === 0 ? 'сегодня' : `${n} ${daysLabel(n)}`}</span>
+      <button type="button" class="row-del" aria-label="Удалить">✕</button>`;
+    row.querySelector('.row-del').addEventListener('click', async () => {
+      if (!(await confirmAsk({ icon: 'trash', title: 'Убрать старт из календаря?', text: st.name, ok: 'Убрать', danger: true }))) return;
+      try {
+        await api(`/api/auth/starts/${st.id}`, { method: 'DELETE' });
+        plannedStarts = plannedStarts.filter((x) => x.id !== st.id);
+        renderStarts();
+      } catch (err) { alertMsg('Не удалось удалить. Попробуй ещё раз.'); }
+    });
+    box.appendChild(row);
+  });
+}
+
+$('countdownCard').addEventListener('click', () => { openProfile(); setTimeout(() => $('startsCard').scrollIntoView({ behavior: 'smooth', block: 'center' }), 300); });
+
+function openStartSheet() {
+  $('stName').value = ''; $('stDisc').value = ''; $('stGoal').value = '';
+  $('stDate').min = localDateStr();
+  $('stDate').value = addDays(localDateStr(), 14);
+  $('stChips').innerHTML = COMP_DISCIPLINES.map((d) => `<button type="button" class="chip">${esc(d)}</button>`).join('');
+  $('stChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => {
+    $('stDisc').value = $('stDisc').value === c.textContent ? '' : c.textContent;
+    $('stChips').querySelectorAll('.chip').forEach((x) => x.classList.toggle('active', x.textContent === $('stDisc').value));
+  }));
+  $('startSheet').classList.remove('hidden');
+}
+function closeStartSheet() { $('startSheet').classList.add('hidden'); }
+$('startAddBtn').addEventListener('click', openStartSheet);
+$('stCancel').addEventListener('click', closeStartSheet);
+$('startSheet').addEventListener('click', (e) => { if (e.target === $('startSheet')) closeStartSheet(); });
+$('stSave').addEventListener('click', async () => {
+  const btn = $('stSave');
+  btn.disabled = true;
+  try {
+    const { start } = await api('/api/auth/starts', {
+      method: 'POST',
+      body: JSON.stringify({ name: $('stName').value, date: $('stDate').value, discipline: $('stDisc').value, goal: $('stGoal').value }),
+    });
+    plannedStarts = [...plannedStarts, start].sort((a, b) => a.date.localeCompare(b.date));
+    renderStarts();
+    closeStartSheet();
+    haptic('success');
+  } catch (err) {
+    alertMsg(err.data?.error || 'Не удалось сохранить старт.');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// =====================================================================
+//  ЧЕЛЛЕНДЖ НЕДЕЛИ (считается прямо в телефоне по дневнику)
+// =====================================================================
+function weekKmTarget() {
+  // личная цель по объёму: средний объём прошлых 4 недель +10%, округлённо до 5 км
+  const thisMonday = mondayOf(localDateStr());
+  const kms = [];
+  for (let i = 1; i <= 4; i++) {
+    const from = addDays(thisMonday, -7 * i), to = addDays(from, 6);
+    const km = myWorkouts.filter((w) => w.date >= from && w.date <= to).reduce((a, w) => a + volumeKm(w), 0);
+    if (km > 0) kms.push(km);
+  }
+  if (!kms.length) return 20;
+  const avg = kms.reduce((a, b) => a + b, 0) / kms.length;
+  return Math.max(10, Math.round((avg * 1.1) / 5) * 5);
+}
+
+function renderChallenges() {
+  const card = $('challengeCard');
+  if (!currentUser) return;
+  const monday = mondayOf(localDateStr());
+  const week = myWorkouts.filter((w) => w.date >= monday);
+  const trainings = week.filter((w) => w.type === 'training').length;
+  const days = new Set(week.map((w) => w.date)).size;
+  const km = Math.round(week.reduce((a, w) => a + volumeKm(w), 0) * 10) / 10;
+  const kmGoal = weekKmTarget();
+  const rows = [
+    { id: 'days', icon: 'flame', label: '7 дней без пропусков', cur: days, goal: 7, unit: 'дн.' },
+    { id: 'tr', icon: 'runner', label: '5 тренировок', cur: trainings, goal: 5, unit: '' },
+    { id: 'km', icon: 'target', label: `${kmGoal} км за неделю`, cur: km, goal: kmGoal, unit: 'км' },
+  ];
+  const left = 7 - ((new Date().getDay() + 6) % 7) - 1;
+  $('challengeLeft').textContent = left > 0 ? `ещё ${left} ${daysLabel(left)}` : 'последний день';
+  $('challengeRows').innerHTML = rows.map((r) => {
+    const done = r.cur >= r.goal;
+    const p = Math.min(100, Math.round((r.cur / r.goal) * 100));
+    return `<div class="ch-row${done ? ' done' : ''}">
+      <div class="ch-top">${ico(done ? 'check' : r.icon)}<span class="ch-label">${esc(r.label)}</span>
+        <span class="ch-val">${fmtNum(Math.min(r.cur, 999))}/${r.goal}${r.unit ? ' ' + r.unit : ''}</span></div>
+      <div class="gift-bar"><i style="width:${p}%"></i></div>
+    </div>`;
+  }).join('');
+  card.classList.remove('hidden');
+  // все три выполнены — поздравляем один раз за неделю
+  if (rows.every((r) => r.cur >= r.goal) && lsGet('forma_challenge_done') !== monday) {
+    lsSet('forma_challenge_done', monday);
+    setTimeout(() => showDialog({ icon: 'target', title: 'Челлендж недели выполнен! 🎉', text: 'Все три цели закрыты. Мощная неделя — так держать!', ok: 'Ура!' }), 600);
+  }
+}
+
+// =====================================================================
+//  ДОСТИЖЕНИЯ
+// =====================================================================
+function pbCount() {
+  const best = {};
+  let n = 0;
+  myWorkouts.filter((w) => w.competition?.result).sort((a, b) => a.date.localeCompare(b.date)).forEach((w) => {
+    const c = w.competition, v = parseResult(c.result, c.discipline);
+    if (v == null) return;
+    const k = disciplineKey(c.discipline), cur = best[k];
+    if (cur == null || (higherIsBetter(c.discipline) ? v > cur : v < cur)) { best[k] = v; n++; }
+  });
+  return n;
+}
+function maxMonthKm() {
+  const m = {};
+  myWorkouts.forEach((w) => { const k = w.date.slice(0, 7); m[k] = (m[k] || 0) + volumeKm(w); });
+  return Math.max(0, ...Object.values(m));
+}
+function achievementList() {
+  const trainings = myWorkouts.filter((w) => w.type === 'training');
+  const best = Math.max(currentUser?.longest_streak || 0, currentUser?.current_streak || 0);
+  const ap = athleteProfile || {};
+  const profileFilled = !!(ap.sex || ap.birth_year || ap.height_cm || ap.weight_kg || ap.goal);
+  const month = Math.round(maxMonthKm());
+  return [
+    { id: 'first', icon: 'check', title: 'Первый шаг', desc: 'первая запись', cur: myWorkouts.length, goal: 1 },
+    { id: 's7', icon: 'flame', title: 'Неделя подряд', desc: 'серия 7 дней', cur: best, goal: 7 },
+    { id: 's30', icon: 'flame', title: 'Месяц без пропусков', desc: 'серия 30 дней', cur: best, goal: 30 },
+    { id: 's100', icon: 'diamond', title: 'Сотня', desc: 'серия 100 дней', cur: best, goal: 100 },
+    { id: 't10', icon: 'runner', title: '10 тренировок', desc: 'всего', cur: trainings.length, goal: 10 },
+    { id: 't50', icon: 'runner', title: '50 тренировок', desc: 'всего', cur: trainings.length, goal: 50 },
+    { id: 't100', icon: 'trophy', title: '100 тренировок', desc: 'всего', cur: trainings.length, goal: 100 },
+    { id: 'comp', icon: 'trophy', title: 'Первый старт', desc: 'запиши соревнование', cur: trainings.filter((w) => w.competition).length, goal: 1 },
+    { id: 'pb5', icon: 'trophy', title: 'Рекордсмен', desc: '5 личных рекордов', cur: pbCount(), goal: 5 },
+    { id: 'km100', icon: 'target', title: '100 км за месяц', desc: `лучший месяц: ${month} км`, cur: month, goal: 100 },
+    { id: 'double', icon: 'runner', title: 'Двойная', desc: 'две тренировки в день', cur: trainings.some((w) => w.session > 1) ? 1 : 0, goal: 1 },
+    { id: 'iron', icon: 'dumbbell', title: 'Железный', desc: '20 тренировок с ОФП', cur: trainings.filter((w) => (w.exercises || []).length).length, goal: 20 },
+    { id: 'book', icon: 'lock', title: 'Открытая книга', desc: 'заполни анкету для Fom', cur: profileFilled ? 1 : 0, goal: 1 },
+    { id: 'bird', icon: 'sparkle', title: 'Ранняя пташка', desc: '7 утренних отметок', cur: morningChecks.length, goal: 7 },
+  ];
+}
+
+let achievementsReady = false;
+function renderAchievements() {
+  if (!currentUser || !$('achievementsGrid')) return;
+  const list = achievementList();
+  const done = list.filter((a) => a.cur >= a.goal);
+  $('achievementsCount').textContent = `${done.length} из ${list.length}`;
+  $('achievementsGrid').innerHTML = list.map((a) => {
+    const ok = a.cur >= a.goal;
+    return `<div class="ach${ok ? ' on' : ''}">
+      <span class="ach-ico">${ico(a.icon)}</span>
+      <span class="ach-title">${esc(a.title)}</span>
+      <span class="ach-desc">${ok ? esc(a.desc) : a.goal > 1 ? `${Math.min(a.cur, a.goal)}/${a.goal}` : esc(a.desc)}</span>
+    </div>`;
+  }).join('');
+  // новое достижение — поздравляем (при первом запуске просто запоминаем, что уже есть)
+  if (!achievementsReady) return;
+  let seen = [];
+  try { seen = JSON.parse(lsGet('forma_ach') || 'null'); } catch (e) {}
+  const ids = done.map((a) => a.id);
+  if (!Array.isArray(seen)) { lsSet('forma_ach', JSON.stringify(ids)); return; }
+  const fresh = done.filter((a) => !seen.includes(a.id));
+  lsSet('forma_ach', JSON.stringify([...new Set([...seen, ...ids])]));
+  if (fresh.length) {
+    const a = fresh[0];
+    haptic('success');
+    setTimeout(() => showDialog({ icon: a.icon, title: `Новое достижение: ${a.title}!`, text: a.desc[0].toUpperCase() + a.desc.slice(1) + ' — есть! 🎉', ok: 'Круто!' }), 700);
+  }
+}
+
+// =====================================================================
+//  ВЫГРУЗКА ДНЕВНИКА (таблица CSV — открывается в Excel и Google Таблицах)
+// =====================================================================
+function diaryCsv() {
+  const q = (v) => {
+    const t = String(v ?? '').replace(/\r?\n/g, ' ').trim();
+    return /[;"]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const head = ['Дата', 'Тип', '№ за день', 'Разминка', 'Беговая работа', 'Силовая / ОФП', 'Заминка', 'Старт',
+    'RPE', 'Самочувствие', 'Пульс ср', 'Пульс макс', 'Пульс в паузах', 'Объём, км', 'Заметки'];
+  const rows = [...myWorkouts].sort((a, b) => a.date.localeCompare(b.date) || (a.session || 1) - (b.session || 1)).map((w) => [
+    w.date, w.type === 'rest' ? 'Отдых' : w.competition ? 'Старт' : 'Тренировка', w.session || 1, w.warmup,
+    (w.sets || []).map((s) => [s.distance_m && distLabel(s.distance_m), s.reps && `x${s.reps}`, s.time_or_pace, s.rest_between && `отдых ${s.rest_between}`].filter(Boolean).join(' ')).join(' | '),
+    (w.exercises || []).map(formatExercise).join(' | '), w.cooldown, competitionLine(w.competition),
+    w.rpe, w.feeling, w.hr_avg, w.hr_max, w.hr_min, w.type === 'training' ? fmtNum(Math.round(volumeKm(w) * 10) / 10) : '', w.notes,
+  ]);
+  return '﻿' + [head, ...rows].map((r) => r.map(q).join(';')).join('\r\n');
+}
+
+$('exportBtn').addEventListener('click', async () => {
+  if (!myWorkouts.length) return alertMsg('Пока нечего выгружать — записей нет.');
+  const csv = diaryCsv();
+  const name = `forma-${localDateStr()}.csv`;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  try {
+    const file = new File([blob], name, { type: 'text/csv' });
+    if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+    if (tg?.downloadFile && tg.isVersionAtLeast?.('8.0')) {
+      const res = await fetch(API_BASE + '/api/bot/export', {
+        method: 'POST', headers: { 'Content-Type': 'text/csv', 'X-Telegram-Init-Data': tg?.initData || '' }, body: blob,
+      });
+      if (!res.ok) throw new Error('upload failed');
+      tg.downloadFile({ url: (await res.json()).url, file_name: name });
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (err) {
+    if (err?.name === 'AbortError') return;
+    console.error(err);
+    alertMsg('Не получилось выгрузить. Попробуй ещё раз.');
+  }
+});
 
 hydrateIcons();
 
