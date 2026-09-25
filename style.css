@@ -1416,3 +1416,17 @@ body.chat-open.kb-open { padding-bottom: 0; }
 .tour-dots i { width: 7px; height: 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); transition: width 0.2s ease, background 0.2s ease; }
 .tour-dots i.on { width: 22px; background: var(--lime); box-shadow: 0 0 10px rgba(180, 245, 60, 0.6); }
 .tour-next { margin: 0 20px; width: auto; }
+
+/* ---------- Поддержка (внизу профиля) ---------- */
+.support-card { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
+.support-ico {
+  width: 42px; height: 42px; flex: 0 0 auto;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(155, 107, 255, 0.14);
+  border: 1px solid rgba(155, 107, 255, 0.3);
+  color: #cfd5e2;
+}
+.support-ico .ico { width: 22px; height: 22px; }
+.support-main { flex: 1; min-width: 0; }
+.support-title { font-weight: 800; font-size: 15px; margin-bottom: 2px; }
