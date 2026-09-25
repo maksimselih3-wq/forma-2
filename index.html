@@ -49,7 +49,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=46" />
+<link rel="stylesheet" href="style.css?v=47" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -121,6 +121,45 @@
         <div class="stat-label">тренировок за месяц</div>
       </div>
     </div>
+
+    <!-- Утренняя отметка: сон, пульс покоя, самочувствие -->
+    <section class="card morning-card hidden" id="morningCard">
+      <div class="gift-head">
+        <div class="card-label">☀️ Доброе утро! Как ты?</div>
+        <button type="button" class="morning-close" id="morningClose" aria-label="Скрыть на сегодня">✕</button>
+      </div>
+      <div class="morning-form" id="morningForm">
+        <div class="morning-q">Сон</div>
+        <div class="morning-chips" id="mSleep">
+          <button type="button" class="chip" data-v="5">≤5 ч</button><button type="button" class="chip" data-v="6">6 ч</button>
+          <button type="button" class="chip" data-v="7">7 ч</button><button type="button" class="chip" data-v="8">8 ч</button>
+          <button type="button" class="chip" data-v="9">9+ ч</button>
+        </div>
+        <div class="morning-q">Самочувствие</div>
+        <div class="morning-chips mood" id="mMood">
+          <button type="button" class="chip" data-v="1">😫</button><button type="button" class="chip" data-v="2">😕</button>
+          <button type="button" class="chip" data-v="3">😐</button><button type="button" class="chip" data-v="4">🙂</button>
+          <button type="button" class="chip" data-v="5">🤩</button>
+        </div>
+        <div class="morning-row">
+          <label class="hr-field"><span>Пульс в покое <i class="optional">необяз.</i></span><input type="number" inputmode="numeric" id="mHr" placeholder="—" /></label>
+          <button type="button" class="primary-btn morning-save" id="morningSave">Готово</button>
+        </div>
+      </div>
+      <div class="morning-done hidden" id="morningDone"></div>
+    </section>
+
+    <!-- Отсчёт до ближайшего старта -->
+    <button type="button" class="card countdown-card hidden" id="countdownCard"></button>
+
+    <!-- Челлендж недели -->
+    <section class="card challenge-card hidden" id="challengeCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="target"></i>Челлендж недели</div>
+        <span class="muted challenge-left" id="challengeLeft"></span>
+      </div>
+      <div id="challengeRows"></div>
+    </section>
 
     <!-- Розыгрыши подарков за честную серию -->
     <section class="card gift-card hidden" id="giftCard">
@@ -231,6 +270,24 @@
       <div id="recordsList"></div>
     </section>
 
+    <!-- Достижения -->
+    <section class="card achievements-card" id="achievementsCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="sparkle"></i>Достижения</div>
+        <span class="muted" id="achievementsCount"></span>
+      </div>
+      <div class="ach-grid" id="achievementsGrid"></div>
+    </section>
+
+    <!-- Календарь стартов -->
+    <section class="card starts-card" id="startsCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="calendar"></i>Календарь стартов</div>
+        <button type="button" class="gift-rules-btn" id="startAddBtn">＋ Добавить</button>
+      </div>
+      <div id="startsList"></div>
+    </section>
+
     <!-- Личная анкета: видна только тебе и Fom -->
     <section class="card athlete-card" id="athleteCard">
       <div class="gift-head">
@@ -250,6 +307,7 @@
       </label>
       <div class="muted privacy-hint">Бот напишет в 21:00 (МСК), только если за сегодня ещё нет записи.</div>
       <button type="button" class="ghost-btn wide" id="tourAgainBtn"><i data-ico="sparkle"></i> Как пользоваться Forma</button>
+      <button type="button" class="ghost-btn wide" id="exportBtn"><i data-ico="share"></i> Выгрузить дневник (таблица)</button>
     </section>
 
     <section class="card">
@@ -324,6 +382,23 @@
       <div class="btn-row">
         <button type="button" class="ghost-btn" id="afCancelBtn">Отмена</button>
         <button type="button" class="ghost-btn crop-save" id="afSaveBtn">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Добавить старт в календарь -->
+  <div id="startSheet" class="sheet-backdrop hidden">
+    <div class="sheet start-sheet">
+      <div class="sheet-title">🏁 Новый старт</div>
+      <input type="text" id="stName" maxlength="80" placeholder="Название: например, Первенство города" />
+      <label class="hr-field st-date"><span>Дата</span><input type="date" id="stDate" /></label>
+      <div class="card-label comp-sub">Дисциплина <span class="optional">необязательно</span></div>
+      <div class="comp-chips" id="stChips"></div>
+      <input type="text" id="stDisc" maxlength="40" placeholder="Или напиши свою" />
+      <input type="text" id="stGoal" maxlength="40" placeholder="Цель (необязательно): например, 1:55" class="st-goal" />
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="stCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="stSave">Сохранить</button>
       </div>
     </div>
   </div>
@@ -603,6 +678,7 @@
       </div>
     </div>
     <div id="chatMessages" class="chat-messages"></div>
+    <div class="chat-limit hidden" id="chatLimit"></div>
     <div class="chat-input-row">
       <input type="text" id="chatInput" placeholder="Сообщение для Fom..." autocomplete="off" />
       <!-- Круглая кнопка отправки со «самолётиком», как в Telegram -->
@@ -687,6 +763,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=46"></script>
+  <script src="app.js?v=47"></script>
 </body>
 </html>
