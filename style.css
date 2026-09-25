@@ -1179,3 +1179,46 @@ button.hero-sport { cursor: pointer; }
 .gift-rules p { font-size: 14px; line-height: 1.45; color: #d9dde6; margin: 0 0 10px; }
 .gift-winners { margin: 12px 0 6px; padding-top: 12px; border-top: 1px solid var(--border); }
 .gift-winner { font-size: 14px; padding: 4px 0; }
+
+/* ---------- Вторая тренировка за день ---------- */
+.done-block + .done-block { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.done-block-title { font-weight: 800; font-size: 14px; margin-bottom: 6px; }
+.done-block .ai-box { margin-top: 10px; }
+.add-second-btn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(180, 245, 60, 0.6);
+  background: rgba(180, 245, 60, 0.07);
+  color: var(--lime);
+  font-size: 14px; font-weight: 800;
+  cursor: pointer;
+}
+.add-second-btn:active { transform: scale(0.99); }
+/* во второй тренировке нельзя выбрать «Отдых» */
+.second-mode [data-f="typeSwitch"] { display: none; }
+/* в календаре — маленькая метка «×2» на днях с двумя тренировками */
+.cal-cell.double { position: relative; }
+.cal-cell.double::after {
+  content: '×2';
+  position: absolute;
+  top: 1px; right: 3px;
+  font-size: 8px; font-weight: 900;
+  color: #0b0d10;
+}
+#editSessionSwitch { margin-bottom: 12px; }
+
+/* ---------- Анкета для Fom ---------- */
+.athlete-card { border-color: rgba(155, 107, 255, 0.3); }
+.athlete-summary { white-space: pre-line; font-size: 14px; line-height: 1.5; margin: 8px 0 4px; color: #d9dde6; }
+.athlete-note { font-size: 12px; }
+.athlete-note.center { text-align: center; margin: -6px 0 12px; }
+.athlete-sheet { max-height: 88vh; overflow-y: auto; }
+.af-label { margin: 14px 0 8px; }
+.af-sex { margin-bottom: 4px; }
+.af-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.af-grid input { padding: 10px 6px; text-align: center; font-size: 15px; }
+.athlete-sheet textarea { width: 100%; }
+.athlete-sheet .btn-row { margin-top: 16px; }
