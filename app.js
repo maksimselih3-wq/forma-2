@@ -802,8 +802,10 @@ function renderCalendar() {
       : `За месяц: тренировок — ${trainings}, дней отдыха — ${rests}.`;
 }
 
+// Список «Последние записи» убран — всё есть в календаре. Функция осталась на случай, если вернём.
 function renderHistory() {
   const list = $('historyList');
+  if (!list) return;
   list.innerHTML = '';
   if (myWorkouts.length === 0) {
     list.innerHTML = '<div class="empty-hint">Записей пока нет.</div>';
