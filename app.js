@@ -690,6 +690,7 @@ $('saveBtn').addEventListener('click', async () => {
     }
 
     statusEl.textContent = '';
+    haptic('success');
     justSavedDate = entryDate;
     entrySession = 1;
     loadGiveaway(); // серия могла вырасти — обновим статус розыгрышей
@@ -698,6 +699,7 @@ $('saveBtn').addEventListener('click', async () => {
     window.scrollTo(0, 0);
   } catch (err) {
     console.error(err);
+    haptic('error');
     statusEl.textContent = err.data?.error || 'Ошибка сохранения. Попробуй ещё раз.';
   } finally {
     saveBtn.disabled = false;
@@ -901,7 +903,7 @@ function showDialog({ icon = '', title = '', text = '', ok = 'Понятно', c
     btns.appendChild(o);
     $('dialog').onclick = (e) => { if (e.target === $('dialog')) close(false); };
     $('dialog').classList.remove('hidden', 'closing');
-    haptic();
+    haptic(danger || icon === 'calendar' || icon === 'warn' ? 'warning' : icon === 'info' ? 'error' : 'light');
   });
 }
 function alertMsg(text) { return showDialog({ icon: 'info', text }); }
@@ -914,8 +916,21 @@ function closeDialog() { if (dialogResolve) { const r = dialogResolve; dialogRes
 // =====================================================================
 const REACTIONS = ['🔥', '👏', '💪', '🚀'];
 
+// ---------- Вибрация (отклик телефона на нажатия и жесты) ----------
+// kind: 'light' | 'medium' | 'heavy' | 'soft' | 'rigid' — толчок;
+//       'success' | 'warning' | 'error' — «уведомление»; 'select' — лёгкий щелчок выбора.
+let lastHaptic = 0;
 function haptic(kind = 'light') {
-  try { tg?.HapticFeedback?.impactOccurred(kind); } catch (e) {}
+  const now = Date.now();
+  if (now - lastHaptic < 35) return; // две вибрации подряд от одного нажатия — не нужно
+  lastHaptic = now;
+  try {
+    const h = tg?.HapticFeedback;
+    if (!h) return;
+    if (kind === 'select') h.selectionChanged();
+    else if (kind === 'success' || kind === 'warning' || kind === 'error') h.notificationOccurred(kind);
+    else h.impactOccurred(kind);
+  } catch (e) {}
 }
 
 // «только что», «5 мин», «3 ч», «вчера», «19 сентября»
@@ -1744,6 +1759,7 @@ $('editSaveBtn').addEventListener('click', async () => {
     });
     currentEditWorkout = { ...currentEditWorkout, ...result.workout, date: normDate(result.workout.date) };
     statusEl.textContent = 'Сохранено ✓';
+    haptic('success');
     renderEditSocial(currentEditWorkout);
     try { await loadMyWorkouts(); } catch (e) { console.error(e); }
   } catch (err) {
@@ -2125,6 +2141,7 @@ async function saveSport(sport, discipline) {
     currentUser.discipline = res.discipline;
     renderMySport();
     closeSportSheet();
+    haptic('success');
   } catch (err) {
     console.error(err);
     alertMsg(err.data?.error || 'Не удалось сохранить. Попробуй ещё раз.');
@@ -2413,7 +2430,7 @@ $('afSaveBtn').addEventListener('click', async () => {
     athleteProfile = profile;
     renderAthleteSummary();
     closeAthleteSheet();
-    haptic();
+    haptic('success');
   } catch (err) {
     console.error(err);
     alertMsg(err.data?.error || 'Не удалось сохранить анкету.');
@@ -2564,6 +2581,32 @@ $('reminderToggle').addEventListener('change', async (e) => {
     e.target.checked = !enabled;
     alertMsg('Не удалось сохранить настройку. Попробуй ещё раз.');
   }
+});
+
+// =====================================================================
+//  ВИБРАЦИЯ НА НАЖАТИЯ И ЖЕСТЫ
+// =====================================================================
+// Переключатели, фишки, вкладки, дни календаря — лёгкий «щелчок выбора»,
+// обычные кнопки — лёгкий толчок, кнопка «+» — чуть сильнее.
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('button, .cal-cell, .history-item, .toggle-row, a');
+  if (!el || el.disabled) return;
+  if (el.matches('.nav-plus')) return haptic('medium');
+  if (el.matches('.seg-btn, .chip, .nav-btn, .cal-cell, .sport-chip, .toggle-row, [data-shift]')) return haptic('select');
+  haptic('light');
+}); // «всплытие»: особая вибрация кнопки (реакция, барабан) срабатывает первой
+
+// Ползунки самочувствия и нагрузки — щелчок на каждом делении
+document.addEventListener('input', (e) => {
+  if (e.target.matches('input[type="range"]') && !e.target.classList.contains('crop-zoom')) haptic('select');
+});
+
+// Поддержка — чат с автором в Telegram
+const SUPPORT_USERNAME = 'MAKSIMSHELIKH';
+$('supportBtn').addEventListener('click', () => {
+  const url = `https://t.me/${SUPPORT_USERNAME}`;
+  if (tg?.openTelegramLink) tg.openTelegramLink(url);
+  else window.open(url, '_blank');
 });
 
 hydrateIcons();
