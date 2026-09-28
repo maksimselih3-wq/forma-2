@@ -7,12 +7,14 @@
   --card-top: #1b202b;
   --card-bottom: #12151c;
   --card-solid: #161a22;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --input: rgba(255, 255, 255, 0.045);
+  --border: rgba(var(--ink), 0.07);
+  --border-strong: rgba(var(--ink), 0.12);
+  --input: rgba(var(--ink), 0.045);
   --text: #f3f5f8;
   --muted: #8b93a7;
   --lime: #b4f53c;
+  --lime-text: #b4f53c; /* салатовый для текста: в светлой теме темнее, чтобы читался */
+  --ink: 255, 255, 255; /* «стекло» поверх фона: в тёмной теме — белое, в светлой — тёмное */
   --lime-2: #6fdc3a;
   --purple: #9b6bff;
   --danger: #ff5a4f;
@@ -113,7 +115,7 @@ button { color: inherit; }
   font-weight: 700;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: var(--lime);
+  color: var(--lime-text);
 }
 .eyebrow.light { color: rgba(255, 255, 255, 0.75); }
 
@@ -131,7 +133,7 @@ button { color: inherit; }
   border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 12px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 rgba(var(--ink), 0.04);
 }
 .card-hero { padding-bottom: 14px; }
 .card-label {
@@ -163,7 +165,7 @@ button { color: inherit; }
   width: 34px; height: 34px;
   margin: 0 auto 6px;
   border-radius: 11px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink), 0.06);
   display: flex; align-items: center; justify-content: center;
   font-size: 17px;
 }
@@ -173,7 +175,7 @@ button { color: inherit; }
   font-size: 26px;
   line-height: 1.1;
 }
-.stat-num.accent { color: var(--lime); text-shadow: 0 0 18px rgba(180, 245, 60, 0.35); }
+.stat-num.accent { color: var(--lime-text); text-shadow: 0 0 18px rgba(180, 245, 60, 0.35); }
 .stat-label { color: var(--muted); font-size: 11px; margin-top: 3px; line-height: 1.2; }
 
 /* ---------- Поля ввода ---------- */
@@ -260,7 +262,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 /* ---------- Строки: силовая / ОФП ---------- */
 .ex-row {
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.025);
+  background: rgba(var(--ink), 0.025);
   border-radius: 16px;
   padding: 8px;
   margin-bottom: 8px;
@@ -282,7 +284,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   border-radius: 14px;
   border: 1px dashed rgba(180, 245, 60, 0.4);
   background: rgba(180, 245, 60, 0.05);
-  color: var(--lime);
+  color: var(--lime-text);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -314,7 +316,7 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   background: #fff;
   border: 3px solid var(--bg);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 1px rgba(var(--ink), 0.3);
   cursor: pointer;
 }
 input[type="range"]::-moz-range-thumb {
@@ -364,7 +366,7 @@ input[type="range"]::-moz-range-thumb {
 .toggle {
   width: 42px; height: 24px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(var(--ink), 0.12);
   position: relative;
   transition: background 0.2s ease;
   flex: 0 0 auto;
@@ -407,7 +409,7 @@ input[type="range"]::-moz-range-thumb {
   padding: 12px;
   border-radius: 14px;
   border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink), 0.04);
   color: var(--text);
   font-size: 14px;
   font-weight: 600;
@@ -474,7 +476,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .ai-box-title { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 8px; }
 .ai-box-big { margin-top: 14px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
-.ai-box-big strong { color: var(--lime); }
+.ai-box-big strong { color: var(--lime-text); }
 
 /* ---------- Профиль: большое фото ---------- */
 .profile-hero {
@@ -543,7 +545,7 @@ button.hero-sport { cursor: pointer; }
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   word-break: break-word;
 }
-.profile-tags { display: flex; gap: 6px; flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.profile-tags { display: flex; gap: 6px; flex-wrap: wrap; max-width: 100%; }
 .profile-tags::-webkit-scrollbar { display: none; }
 .profile-tags .tag { flex: 0 0 auto; white-space: nowrap; }
 
@@ -555,7 +557,7 @@ button.hero-sport { cursor: pointer; }
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(180, 245, 60, 0.6);
-  color: var(--lime);
+  color: var(--lime-text);
   font-size: 12px;
   font-weight: 700;
   backdrop-filter: blur(8px);
@@ -601,7 +603,7 @@ button.hero-sport { cursor: pointer; }
   margin-bottom: 8px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--ink), 0.05);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -617,7 +619,7 @@ button.hero-sport { cursor: pointer; }
   aspect-ratio: 1 / 1;
   border: none;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink), 0.04);
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
@@ -730,7 +732,7 @@ button.hero-sport { cursor: pointer; }
 }
 .chat-bubble.user { align-self: flex-end; background: var(--grad-lime); color: #0b0d10; border-bottom-right-radius: 6px; font-weight: 600; }
 .chat-bubble.assistant { align-self: flex-start; background: var(--card-solid); border: 1px solid var(--border); border-bottom-left-radius: 6px; }
-.chat-bubble.assistant strong { color: var(--lime); }
+.chat-bubble.assistant strong { color: var(--lime-text); }
 .chat-bubble.typing { color: var(--muted); }
 
 /* строка ввода — как в мессенджере */
@@ -785,7 +787,7 @@ button.hero-sport { cursor: pointer; }
   cursor: pointer;
   transition: color 0.15s ease;
 }
-.nav-btn.active { color: var(--lime); }
+.nav-btn.active { color: var(--lime-text); }
 .nav-btn.active svg { filter: drop-shadow(0 0 6px rgba(180, 245, 60, 0.6)); }
 .nav-plus {
   flex: 0 0 auto;
@@ -865,7 +867,7 @@ button.hero-sport { cursor: pointer; }
 .wk-chip {
   padding: 5px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--ink), 0.05);
   border: 1px solid var(--border);
   font-size: 12px; font-weight: 800;
 }
@@ -881,7 +883,7 @@ button.hero-sport { cursor: pointer; }
   padding: 0 11px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink), 0.04);
   color: var(--text);
   font-size: 13px; font-weight: 800;
   cursor: pointer;
@@ -889,7 +891,7 @@ button.hero-sport { cursor: pointer; }
 }
 .react-btn .react-emoji { font-size: 16px; line-height: 1; filter: grayscale(0.6); opacity: 0.75; transition: filter 0.15s, opacity 0.15s; }
 .react-btn.has .react-emoji, .react-btn.mine .react-emoji { filter: none; opacity: 1; }
-.react-btn.mine { background: rgba(180, 245, 60, 0.14); border-color: rgba(180, 245, 60, 0.7); color: var(--lime); }
+.react-btn.mine { background: rgba(180, 245, 60, 0.14); border-color: rgba(180, 245, 60, 0.7); color: var(--lime-text); }
 .react-btn:active { transform: scale(0.92); }
 .react-btn.comment-btn { margin-left: auto; }
 .react-btn.pop .react-emoji { animation: react-pop 0.45s ease; }
@@ -907,7 +909,7 @@ button.hero-sport { cursor: pointer; }
 .comment { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 10px; }
 .comment-main {
   flex: 1; min-width: 0;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--ink), 0.05);
   border-radius: 4px 14px 14px 14px;
   padding: 8px 11px;
 }
@@ -1059,7 +1061,7 @@ button.hero-sport { cursor: pointer; }
   z-index: 70;
   width: 44px; height: 44px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(var(--ink), 0.12);
   border: 1px solid var(--border-strong);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -1080,14 +1082,14 @@ button.hero-sport { cursor: pointer; }
   padding: 11px 12px;
   border-radius: 14px;
   border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink), 0.04);
   color: var(--text);
   font-size: 14px; font-weight: 700;
   text-align: left;
   cursor: pointer;
 }
 .sport-chip span { font-size: 18px; }
-.sport-chip.active { background: rgba(180, 245, 60, 0.14); border-color: rgba(180, 245, 60, 0.75); color: var(--lime); }
+.sport-chip.active { background: rgba(180, 245, 60, 0.14); border-color: rgba(180, 245, 60, 0.75); color: var(--lime-text); }
 .sport-sub { margin-bottom: 8px; }
 .discipline-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 #disciplineInput { width: 100%; margin-bottom: 4px; }
@@ -1139,7 +1141,7 @@ button.hero-sport { cursor: pointer; }
 .gift-head .card-label { margin-bottom: 0; }
 .gift-rules-btn {
   border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--ink), 0.05);
   color: var(--text);
   border-radius: 999px;
   padding: 6px 12px;
@@ -1150,7 +1152,7 @@ button.hero-sport { cursor: pointer; }
 .gift-row {
   padding: 12px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink), 0.04);
   border: 1px solid var(--border);
   margin-top: 8px;
 }
@@ -1168,14 +1170,14 @@ button.hero-sport { cursor: pointer; }
   border-radius: 999px;
   background: rgba(180, 245, 60, 0.14);
   border: 1px solid rgba(180, 245, 60, 0.6);
-  color: var(--lime);
+  color: var(--lime-text);
   font-size: 12px; font-weight: 800;
 }
-.gift-bar { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); margin-top: 10px; overflow: hidden; }
+.gift-bar { height: 6px; border-radius: 999px; background: rgba(var(--ink), 0.08); margin-top: 10px; overflow: hidden; }
 .gift-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #ffc44d, var(--lime)); }
 .gift-row.month .gift-bar i { background: linear-gradient(90deg, var(--purple), #ffc44d); }
 .gift-status { font-size: 12px; color: var(--muted); margin-top: 6px; }
-.gift-status.ok { color: var(--lime); font-weight: 700; }
+.gift-status.ok { color: var(--lime-text); font-weight: 700; }
 .gift-sheet { max-height: 86vh; overflow-y: auto; }
 .gift-rules p { font-size: 14px; line-height: 1.45; color: #d9dde6; margin: 0 0 10px; }
 .gift-winners { margin: 12px 0 6px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -1193,7 +1195,7 @@ button.hero-sport { cursor: pointer; }
   border-radius: 14px;
   border: 1px dashed rgba(180, 245, 60, 0.6);
   background: rgba(180, 245, 60, 0.07);
-  color: var(--lime);
+  color: var(--lime-text);
   font-size: 14px; font-weight: 800;
   cursor: pointer;
 }
@@ -1256,7 +1258,7 @@ button.hero-sport { cursor: pointer; }
   width: 52px; height: 52px;
   border-radius: 16px;
   border: 1px solid rgba(255, 196, 77, 0.45);
-  background: radial-gradient(circle at 50% 35%, rgba(255, 196, 77, 0.22), rgba(255, 255, 255, 0.03) 70%);
+  background: radial-gradient(circle at 50% 35%, rgba(255, 196, 77, 0.22), rgba(var(--ink), 0.03) 70%);
   box-shadow: inset 0 0 14px rgba(255, 196, 77, 0.15), 0 0 16px rgba(255, 196, 77, 0.12);
   overflow: hidden;
   padding: 0;
@@ -1264,7 +1266,7 @@ button.hero-sport { cursor: pointer; }
 }
 .gift-row.month .gift-slot {
   border-color: rgba(155, 107, 255, 0.6);
-  background: radial-gradient(circle at 50% 35%, rgba(155, 107, 255, 0.3), rgba(255, 255, 255, 0.03) 70%);
+  background: radial-gradient(circle at 50% 35%, rgba(155, 107, 255, 0.3), rgba(var(--ink), 0.03) 70%);
   box-shadow: inset 0 0 14px rgba(155, 107, 255, 0.2), 0 0 18px rgba(155, 107, 255, 0.2);
 }
 /* блик сверху и снизу — как у настоящего барабана */
@@ -1319,7 +1321,7 @@ button.hero-sport { cursor: pointer; }
   margin: 0 auto 12px;
   border-radius: 18px;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink), 0.06);
   border: 1px solid var(--border);
   color: #cfd5e2;
 }
@@ -1332,7 +1334,7 @@ button.hero-sport { cursor: pointer; }
   padding: 13px 10px;
   border-radius: 16px;
   border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--ink), 0.05);
   font-weight: 700; font-size: 15px;
   cursor: pointer;
 }
@@ -1414,7 +1416,7 @@ body.chat-open.kb-open { padding-bottom: 0; }
 .tour-text { color: #c3c9d6; font-size: 15px; line-height: 1.55; max-width: 340px; }
 .tour-fill { margin-top: 20px; }
 .tour-dots { display: flex; justify-content: center; gap: 7px; margin: 14px 0 16px; }
-.tour-dots i { width: 7px; height: 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); transition: width 0.2s ease, background 0.2s ease; }
+.tour-dots i { width: 7px; height: 7px; border-radius: 999px; background: rgba(var(--ink), 0.18); transition: width 0.2s ease, background 0.2s ease; }
 .tour-dots i.on { width: 22px; background: var(--lime); box-shadow: 0 0 10px rgba(180, 245, 60, 0.6); }
 .tour-next { margin: 0 20px; width: auto; }
 
@@ -1484,7 +1486,7 @@ body.chat-open.kb-open { padding-bottom: 0; }
   border-radius: 16px;
   border: 1px dashed rgba(180, 245, 60, 0.45);
   background: rgba(180, 245, 60, 0.05);
-  color: var(--lime);
+  color: var(--lime-text);
   font-weight: 700; font-size: 14px;
   cursor: pointer;
 }
@@ -1500,7 +1502,7 @@ body.chat-open.kb-open { padding-bottom: 0; }
   margin-bottom: 6px;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--ink), 0.03);
   cursor: pointer;
 }
 .repeat-row:active { background: rgba(180, 245, 60, 0.08); }
@@ -1570,7 +1572,7 @@ body[data-screen="profileScreen"] .topbar-right { opacity: 0; visibility: hidden
   flex: 0 0 40px;
   border-radius: 14px;
   border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink), 0.04);
   color: var(--muted);
   font-weight: 800; font-size: 15px;
   cursor: pointer;
@@ -1661,7 +1663,7 @@ body[data-screen="profileScreen"] .topbar-right { opacity: 0; visibility: hidden
 .ch-label { flex: 1; font-weight: 700; }
 .ch-val { color: var(--muted); font-weight: 700; font-size: 12px; }
 .ch-row .gift-bar { margin-top: 6px; }
-.ch-row.done .ch-val { color: var(--lime); }
+.ch-row.done .ch-val { color: var(--lime-text); }
 .ch-row.done .gift-bar i { background: var(--grad-lime); }
 
 .ach-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -1670,13 +1672,13 @@ body[data-screen="profileScreen"] .topbar-right { opacity: 0; visibility: hidden
   padding: 12px 6px 10px;
   border-radius: 16px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--ink), 0.03);
   text-align: center;
   opacity: 0.45;
   filter: grayscale(1);
 }
 .ach.on { opacity: 1; filter: none; border-color: rgba(180, 245, 60, 0.35); background: rgba(180, 245, 60, 0.05); }
-.ach-ico { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.06); color: #cfd5e2; }
+.ach-ico { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; background: rgba(var(--ink), 0.06); color: #cfd5e2; }
 .ach-ico .ico { width: 22px; height: 22px; }
 .ach-title { font-size: 12px; font-weight: 800; line-height: 1.2; }
 .ach-desc { font-size: 10.5px; color: var(--muted); line-height: 1.2; }
@@ -1706,7 +1708,7 @@ body[data-screen="profileScreen"] .topbar-right { opacity: 0; visibility: hidden
 .invite-text { font-size: 13px; line-height: 1.45; }
 .invite-text b { color: var(--text); }
 .invite-stats { font-size: 13px; margin: 10px 0 2px; color: #c3c9d6; }
-.invite-stats b { color: var(--lime); }
+.invite-stats b { color: var(--lime-text); }
 .group-row { margin-bottom: 8px; }
 .group-actions { margin: 4px 0 10px; }
 .group-coach-note { font-size: 12.5px; line-height: 1.45; margin: -2px 2px 12px; }
@@ -1752,3 +1754,200 @@ button.rank-row { cursor: pointer; }
 }
 .wk-chip.pb-chip .ico, .wk-chip.pb-chip svg { width: 13px; height: 13px; }
 #fpRecordsCard { margin-top: 14px; }
+
+/* ---------- Кто видит запись ---------- */
+.vis-block { margin-top: 14px; }
+.vis-label { font-size: 13px; font-weight: 700; color: var(--muted); margin: 0 0 8px 2px; }
+.vis-seg { margin-bottom: 0; }
+.vis-picked {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  margin-top: 10px; padding: 10px 12px;
+  border-radius: 14px; border: 1px dashed rgba(180, 245, 60, 0.4);
+  background: rgba(180, 245, 60, 0.06); color: var(--text);
+  font-size: 13px; text-align: left; cursor: pointer;
+}
+.vis-picked b { font-weight: 700; }
+.vis-picked .ico { width: 16px; height: 16px; flex: none; }
+.vis-edit { margin-left: auto; color: var(--lime-text); font-weight: 700; }
+.friend-pick-sheet { max-height: 80vh; display: flex; flex-direction: column; }
+.friend-pick-hint { margin: -4px 0 10px; }
+#friendPickList { overflow-y: auto; flex: 1; margin-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.friend-pick-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border-radius: 14px;
+  border: 1px solid var(--border); background: var(--input);
+  cursor: pointer; text-align: left;
+}
+.friend-pick-row .friend-ava { width: 36px; height: 36px; flex: none; }
+.friend-pick-name { flex: 1; font-weight: 600; font-size: 15px; }
+.friend-pick-check {
+  width: 26px; height: 26px; border-radius: 50%; flex: none;
+  border: 2px solid var(--border-strong); display: grid; place-items: center;
+}
+.friend-pick-check .ico { width: 16px; height: 16px; opacity: 0; }
+.friend-pick-row.on { border-color: rgba(180, 245, 60, 0.5); background: rgba(180, 245, 60, 0.07); }
+.friend-pick-row.on .friend-pick-check { background: var(--lime); border-color: var(--lime-text); }
+.friend-pick-row.on .friend-pick-check .ico { opacity: 1; color: #0b0d10; }
+.friend-pick-empty { padding: 16px 8px; line-height: 1.45; }
+.primary-sheet-btn { background: var(--grad-lime); color: #0b0d10; border: none; }
+
+/* ---------- Первопроходец (первые 10 пользователей) ---------- */
+.tag.tag-pioneer {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: #0b0d10; font-weight: 800;
+  background: linear-gradient(90deg, #ffe07a, #ffb84d);
+  border-color: transparent;
+  box-shadow: 0 0 16px rgba(255, 200, 90, 0.35);
+}
+.tag.tag-pioneer .ico { width: 14px; height: 14px; color: #0b0d10; }
+.ach.ach-special {
+  border-color: rgba(255, 200, 90, 0.6) !important;
+  background: linear-gradient(160deg, rgba(255, 214, 110, 0.18), rgba(255, 184, 77, 0.04)) !important;
+  box-shadow: 0 0 22px rgba(255, 200, 90, 0.18);
+}
+.ach.ach-special .ach-title { color: #ffd15a; }
+
+/* =====================================================================
+   Светлая тема — включается в «Настройках» (html[data-theme="light"])
+   ===================================================================== */
+html[data-theme="light"] {
+  --bg: #f3f4ef;
+  --card-top: #ffffff;
+  --card-bottom: #fbfbf8;
+  --card-solid: #ffffff;
+  --border: rgba(20, 24, 34, 0.09);
+  --border-strong: rgba(20, 24, 34, 0.15);
+  --input: rgba(20, 24, 34, 0.045);
+  --text: #151820;
+  --muted: #687080;
+  --lime-text: #4f7d0b;
+  --purple: #7a4ef0;
+  --ink: 20, 24, 34;
+  color-scheme: light;
+}
+html[data-theme="light"] body {
+  background:
+    radial-gradient(600px 400px at 100% -10%, rgba(155, 107, 255, 0.10), transparent 60%),
+    radial-gradient(500px 360px at -10% 30%, rgba(180, 245, 60, 0.14), transparent 60%),
+    var(--bg);
+}
+html[data-theme="light"] .card { box-shadow: 0 1px 2px rgba(20, 24, 34, 0.04), 0 6px 20px rgba(20, 24, 34, 0.04); }
+html[data-theme="light"] .bottom-nav {
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 10px 30px rgba(20, 24, 34, 0.12);
+}
+html[data-theme="light"] .stat-num.accent { text-shadow: none; }
+html[data-theme="light"] .cal-cell.today { outline-color: #151820; }
+html[data-theme="light"] .dlg { background: linear-gradient(180deg, #ffffff, #f5f6f1); box-shadow: 0 24px 60px rgba(20, 24, 34, 0.25); }
+html[data-theme="light"] .dlg-backdrop { background: rgba(30, 34, 44, 0.35); }
+html[data-theme="light"] .sheet-backdrop { background: rgba(30, 34, 44, 0.35); }
+html[data-theme="light"] .c-grid { stroke: #e3e5de; }
+html[data-theme="light"] .c-axis { fill: #7a8190; }
+html[data-theme="light"] .chart-tip { background: #ffffff; box-shadow: 0 8px 24px rgba(20, 24, 34, 0.15); }
+html[data-theme="light"] .record-res { color: #b7791f; }
+html[data-theme="light"] .wk-chip.pb-chip { color: #9a6410; background: rgba(255, 200, 90, 0.2); }
+html[data-theme="light"] .ach.ach-special .ach-title { color: #9a6410; }
+html[data-theme="light"] .logo-dot, html[data-theme="light"] .dot-glow { filter: none; }
+html[data-theme="light"] input, html[data-theme="light"] textarea { color: var(--text); }
+html[data-theme="light"] ::placeholder { color: #9aa1ae; }
+html[data-theme="light"] .vis-picked { background: rgba(180, 245, 60, 0.14); border-color: rgba(79, 125, 11, 0.4); }
+html[data-theme="light"] .friend-pick-row.on { background: rgba(180, 245, 60, 0.16); border-color: rgba(79, 125, 11, 0.45); }
+/* шестерёнка настроек — в левом верхнем углу шапки профиля */
+.photo-btn.settings-btn { right: auto; left: 12px; }
+/* светлая тема: светлые тексты тёмной темы → тёмные */
+html[data-theme="light"] .done-summary,
+html[data-theme="light"] .wk-body,
+html[data-theme="light"] .gift-rules p,
+html[data-theme="light"] .athlete-summary,
+html[data-theme="light"] .watch-steps li { color: #2b303b; }
+html[data-theme="light"] .dlg-text, html[data-theme="light"] .tour-text, html[data-theme="light"] .invite-stats { color: #4a5160; }
+html[data-theme="light"] .dlg-title, html[data-theme="light"] .tour-title { color: var(--text); }
+html[data-theme="light"] .gift-when, html[data-theme="light"] .chat-limit.empty, html[data-theme="light"] .morning-warn { color: #b26a00; }
+html[data-theme="light"] .cd-num, html[data-theme="light"] .start-left, html[data-theme="light"] .rank-n.top { color: #b7791f; }
+html[data-theme="light"] .coach-tag { color: #6a3fd6; }
+html[data-theme="light"] .mini-head { background: rgba(255, 255, 255, 0.9); box-shadow: 0 10px 30px rgba(20, 24, 34, 0.14); }
+/* шапка профиля в светлой теме — остаётся «фото-карточкой» с тёмным низом, чтобы белый текст читался */
+html[data-theme="light"] .profile-hero.no-photo {
+  background-color: #2a2f3d;
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(180, 245, 60, 0.55), transparent 55%),
+    radial-gradient(circle at 80% 70%, rgba(155, 107, 255, 0.6), transparent 55%);
+}
+html[data-theme="light"] .profile-hero-name, html[data-theme="light"] .profile-name { color: #ffffff; }
+html[data-theme="light"] .dlg-icon { color: #4a5160; }
+html[data-theme="light"] .watch-btn { color: #6a3fd6; }
+
+/* =====================================================================
+   Совместные пробежки
+   ===================================================================== */
+.seg-4 .seg-btn { padding: 10px 2px; font-size: 13px; white-space: nowrap; }
+.runs-head { display: flex; flex-direction: column; gap: 10px; }
+.runs-city {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
+  padding: 0; border: none; background: none; cursor: pointer;
+  font-size: 17px; color: var(--text);
+}
+.runs-city b { font-family: var(--font-head); font-weight: 700; }
+.runs-hint { line-height: 1.45; }
+.runs-empty { line-height: 1.6; }
+.runs-other { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.run-card { cursor: pointer; }
+.run-card.joined { border-color: rgba(180, 245, 60, 0.45); }
+.run-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.run-when { font-family: var(--font-head); font-weight: 700; font-size: 17px; }
+.run-mine { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: rgba(155, 107, 255, 0.18); color: var(--purple); }
+.run-place { margin-top: 6px; font-weight: 700; font-size: 15px; }
+.run-place.big { margin-top: 0; font-size: 17px; }
+.run-desc { margin-top: 4px; font-size: 14px; line-height: 1.45; color: var(--muted); }
+.run-bottom { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.run-faces { display: flex; align-items: center; flex: 1; min-width: 0; }
+.run-faces .friend-ava { width: 28px; height: 28px; font-size: 12px; margin-right: -8px; box-shadow: 0 0 0 2px var(--card-solid); }
+.run-going { margin-left: 16px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.run-msgs { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.run-go {
+  padding: 9px 16px; border-radius: 999px; border: none; cursor: pointer;
+  background: var(--grad-lime); color: #0b0d10; font-weight: 800; font-size: 14px; white-space: nowrap;
+}
+.run-go.on { background: rgba(180, 245, 60, 0.14); color: var(--lime-text); border: 1px solid rgba(180, 245, 60, 0.6); }
+.run-go:disabled { opacity: 0.5; }
+.run-author { margin-top: 10px; font-size: 14px; color: var(--muted); }
+.run-author-btn { font-weight: 700; color: var(--text); }
+.run-members-title { margin-top: 14px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.run-members { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.run-member { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; background: var(--input); border: 1px solid var(--border); font-size: 13px; font-weight: 600; }
+.run-member .friend-ava { width: 26px; height: 26px; font-size: 11px; }
+.run-actions { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.run-actions .ghost-btn, .run-actions .primary-btn { width: 100%; }
+.run-messages { max-height: none; min-height: 60px; padding: 4px 0 10px; }
+.run-msg {
+  align-self: flex-start; max-width: 82%;
+  padding: 8px 12px; border-radius: 16px 16px 16px 6px;
+  background: var(--card-solid); border: 1px solid var(--border);
+}
+.run-msg.mine { align-self: flex-end; border-radius: 16px 16px 6px 16px; background: rgba(180, 245, 60, 0.14); border-color: rgba(180, 245, 60, 0.4); }
+.run-msg-name { font-size: 12px; font-weight: 800; color: var(--purple); margin-bottom: 2px; }
+.run-msg-text { font-size: 14.5px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+.run-msg-time { font-size: 11px; color: var(--muted); margin-top: 3px; text-align: right; }
+.run-chat-empty { padding: 10px 12px; line-height: 1.45; }
+.run-input-row { margin-top: 4px; }
+.run-safety { margin-top: 10px; font-size: 12px; line-height: 1.45; text-align: center; }
+.run-report { display: block; margin: 8px auto 0; font-size: 13px; color: var(--muted); }
+.rn-row { display: flex; gap: 8px; }
+.rn-row .hr-field { flex: 1; }
+.city-chips { margin-top: 10px; }
+.link-btn { background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.run-author-btn { text-decoration: none; }
+/* поля даты и времени в окнах (старт, рекорд, пробежка) — в стиле остальных полей */
+input[type="date"], input[type="time"] {
+  width: 100%; min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--input);
+  border-radius: 14px;
+  padding: 11px 12px;
+  font-size: 15px; font-family: inherit;
+  color: var(--text);
+  color-scheme: dark;
+  outline: none;
+}
+html[data-theme="light"] input[type="date"], html[data-theme="light"] input[type="time"] { color-scheme: light; }
+html[data-theme="light"] .date-input-wrap input[type="date"] { color-scheme: light; }
