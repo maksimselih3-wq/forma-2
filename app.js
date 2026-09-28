@@ -223,6 +223,31 @@ function distLabel(m) {
   return m >= 1000 && m % 100 === 0 ? `${String(m / 1000).replace('.', ',')} км` : `${m}м`;
 }
 
+// ---------- Время отрезка: «1'» = минута, «30"» = секунды ----------
+function looksLikeDuration(v) {
+  return typeof v === 'string' && /['"′″’”]|мин|сек|:/i.test(v);
+}
+// «1'» → 60, «30"» → 30, «1'30"» → 90, «1:30» → 90, «2 мин» → 120
+function parseDuration(v) {
+  if (v == null || v === '') return null;
+  const t = String(v).toLowerCase().replace(',', '.').replace(/[′’]/g, "'").replace(/[″”]/g, '"').replace(/\s+/g, '');
+  let sec = 0;
+  const hms = t.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);
+  if (hms) sec = hms[3] != null ? (+hms[1]) * 3600 + (+hms[2]) * 60 + (+hms[3]) : (+hms[1]) * 60 + (+hms[2]);
+  else {
+    const m = t.match(/(\d+(?:\.\d+)?)(?:'|мин)/);
+    const s2 = t.match(/(\d+(?:\.\d+)?)(?:"|сек|с$)/) || (m && t.match(/(?:'|мин)(\d{1,2})$/));
+    sec = (m ? parseFloat(m[1]) * 60 : 0) + (s2 ? parseFloat(s2[1]) : 0);
+  }
+  return sec > 0 && sec <= 36000 ? Math.round(sec) : null;
+}
+// 60 → «1'», 90 → «1'30"», 30 → «30"»
+function durLabel(sec) {
+  sec = Math.round(Number(sec) || 0);
+  const m = Math.floor(sec / 60), r = sec % 60;
+  return m ? `${m}'${r ? pad2(r) + '"' : ''}` : `${r}"`;
+}
+
 // ---------- Старты и личные рекорды ----------
 const COMP_DISCIPLINES = ['60 м', '100 м', '200 м', '400 м', '800 м', '1500 м', '3000 м', '5000 м', '10 000 м',
   '60 м с/б', '100 м с/б', '110 м с/б', '400 м с/б', '3000 м с/п', 'Полумарафон', 'Марафон',
@@ -317,7 +342,7 @@ const FORM_TEMPLATE = `
     <section class="card">
       <div class="card-head">
         <div class="card-label">${ico('runner')}Беговая работа</div>
-        <div class="card-hint">метры · кол-во · время · отдых</div>
+        <div class="card-hint">метры или время (1', 30") · кол-во · время/темп · отдых</div>
       </div>
       <div data-f="setsList"></div>
       <button type="button" class="add-btn" data-f="addSet">+ Добавить отрезок</button>
@@ -427,7 +452,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       const row = document.createElement('div');
       row.className = 'set-row';
       row.innerHTML = `
-        <input type="text" inputmode="decimal" placeholder="м / км" value="${esc(distInput(s.distance_m))}" data-k="distance_m" />
+        <input type="text" inputmode="decimal" placeholder="м / км / 1'" value="${esc(distInput(s.distance_m))}" data-k="distance_m" />
         <input type="number" inputmode="numeric" placeholder="Кол-во" value="${esc(s.reps)}" data-k="reps" />
         <input type="text" placeholder="Время" value="${esc(s.time_or_pace)}" data-k="time_or_pace" />
         <input type="text" placeholder="Отдых" value="${esc(s.rest_between)}" data-k="rest_between" />
@@ -501,7 +526,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     if (p.hr_min) f('hrMin').value = p.hr_min;
     if (Array.isArray(p.sets) && p.sets.length) {
       sets = p.sets.map((s) => ({
-        distance_m: s.distance_m ?? '', reps: s.reps ?? '', time_or_pace: s.time_or_pace ?? '', rest_between: s.rest_between ?? '',
+        distance_m: s.duration_s ? durLabel(s.duration_s) : (s.distance_m ?? ''), reps: s.reps ?? '', time_or_pace: s.time_or_pace ?? '', rest_between: s.rest_between ?? '',
       }));
       renderSets();
     }
@@ -583,7 +608,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       f('hrMax').value = w.hr_max ?? '';
       f('hrMin').value = w.hr_min ?? '';
       sets = (Array.isArray(w.sets) ? w.sets : []).map((s) => ({
-        distance_m: s.distance_m ?? '', reps: s.reps ?? '', time_or_pace: s.time_or_pace ?? '', rest_between: s.rest_between ?? '',
+        distance_m: s.duration_s ? durLabel(s.duration_s) : (s.distance_m ?? ''), reps: s.reps ?? '', time_or_pace: s.time_or_pace ?? '', rest_between: s.rest_between ?? '',
       }));
       exercises = (Array.isArray(w.exercises) ? w.exercises : []).map((e) => ({
         name: e.name ?? '', sets: e.sets ?? '', reps: e.reps ?? '', weight: e.weight ?? '',
@@ -616,7 +641,11 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
         rpe: Number(f('rpe').value),
         notes: f('notes').value,
         visibility: f('visibility').checked ? 'public' : 'private',
-        sets: type === 'training' ? sets.map((x) => ({ ...x, distance_m: parseDistance(x.distance_m) })) : [],
+        // в поле «метры» можно написать время («1'», «30"») — тогда это отрезок по времени
+        sets: type === 'training' ? sets.map((x) => {
+          const dur = looksLikeDuration(x.distance_m) ? parseDuration(x.distance_m) : null;
+          return { ...x, duration_s: dur, distance_m: dur ? null : parseDistance(x.distance_m) };
+        }) : [],
         exercises: type === 'training' ? exercises : [],
         hr_avg: f('hrAvg').value,
         hr_max: f('hrMax').value,
@@ -1862,7 +1891,8 @@ function buildDetailLines(w) {
     const setLines = (Array.isArray(w.sets) ? w.sets : [])
       .map((s) => {
         const parts = [];
-        if (s.distance_m) parts.push(distLabel(s.distance_m));
+        if (s.duration_s) parts.push(`по ${durLabel(s.duration_s)}`);
+        else if (s.distance_m) parts.push(distLabel(s.distance_m));
         if (s.reps) parts.push(`x${s.reps}`);
         if (s.time_or_pace) parts.push(s.time_or_pace);
         if (s.rest_between) parts.push(`отдых ${s.rest_between}`);
@@ -3548,12 +3578,12 @@ function fitFont(ctx, text, weight, family, maxSize, maxW, minSize = 40) {
 function storyHero(w) {
   if (w.type === 'rest') return { kind: 'rest' };
   if (w.competition?.result) return { kind: 'comp' };
-  const sets = (w.sets || []).filter((s) => s.distance_m || s.reps);
+  const sets = (w.sets || []).filter((s) => s.distance_m || s.duration_s || s.reps);
   if (sets.length) {
     return {
       kind: 'sets',
       lines: sets.slice(0, 4).map((s) => ({
-        big: `${s.reps && s.reps > 1 ? `${s.reps} × ` : ''}${s.distance_m ? distLabel(s.distance_m).replace(/м$/, ' м') : ''}`.trim(),
+        big: `${s.reps && s.reps > 1 ? `${s.reps} × ` : ''}${s.duration_s ? durLabel(s.duration_s) : s.distance_m ? distLabel(s.distance_m).replace(/м$/, ' м') : ''}`.trim(),
         small: [s.time_or_pace, s.rest_between && `отдых ${s.rest_between}`].filter(Boolean).join(' · '),
       })),
       more: sets.length - 4,
@@ -4142,7 +4172,7 @@ function diaryCsv() {
     'RPE', 'Самочувствие', 'Пульс ср', 'Пульс макс', 'Пульс в паузах', 'Объём, км', 'Заметки'];
   const rows = [...myWorkouts].sort((a, b) => a.date.localeCompare(b.date) || (a.session || 1) - (b.session || 1)).map((w) => [
     w.date, w.type === 'rest' ? 'Отдых' : w.competition ? 'Старт' : 'Тренировка', w.session || 1, w.warmup,
-    (w.sets || []).map((s) => [s.distance_m && distLabel(s.distance_m), s.reps && `x${s.reps}`, s.time_or_pace, s.rest_between && `отдых ${s.rest_between}`].filter(Boolean).join(' ')).join(' | '),
+    (w.sets || []).map((s) => [s.duration_s ? durLabel(s.duration_s) : s.distance_m && distLabel(s.distance_m), s.reps && `x${s.reps}`, s.time_or_pace, s.rest_between && `отдых ${s.rest_between}`].filter(Boolean).join(' ')).join(' | '),
     (w.exercises || []).map(formatExercise).join(' | '), w.cooldown, competitionLine(w.competition),
     w.rpe, w.feeling, w.hr_avg, w.hr_max, w.hr_min, w.type === 'training' ? fmtNum(Math.round(volumeKm(w) * 10) / 10) : '', w.notes,
   ]);
