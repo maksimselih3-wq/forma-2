@@ -2422,6 +2422,7 @@ function goBack() {
   if (!$('friendPickSheet').classList.contains('hidden')) return $('friendPickCancel').click();
   if (!$('recordSheet').classList.contains('hidden')) return closeRecordSheet();
   if (!$('citySheet').classList.contains('hidden')) return $('cityCancel').click();
+  if (!$('timeSheet').classList.contains('hidden')) return $('tpCancel').click();
   if (!$('runSheet').classList.contains('hidden')) return $('rnCancel').click();
   if (screen === 'runScreen') return $('runBackBtn').click();
   if (screen === 'settingsScreen') return $('settingsBackBtn').click();
@@ -4857,15 +4858,41 @@ function paintRunSheet() {
 $('rnDayChips').querySelectorAll('.rn-day[data-day]').forEach((c) => c.addEventListener('click', () => { $('rnDate').value = addDays(localDateStr(), +c.dataset.day); paintRunSheet(); }));
 $('rnTimeChips').querySelectorAll('.rn-time[data-time]').forEach((c) => c.addEventListener('click', () => { $('rnTime').value = c.dataset.time; paintRunSheet(); }));
 $('rnMaxChips').querySelectorAll('.rn-time').forEach((c) => c.addEventListener('click', () => { rnMax = c.dataset.max; paintRunSheet(); }));
-// «Другой день» и «своё время» — открываем системный выбор даты/времени
-for (const id of ['rnDate', 'rnTime']) {
-  const input = $(id);
+// «Другой день» — системный календарь (он открывается везде)
+{
+  const input = $('rnDate');
   input.addEventListener('change', paintRunSheet);
   input.addEventListener('input', paintRunSheet);
   input.parentElement.addEventListener('click', (e) => {
     if (e.target !== input) { try { input.showPicker(); } catch (err) { input.focus(); } }
   });
 }
+// «Другое» время — свой выбор часов и минут (на Mac системный выбор времени не открывается)
+let tpH = 7, tpM = 0;
+const tp2 = (n) => String(n).padStart(2, '0');
+function paintTimePicker() {
+  $('tpValue').textContent = `${tp2(tpH)}:${tp2(tpM)}`;
+  $('tpHours').querySelectorAll('button').forEach((b) => b.classList.toggle('active', +b.dataset.h === tpH));
+  $('tpMins').querySelectorAll('button').forEach((b) => b.classList.toggle('active', +b.dataset.m === tpM));
+}
+$('tpHours').innerHTML = Array.from({ length: 24 }, (_, h) => `<button type="button" class="rn-time" data-h="${h}">${tp2(h)}</button>`).join('');
+$('tpMins').innerHTML = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => `<button type="button" class="rn-time" data-m="${m}">${tp2(m)}</button>`).join('');
+$('tpHours').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { tpH = +b.dataset.h; paintTimePicker(); }));
+$('tpMins').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { tpM = +b.dataset.m; paintTimePicker(); }));
+$('rnTimeOwn').addEventListener('click', () => {
+  const [h, m] = ($('rnTime').value || '07:00').split(':').map(Number);
+  tpH = h; tpM = m - (m % 5);
+  paintTimePicker();
+  $('timeSheet').classList.remove('hidden');
+});
+$('tpCancel').addEventListener('click', () => $('timeSheet').classList.add('hidden'));
+$('timeSheet').addEventListener('click', (e) => { if (e.target === $('timeSheet')) $('timeSheet').classList.add('hidden'); });
+$('tpSave').addEventListener('click', () => {
+  $('rnTime').value = `${tp2(tpH)}:${tp2(tpM)}`;
+  $('timeSheet').classList.add('hidden');
+  haptic('select');
+  paintRunSheet();
+});
 $('runCreateBtn').addEventListener('click', openRunSheet);
 $('rnCancel').addEventListener('click', () => $('runSheet').classList.add('hidden'));
 $('runSheet').addEventListener('click', (e) => { if (e.target === $('runSheet')) $('runSheet').classList.add('hidden'); });
