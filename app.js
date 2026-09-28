@@ -2374,70 +2374,31 @@ window.addEventListener('mouseup', (e) => {
   if (e.button === 3) { e.preventDefault(); goBack(); }
 });
 
-// ---------- Вид спорта в профиле ----------
-const SPORTS = {
-  athletics: ['🏃', 'Лёгкая атлетика'],
-  running: ['👟', 'Бег'],
-  football: ['⚽', 'Футбол'],
-  basketball: ['🏀', 'Баскетбол'],
-  volleyball: ['🏐', 'Волейбол'],
-  hockey: ['🏒', 'Хоккей'],
-  swimming: ['🏊', 'Плавание'],
-  cycling: ['🚴', 'Велоспорт'],
-  triathlon: ['🏅', 'Триатлон'],
-  combat: ['🥊', 'Единоборства'],
-  tennis: ['🎾', 'Теннис'],
-  fitness: ['🏋️', 'Фитнес'],
-  other: ['✨', 'Другое'],
-};
-// Подсказки дисциплин (можно выбрать или написать свою)
-const DISCIPLINES = {
-  athletics: ['Спринт', 'Барьерный бег', 'Средние дистанции', 'Длинные дистанции', 'Прыжки', 'Метания', 'Многоборье', 'Спортивная ходьба'],
-  running: ['5–10 км', 'Полумарафон', 'Марафон', 'Трейл'],
-  swimming: ['Спринт', 'Длинные дистанции', 'Открытая вода'],
-  football: ['Вратарь', 'Защитник', 'Полузащитник', 'Нападающий'],
-  combat: ['Бокс', 'Борьба', 'ММА', 'Дзюдо', 'Карате'],
-};
+// ---------- Дисциплина в профиле (Forma — только для лёгкой атлетики) ----------
+// Вид спорта всегда «Лёгкая атлетика», человек выбирает только свою дисциплину.
+const ATHLETICS = ['🏃', 'Лёгкая атлетика'];
+const DISCIPLINE_CHIPS = ['Спринт', 'Барьерный бег', 'Средние дистанции', 'Длинные дистанции', 'Прыжки', 'Метания', 'Многоборье', 'Спортивная ходьба'];
 
-// «🏃 Лёгкая атлетика · Спринт» или пусто, если вид спорта не выбран
+// «🏃 Лёгкая атлетика · Спринт» (или пусто, если человек ещё ничего не указал)
 function sportLabel(u, { short = false } = {}) {
-  const s = SPORTS[u?.sport];
-  if (!s) return '';
-  if (short) return u.discipline ? `${s[0]} ${u.discipline}` : `${s[0]} ${s[1]}`;
-  return `${s[0]} ${s[1]}${u.discipline ? ' · ' + u.discipline : ''}`;
+  if (!u?.sport && !u?.discipline) return '';
+  if (short) return `${ATHLETICS[0]} ${u.discipline || ATHLETICS[1]}`;
+  return `${ATHLETICS[0]} ${ATHLETICS[1]}${u.discipline ? ' · ' + u.discipline : ''}`;
 }
 
 function renderMySport() {
   const tag = $('profileSport');
   const label = sportLabel(currentUser);
-  tag.textContent = label || '＋ Укажи вид спорта';
+  tag.textContent = label || '＋ Укажи дисциплину';
   tag.classList.toggle('empty', !label);
 }
 
-let sportDraft = { sport: null, discipline: '' };
+let sportDraft = { discipline: '' };
 
 function renderSportSheet() {
-  const grid = $('sportGrid');
-  grid.innerHTML = '';
-  Object.entries(SPORTS).forEach(([key, [emoji, name]]) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'sport-chip' + (sportDraft.sport === key ? ' active' : '');
-    b.innerHTML = `<span>${emoji}</span>${esc(name)}`;
-    b.addEventListener('click', () => {
-      if (sportDraft.sport !== key) sportDraft.discipline = '';
-      sportDraft.sport = key;
-      $('disciplineInput').value = sportDraft.discipline;
-      haptic();
-      renderSportSheet();
-    });
-    grid.appendChild(b);
-  });
-
-  $('disciplineBlock').classList.toggle('hidden', !sportDraft.sport);
   const chips = $('disciplineChips');
   chips.innerHTML = '';
-  (DISCIPLINES[sportDraft.sport] || []).forEach((d) => {
+  DISCIPLINE_CHIPS.forEach((d) => {
     const c = document.createElement('button');
     c.type = 'button';
     c.className = 'chip' + (sportDraft.discipline === d ? ' active' : '');
@@ -2449,11 +2410,11 @@ function renderSportSheet() {
     });
     chips.appendChild(c);
   });
-  $('sportClearBtn').classList.toggle('hidden', !currentUser?.sport);
+  $('sportClearBtn').classList.toggle('hidden', !currentUser?.sport && !currentUser?.discipline);
 }
 
 function openSportSheet() {
-  sportDraft = { sport: currentUser?.sport || null, discipline: currentUser?.discipline || '' };
+  sportDraft = { discipline: currentUser?.discipline || '' };
   $('disciplineInput').value = sportDraft.discipline;
   renderSportSheet();
   $('sportSheet').classList.remove('hidden');
@@ -2481,10 +2442,7 @@ $('disciplineInput').addEventListener('input', (e) => {
   sportDraft.discipline = e.target.value;
   $('disciplineChips').querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c.textContent === e.target.value.trim()));
 });
-$('sportSaveBtn').addEventListener('click', () => {
-  if (!sportDraft.sport) return alertMsg('Выбери вид спорта 🙂');
-  saveSport(sportDraft.sport, sportDraft.discipline.trim());
-});
+$('sportSaveBtn').addEventListener('click', () => saveSport('athletics', sportDraft.discipline.trim()));
 $('sportClearBtn').addEventListener('click', () => saveSport(null, null));
 
 
@@ -2878,7 +2836,7 @@ const TOUR_SLIDES = [
   { icon: 'people', title: 'Друзья',
     text: 'Добавляй друзей по @username, смотри их открытые тренировки, ставь реакции. Что показывать друзьям — решаешь ты.' },
   { icon: 'lock', title: 'Расскажи о себе',
-    text: 'Укажи вид спорта и заполни анкету в профиле — так Fom поймёт, с кем имеет дело. Анкету видишь только ты и Fom.', extra: true },
+    text: 'Укажи свою дисциплину и заполни анкету в профиле — так Fom поймёт, с кем имеет дело. Анкету видишь только ты и Fom.', extra: true },
 ];
 let tourIndex = 0;
 
