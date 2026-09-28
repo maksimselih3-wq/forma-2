@@ -6,11 +6,35 @@ const SELF_HOSTED = !/github\.io$/.test(location.hostname) && location.protocol 
 const API_BASE = SELF_HOSTED ? '' : 'https://forma-production-9c7a.up.railway.app';
 
 const tg = window.Telegram?.WebApp;
+
+// ---------- Тема: тёмная / светлая / как в Telegram ----------
+const THEME_KEY = 'forma_theme';
+function themePref() {
+  try { const v = localStorage.getItem(THEME_KEY); return v === 'light' || v === 'auto' ? v : 'dark'; } catch (e) { return 'dark'; }
+}
+function applyTheme() {
+  const pref = themePref();
+  const light = pref === 'light' || (pref === 'auto' && window.Telegram?.WebApp?.colorScheme === 'light');
+  document.documentElement.dataset.theme = light ? 'light' : 'dark';
+  const bg = light ? '#f3f4ef' : '#0a0c11';
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
+  try { window.Telegram?.WebApp?.setHeaderColor(bg); window.Telegram?.WebApp?.setBackgroundColor(bg); } catch (e) {}
+  try { window.Telegram?.WebApp?.setBottomBarColor?.(bg); } catch (e) {}
+}
+function setThemePref(v) {
+  try { localStorage.setItem(THEME_KEY, v); } catch (e) {}
+  applyTheme();
+  if (typeof haptic === 'function') haptic('select');
+  // графики и карточки, нарисованные кодом, перерисуем под новые цвета
+  try { renderCharts?.(); } catch (e) {}
+}
+applyTheme();
+try { tg?.onEvent?.('themeChanged', applyTheme); } catch (e) {}
 if (tg) {
   tg.ready();
   tg.expand();
   // шапка и фон Telegram в цвет приложения (если версия Telegram это умеет)
-  try { tg.setHeaderColor('#0a0c11'); tg.setBackgroundColor('#0a0c11'); } catch (e) {}
+  // цвета шапки Telegram задаёт applyTheme() ниже — под выбранную тему
 }
 
 let currentUser = null;
@@ -43,6 +67,7 @@ function esc(v) {
 // ---------- Наши иконки (вместо обычных смайликов) ----------
 // Рисуются SVG, цвета берут градиенты из index.html (gLime, gFire, gPurple...).
 const ICONS = {
+  rocket: '<path d="M14.5 3.5c3 .1 5.3 1.4 6 2.1.7.7 2 3 2.1 6-.1.2-3.6 4.4-7.3 6.9l-4.3-4.3c2.5-3.7 6.7-7.2 6.9-7.3Z" transform="translate(-2 1)" fill="url(#gLime)"/><circle cx="15.2" cy="8.8" r="1.7" fill="#0b0d10"/><path d="M8.2 12.3 5 12.9l-2 2.6 4 .6M11.7 15.8l-.6 3.2-2.6 2-.6-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.2 17.8c-1 .3-2 1.3-2.3 3 1.7-.3 2.7-1.3 3-2.3" fill="none" stroke="#ffb84d" stroke-width="1.6" stroke-linecap="round"/>',
   flame: '<path d="M12.3 2.5c.4 2.5-.7 4.2-2.1 5.8C8.7 10 7 11.8 7 14.8a5 5 0 0 0 10 0c0-2.3-1-4-2.4-5.4.1 1.5-.4 2.7-1.4 3.3.3-3.8-.1-7.3-.9-10.2Z" fill="url(#gFire)"/><path d="M12 19.8a2.5 2.5 0 0 1-2.5-2.6c0-1.5 1.1-2.5 2.1-3.7.2 1 .8 1.6 1.5 2 .8.5 1.4 1.1 1.4 1.9a2.5 2.5 0 0 1-2.5 2.4Z" fill="#fff3b8"/>',
   calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="13" y="13" width="4.2" height="4.2" rx="1.3" fill="url(#gLime)"/>',
   week: '<rect x="3.5" y="5" width="17" height="15.5" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="13.4" width="10" height="3.4" rx="1.7" fill="url(#gLime)"/>',
@@ -88,7 +113,9 @@ function hydrateIcons(root = document) {
 function scaleColor(v, reverse = false) {
   const t = (Math.min(Math.max(v, 1), 10) - 1) / 9;
   const hue = Math.round((reverse ? 1 - t : t) * 110);
-  return `hsl(${hue}, 85%, 60%)`;
+  // в светлой теме цвет темнее — иначе жёлтые цифры не читаются на белом
+  const light = document.documentElement.dataset.theme === 'light';
+  return `hsl(${hue}, ${light ? '80%, 38%' : '85%, 60%'})`;
 }
 
 // Фирменная синяя галочка — только у этих аккаунтов (username без @, маленькими буквами)
@@ -177,9 +204,9 @@ async function api(path, options = {}) {
 }
 
 // ---------- Переключение экранов + подсветка нижней панели ----------
-const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen', 'groupScreen', 'memberScreen'];
+const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen', 'groupScreen', 'memberScreen', 'settingsScreen', 'runScreen'];
 // какая кнопка нижней панели подсвечивается на «вложенных» экранах
-const NAV_PARENT = { friendProfileScreen: 'friendsScreen', groupScreen: 'friendsScreen', memberScreen: 'friendsScreen' };
+const NAV_PARENT = { friendProfileScreen: 'friendsScreen', groupScreen: 'friendsScreen', memberScreen: 'friendsScreen', settingsScreen: 'profileScreen', runScreen: 'friendsScreen' };
 const TAB_SCREENS = ['mainScreen', 'chatScreen', 'insightsScreen', 'friendsScreen', 'profileScreen'];
 const tabHistory = []; // какие вкладки открывались — чтобы жест «назад» вёл туда, откуда пришёл
 function showScreen(targetId) {
@@ -273,7 +300,15 @@ function disciplineKey(d) {
   return String(d || '').toLowerCase().replace(/метр(ов|а)?/g, 'м').replace(/\s+/g, '').replace(/ё/g, 'е');
 }
 // Лучший результат в каждой дисциплине (по моим записям)
-function bestResults(list = myWorkouts) {
+// Рекорды, внесённые вручную (без записи старта), — в том же виде, что и записи-старты
+let myManualRecords = [];
+function manualAsWorkouts() {
+  return myManualRecords.map((r) => ({
+    id: 'm' + r.id, manual_id: r.id, manual: true, date: r.date || '1900-01-01',
+    competition: { discipline: r.discipline, result: r.result, name: r.note || '' },
+  }));
+}
+function bestResults(list = [...myWorkouts, ...manualAsWorkouts()]) {
   const best = {};
   list.forEach((w) => {
     const c = w.competition;
@@ -292,7 +327,7 @@ function isPersonalBest(w) {
   if (!c?.discipline || !c?.result) return false;
   const v = parseResult(c.result, c.discipline);
   if (v == null) return false;
-  const others = myWorkouts.filter((x) => x.id !== w.id && x.date <= w.date);
+  const others = [...myWorkouts, ...manualAsWorkouts()].filter((x) => x.id !== w.id && x.date <= w.date);
   const prev = bestResults(others)[disciplineKey(c.discipline)];
   return !prev || (higherIsBetter(c.discipline) ? v > prev.value : v < prev.value);
 }
@@ -395,11 +430,15 @@ const FORM_TEMPLATE = `
   <section class="card">
     <div class="card-label">Заметки</div>
     <textarea data-f="notes" rows="2" placeholder="Как прошло, что заметил..."></textarea>
-    <label class="toggle-row">
-      <input type="checkbox" data-f="visibility" />
-      <span class="toggle"></span>
-      <span>Показывать друзьям</span>
-    </label>
+    <div class="vis-block">
+      <div class="vis-label">Кто видит запись</div>
+      <div class="segmented seg-3 vis-seg" data-f="visSeg">
+        <button type="button" class="seg-btn" data-vis="private">${ico('lock')} Только я</button>
+        <button type="button" class="seg-btn" data-vis="public">${ico('people')} Все друзья</button>
+        <button type="button" class="seg-btn" data-vis="custom">${ico('eye')} Выбрать</button>
+      </div>
+      <button type="button" class="vis-picked hidden" data-f="visPicked"></button>
+    </div>
   </section>
 `;
 
@@ -411,6 +450,35 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   let mode = 'training'; // training | competition | rest
   let sets = [];      // беговые отрезки: { distance_m, reps, time_or_pace, rest_between }
   let exercises = []; // силовая/ОФП:     { name, sets, reps, weight }
+  // кто видит запись: private — только я, public — все друзья, custom — выбранные друзья (visTo — их id)
+  let vis = 'private';
+  let visTo = [];
+
+  function setVisibility(v, list) {
+    vis = v === 'public' || v === 'custom' ? v : 'private';
+    visTo = vis === 'custom' && Array.isArray(list) ? list.map(Number) : [];
+    if (vis === 'custom' && !visTo.length) vis = 'private';
+    paintVisibility();
+  }
+  async function paintVisibility() {
+    f('visSeg').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.vis === vis));
+    const picked = f('visPicked');
+    picked.classList.toggle('hidden', vis !== 'custom');
+    if (vis !== 'custom') return;
+    const friends = await getFriendsCached().catch(() => []);
+    const names = visTo.map((id) => friends.find((x) => x.id === id)).filter(Boolean).map((x) => x.first_name || x.username || 'друг');
+    const shown = names.slice(0, 3).join(', ') + (names.length > 3 ? ` и ещё ${names.length - 3}` : '');
+    picked.innerHTML = `${ico('eye')} Видят: <b>${esc(shown || `${visTo.length} чел.`)}</b> <span class="vis-edit">изменить</span>`;
+  }
+  f('visSeg').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.vis !== 'custom') { vis = b.dataset.vis; paintVisibility(); return; }
+    openFriendPicker(visTo, (ids) => { if (ids.length) { vis = 'custom'; visTo = ids; } paintVisibility(); });
+  }));
+  f('visPicked').addEventListener('click', () => openFriendPicker(visTo, (ids) => {
+    if (ids.length) visTo = ids; else vis = 'private';
+    paintVisibility();
+  }));
+  paintVisibility();
 
   function setType(t) {
     mode = t === 'rest' ? 'rest' : t === 'competition' ? 'competition' : 'training';
@@ -441,8 +509,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
 
   // --- повторить прошлую тренировку ---
   f('repeatBtn').addEventListener('click', () => openRepeatSheet((w) => {
-    const keepVisibility = f('visibility').checked;
-    setData({ ...w, notes: '', competition: null, visibility: keepVisibility ? 'public' : 'private' });
+    setData({ ...w, notes: '', competition: null, visibility: vis, visible_to: visTo });
     setType('training');
     f('smartStatus').textContent = '';
   }));
@@ -605,7 +672,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       f('warmup').value = w.warmup || '';
       f('cooldown').value = w.cooldown || '';
       f('notes').value = w.notes || '';
-      f('visibility').checked = w.visibility === 'public';
+      setVisibility(w.visibility, w.visible_to);
       setSlider('feeling', w.feeling);
       setSlider('rpe', w.rpe);
       f('hrAvg').value = w.hr_avg ?? '';
@@ -644,7 +711,8 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
         feeling: Number(f('feeling').value),
         rpe: Number(f('rpe').value),
         notes: f('notes').value,
-        visibility: f('visibility').checked ? 'public' : 'private',
+        visibility: vis,
+        visible_to: vis === 'custom' ? visTo : [],
         // в поле «метры» можно написать время («1'», «30"») — тогда это отрезок по времени
         sets: type === 'training' ? sets.map((x) => {
           const dur = looksLikeDuration(x.distance_m) ? parseDuration(x.distance_m) : null;
@@ -658,7 +726,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     },
     setData,
     reset() {
-      this.setData({ type: 'training', visibility: f('visibility').checked ? 'public' : 'private' });
+      this.setData({ type: 'training', visibility: vis, visible_to: visTo });
       f('smartText').value = '';
       f('smartStatus').textContent = '';
       growAll(root);
@@ -696,6 +764,8 @@ async function init() {
     $('shareCalendarToggle').checked = user.share_calendar !== false;
     $('showRecordsToggle').checked = user.show_records !== false;
     $('reminderToggle').checked = user.remind_enabled !== false;
+    $('digestToggle').checked = user.digest_on_pref !== false;
+    $('partnersNotifyToggle').checked = user.partners_notify !== false;
     renderMySport();
     updateAvatar();
     updateFriendsBadge();
@@ -707,6 +777,7 @@ async function init() {
     loadAthleteProfile();
     loadMorning();
     loadStarts();
+    loadManualRecords();
     // достижения: через пару секунд, когда подгрузятся анкета и утренние отметки
     setTimeout(() => { achievementsReady = true; renderAchievements(); }, 2500);
     // новичку — короткое знакомство с приложением
@@ -714,6 +785,9 @@ async function init() {
     // открыли по ссылке-приглашению в группу — предложим вступить
     const joinCode = pendingJoinCode();
     if (joinCode) setTimeout(() => joinGroupFlow(joinCode), 1700);
+    // открыли по кнопке «Открыть пробежку» из бота (?run=12)
+    const runId = parseInt(new URLSearchParams(location.search).get('run'), 10);
+    if (runId > 0 && !joinCode) setTimeout(() => openRun(runId), 1200);
   } catch (err) {
     console.error('Login failed', err);
     $('statusMsg').textContent = 'Не удалось связаться с сервером. Попробуй открыть приложение ещё раз.';
@@ -761,6 +835,9 @@ function updateStats() {
   $('profileMonth').textContent = last30;
   $('profileTotal').textContent = total;
   // рекорд серии — не отдельной плиткой, а маленькой меткой в профиле
+  const pno = currentUser?.pioneer_no;
+  $('profilePioneer').innerHTML = pno ? `${ico('rocket')} Первопроходец №${pno}` : '';
+  $('profilePioneer').classList.toggle('hidden', !pno);
   $('profileRecord').innerHTML = `${ico('trophy')} рекорд ${best} дн.`;
   $('profileRecord').classList.toggle('hidden', best < 2);
   try { renderChallenges(); } catch (e) {}
@@ -1422,9 +1499,11 @@ function setFriendsTab(tab) {
   friendsTab = tab;
   document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   $('feedTab').classList.toggle('hidden', tab !== 'feed');
+  $('runsTab').classList.toggle('hidden', tab !== 'runs');
   $('listTab').classList.toggle('hidden', tab !== 'list');
   $('groupsTab').classList.toggle('hidden', tab !== 'groups');
   if (tab === 'feed') loadFeedTab();
+  else if (tab === 'runs') loadRunsTab();
   else if (tab === 'groups') loadGroupsTab();
   else loadFriendsList();
 }
@@ -1606,6 +1685,8 @@ async function openFriendProfile(userId, returnTo) {
     $('fpStreak').textContent = u.current_streak ?? 0;
     $('fpMonth').textContent = fpData.stats?.last30 ?? 0;
     $('fpTotal').textContent = fpData.stats?.total ?? 0;
+    $('fpPioneer').innerHTML = u.pioneer_no ? `${ico('rocket')} Первопроходец №${esc(u.pioneer_no)}` : '';
+    $('fpPioneer').classList.toggle('hidden', !u.pioneer_no);
     $('fpRecord').innerHTML = `${ico('trophy')} рекорд ${esc(u.longest_streak ?? 0)} дн.`;
     $('fpRecord').classList.toggle('hidden', (u.longest_streak ?? 0) < 2);
     $('fpRemoveBtn').classList.toggle('hidden', isMe);
@@ -1764,6 +1845,30 @@ $('shareCalendarToggle').addEventListener('change', async (e) => {
     alertMsg('Не удалось сохранить настройку.');
   }
 });
+// ---------- Экран «Настройки» ----------
+$('settingsBtn').addEventListener('click', () => { haptic(); paintThemeSeg(); showScreen('settingsScreen'); });
+$('settingsBackBtn').addEventListener('click', () => showScreen('profileScreen'));
+for (const [id, key] of [['digestToggle', 'digest'], ['partnersNotifyToggle', 'partners']]) {
+  $(id).addEventListener('change', async (e) => {
+    const on = e.target.checked;
+    try {
+      await api('/api/auth/notify', { method: 'POST', body: JSON.stringify({ [key]: on }) });
+    } catch (err) {
+      console.error(err);
+      e.target.checked = !on;
+      alertMsg('Не удалось сохранить настройку.');
+    }
+  });
+}
+$('themeSeg').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => {
+  setThemePref(b.dataset.themePick);
+  paintThemeSeg();
+}));
+function paintThemeSeg() {
+  const pref = themePref();
+  $('themeSeg').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.themePick === pref));
+}
+
 $('showRecordsToggle').addEventListener('change', async (e) => {
   const show = e.target.checked;
   try {
@@ -1776,7 +1881,7 @@ $('showRecordsToggle').addEventListener('change', async (e) => {
   }
 });
 $('previewProfileBtn').addEventListener('click', () => {
-  if (currentUser) openFriendProfile(currentUser.id, 'profileScreen');
+  if (currentUser) openFriendProfile(currentUser.id, 'settingsScreen');
 });
 
 // ---------- Разбор нагрузки ----------
@@ -1997,7 +2102,7 @@ async function renderEditSocial(workout) {
   card.classList.add('hidden');
   try {
     const { reactions, comments } = await api(`/api/friends/workouts/${workout.id}/social`);
-    if (workout.visibility !== 'public' && !reactions.length && !comments.length) return;
+    if (workout.visibility === 'private' && !reactions.length && !comments.length) return;
     const counts = {};
     let mine = null;
     reactions.forEach((r) => {
@@ -2314,6 +2419,12 @@ function goBack() {
   if (screen === 'editScreen') return $('editBackBtn').click();
   if (!$('groupCreateSheet').classList.contains('hidden')) return $('groupCreateSheet').classList.add('hidden');
   if (!$('groupJoinSheet').classList.contains('hidden')) return $('groupJoinSheet').classList.add('hidden');
+  if (!$('friendPickSheet').classList.contains('hidden')) return $('friendPickCancel').click();
+  if (!$('recordSheet').classList.contains('hidden')) return closeRecordSheet();
+  if (!$('citySheet').classList.contains('hidden')) return $('cityCancel').click();
+  if (!$('runSheet').classList.contains('hidden')) return $('rnCancel').click();
+  if (screen === 'runScreen') return $('runBackBtn').click();
+  if (screen === 'settingsScreen') return $('settingsBackBtn').click();
   if (screen === 'memberScreen') return $('memberBackBtn').click();
   if (screen === 'groupScreen') return $('groupBackBtn').click();
   if (screen === 'friendProfileScreen') return $('fpBackBtn').click();
@@ -2981,6 +3092,54 @@ $('supportBtn').addEventListener('click', () => {
 });
 
 // =====================================================================
+//  КОМУ ПОКАЗАТЬ ТРЕНИРОВКУ — выбор друзей
+// =====================================================================
+let friendsListCache = null;
+let friendsListAt = 0;
+async function getFriendsCached(force = false) {
+  if (!force && friendsListCache && Date.now() - friendsListAt < 60000) return friendsListCache;
+  const { friends } = await api('/api/friends');
+  friendsListCache = friends || [];
+  friendsListAt = Date.now();
+  return friendsListCache;
+}
+async function openFriendPicker(selected, onDone) {
+  const sheet = $('friendPickSheet');
+  const list = $('friendPickList');
+  let chosen = new Set((selected || []).map(Number));
+  list.innerHTML = '<div class="muted center">Загружаю друзей…</div>';
+  sheet.classList.remove('hidden');
+  let friends = [];
+  try { friends = await getFriendsCached(true); } catch (e) { console.error(e); }
+  const paintCount = () => {
+    $('friendPickSave').textContent = chosen.size ? `Готово · ${chosen.size}` : 'Готово';
+  };
+  if (!friends.length) {
+    list.innerHTML = '<div class="muted center friend-pick-empty">Пока нет друзей. Добавь их во вкладке «Друзья» — и сможешь открывать тренировки только им.</div>';
+  } else {
+    list.innerHTML = '';
+    friends.forEach((fr) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'friend-pick-row' + (chosen.has(fr.id) ? ' on' : '');
+      row.innerHTML = `${avatarHtml(fr)}<span class="friend-pick-name">${nameHtml(fr)}</span><span class="friend-pick-check">${ico('check')}</span>`;
+      row.addEventListener('click', () => {
+        haptic('select');
+        if (chosen.has(fr.id)) chosen.delete(fr.id); else chosen.add(fr.id);
+        row.classList.toggle('on', chosen.has(fr.id));
+        paintCount();
+      });
+      list.appendChild(row);
+    });
+  }
+  paintCount();
+  const close = () => sheet.classList.add('hidden');
+  $('friendPickSave').onclick = () => { close(); onDone([...chosen]); };
+  $('friendPickCancel').onclick = () => { close(); onDone([...(selected || [])].map(Number)); };
+  sheet.onclick = (e) => { if (e.target === sheet) $('friendPickCancel').onclick(); };
+}
+
+// =====================================================================
 //  ЛИЧНЫЕ РЕКОРДЫ (профиль)
 // =====================================================================
 function renderRecords() {
@@ -2990,7 +3149,7 @@ function renderRecords() {
   const order = (d) => { const i = COMP_DISCIPLINES.findIndex((x) => disciplineKey(x) === disciplineKey(d)); return i < 0 ? 999 : i; };
   best.sort((a, b) => order(a.w.competition.discipline) - order(b.w.competition.discipline));
   if (!best.length) {
-    box.innerHTML = '<div class="muted records-empty">Отметь «Старт» в записи — лучший результат в каждой дисциплине появится здесь.</div>';
+    box.innerHTML = '<div class="muted records-empty">Нажми «＋ Добавить» и внеси свои лучшие результаты — или отметь «Старт» в записи, и рекорд появится здесь сам.</div>';
     return;
   }
   box.innerHTML = '';
@@ -2999,14 +3158,24 @@ function renderRecords() {
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'record-row';
+    const when = w.manual && w.date === '1900-01-01' ? '' : formatDayMonth(w.date);
+    const sub = [when, c.name, w.manual ? 'вручную' : ''].filter(Boolean).join(' · ');
     row.innerHTML = `
       <span class="record-disc">${esc(c.discipline)}</span>
       <span class="record-main">
         <b class="record-res">${esc(c.result)}</b>
-        <span class="record-sub">${esc(formatDayMonth(w.date))}${c.name ? ' · ' + esc(c.name) : ''}</span>
+        <span class="record-sub">${esc(sub)}</span>
       </span>
-      <span class="history-arrow">›</span>`;
-    row.addEventListener('click', () => openEditScreen(w.id, 'profileScreen'));
+      <span class="history-arrow">${w.manual ? '✕' : '›'}</span>`;
+    row.addEventListener('click', async () => {
+      if (!w.manual) return openEditScreen(w.id, 'profileScreen');
+      if (!(await confirmAsk({ icon: 'trash', title: 'Удалить рекорд?', text: `${c.discipline} — ${c.result}`, ok: 'Удалить', danger: true }))) return;
+      try {
+        await api(`/api/auth/records/${w.manual_id}`, { method: 'DELETE' });
+        myManualRecords = myManualRecords.filter((r) => r.id !== w.manual_id);
+        renderRecords();
+      } catch (err) { alertMsg('Не удалось удалить. Попробуй ещё раз.'); }
+    });
     box.appendChild(row);
   });
 }
@@ -3974,6 +4143,46 @@ function daysLabel(n) {
   return a > 10 && a < 20 ? 'дней' : b === 1 ? 'день' : b >= 2 && b <= 4 ? 'дня' : 'дней';
 }
 
+async function loadManualRecords() {
+  try { myManualRecords = (await api('/api/auth/records')).records || []; } catch (e) { /* не страшно */ }
+  renderRecords();
+}
+
+// Внести рекорд вручную
+function openRecordSheet() {
+  $('rcDisc').value = ''; $('rcResult').value = ''; $('rcNote').value = '';
+  $('rcDate').max = localDateStr(); $('rcDate').value = '';
+  $('rcChips').innerHTML = COMP_DISCIPLINES.map((d) => `<button type="button" class="chip">${esc(d)}</button>`).join('');
+  $('rcChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => {
+    $('rcDisc').value = $('rcDisc').value === c.textContent ? '' : c.textContent;
+    $('rcChips').querySelectorAll('.chip').forEach((x) => x.classList.toggle('active', x.textContent === $('rcDisc').value));
+  }));
+  $('recordSheet').classList.remove('hidden');
+}
+function closeRecordSheet() { $('recordSheet').classList.add('hidden'); }
+$('recordAddBtn').addEventListener('click', openRecordSheet);
+$('rcCancel').addEventListener('click', closeRecordSheet);
+$('recordSheet').addEventListener('click', (e) => { if (e.target === $('recordSheet')) closeRecordSheet(); });
+$('rcSave').addEventListener('click', async () => {
+  const btn = $('rcSave');
+  btn.disabled = true;
+  try {
+    const { record } = await api('/api/auth/records', {
+      method: 'POST',
+      body: JSON.stringify({ discipline: $('rcDisc').value, result: $('rcResult').value, date: $('rcDate').value, note: $('rcNote').value }),
+    });
+    myManualRecords = [...myManualRecords, record];
+    renderRecords();
+    renderAchievements();
+    closeRecordSheet();
+    haptic('success');
+  } catch (err) {
+    alertMsg(err.data?.error || 'Не удалось сохранить рекорд.');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 async function loadStarts() {
   try { plannedStarts = (await api('/api/auth/starts')).starts || []; } catch (e) { plannedStarts = []; }
   renderStarts();
@@ -4139,7 +4348,11 @@ function achievementList() {
   const ap = athleteProfile || {};
   const profileFilled = !!(ap.sex || ap.birth_year || ap.height_cm || ap.weight_kg || ap.goal);
   const month = Math.round(maxMonthKm());
+  const pioneer = currentUser?.pioneer_no
+    ? [{ id: 'pioneer', icon: 'rocket', title: `Первопроходец №${currentUser.pioneer_no}`, desc: 'один из первых 10 в Forma', cur: 1, goal: 1, special: true }]
+    : [];
   return [
+    ...pioneer,
     { id: 'first', icon: 'check', title: 'Первый шаг', desc: 'первая запись', cur: myWorkouts.length, goal: 1 },
     { id: 's7', icon: 'flame', title: 'Неделя подряд', desc: 'серия 7 дней', cur: best, goal: 7 },
     { id: 's30', icon: 'flame', title: 'Месяц без пропусков', desc: 'серия 30 дней', cur: best, goal: 30 },
@@ -4165,7 +4378,7 @@ function renderAchievements() {
   $('achievementsCount').textContent = `${done.length} из ${list.length}`;
   $('achievementsGrid').innerHTML = list.map((a) => {
     const ok = a.cur >= a.goal;
-    return `<div class="ach${ok ? ' on' : ''}">
+    return `<div class="ach${ok ? ' on' : ''}${a.special ? ' ach-special' : ''}">
       <span class="ach-ico">${ico(a.icon)}</span>
       <span class="ach-title">${esc(a.title)}</span>
       <span class="ach-desc">${ok ? esc(a.desc) : a.goal > 1 ? `${Math.min(a.cur, a.goal)}/${a.goal}` : esc(a.desc)}</span>
@@ -4485,6 +4698,268 @@ async function joinGroupFlow(code) {
     openGroup(group.id);
   } catch (err) { alertMsg(err.data?.error || 'Не удалось вступить.'); }
 }
+
+
+// =====================================================================
+//  СОВМЕСТНЫЕ ПРОБЕЖКИ — поиск напарников в своём городе
+// =====================================================================
+const POPULAR_CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург', 'Новосибирск', 'Краснодар',
+  'Нижний Новгород', 'Самара', 'Ростов-на-Дону', 'Сочи', 'Минск', 'Алматы'];
+let runsCity = null;
+let runsData = null;
+let currentRun = null;
+let runPoll = null;
+
+const RUN_WD = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+function runWhen(date, time) {
+  const today = localDateStr();
+  const d = parseDateStr(date);
+  const day = date === today ? 'Сегодня' : date === addDays(today, 1) ? 'Завтра'
+    : `${RUN_WD[(d.getDay() + 6) % 7]}, ${d.getDate()} ${MONTHS_GEN[d.getMonth()]}`;
+  return `${day}, ${time}`;
+}
+
+async function loadRunsTab(city) {
+  $('runsStatus').textContent = '';
+  if (!runsData) $('runsList').innerHTML = '<div class="muted center">Загружаю пробежки…</div>';
+  try {
+    runsData = await api(`/api/partners${city || runsCity ? `?city=${encodeURIComponent(city || runsCity)}` : ''}`);
+    runsCity = runsData.city;
+    renderRunsTab();
+    if (!runsCity) setTimeout(openCitySheet, 300);
+  } catch (err) {
+    console.error(err);
+    $('runsList').innerHTML = '';
+    $('runsStatus').textContent = err.data?.error || 'Не удалось загрузить пробежки.';
+  }
+}
+
+function renderRunsTab() {
+  $('runsCity').textContent = runsCity || 'Выбери город';
+  const list = $('runsList');
+  const runs = runsData?.runs || [];
+  if (!runsCity) { list.innerHTML = ''; return; }
+  if (!runs.length) {
+    const other = (runsData.cities || []).filter((c) => c.city.toLowerCase() !== runsCity.toLowerCase()).slice(0, 4);
+    list.innerHTML = `<div class="empty-hint runs-empty">В городе ${esc(runsCity)} пока никто не зовёт на пробежку.<br>Будь первым — нажми «Позвать на пробежку» 🏃
+      ${other.length ? `<div class="runs-other">Сейчас бегают: ${other.map((c) => `<button type="button" class="chip" data-city="${esc(c.city)}">${esc(c.city)} · ${c.n}</button>`).join(' ')}</div>` : ''}</div>`;
+    list.querySelectorAll('[data-city]').forEach((b) => b.addEventListener('click', () => loadRunsTab(b.dataset.city)));
+    return;
+  }
+  list.innerHTML = '';
+  runs.forEach((r) => list.appendChild(buildRunCard(r)));
+}
+
+function buildRunCard(r) {
+  const card = document.createElement('article');
+  card.className = 'card run-card' + (r.joined ? ' joined' : '');
+  const full = r.max_people && r.going >= r.max_people && !r.joined;
+  const faces = (r.people || []).map((u) => avatarHtml(u, 'run-face')).join('');
+  card.innerHTML = `
+    <div class="run-top">
+      <div class="run-when">${esc(runWhen(r.date, r.time))}</div>
+      ${r.mine ? '<span class="run-mine">твоя</span>' : ''}
+    </div>
+    <div class="run-place">📍 ${esc(r.place)}</div>
+    ${r.description ? `<div class="run-desc">${esc(r.description)}</div>` : ''}
+    <div class="run-bottom">
+      <div class="run-faces">${faces}<span class="run-going">${r.going}${r.max_people ? ` из ${r.max_people}` : ''} ${goingWord(r.going)}</span></div>
+      ${r.messages ? `<span class="run-msgs">💬 ${r.messages}</span>` : ''}
+      <button type="button" class="run-go ${r.joined ? 'on' : ''}" ${full ? 'disabled' : ''}>${r.joined ? '✓ Иду' : full ? 'Мест нет' : 'Иду'}</button>
+    </div>`;
+  card.addEventListener('click', (e) => { if (!e.target.closest('.run-go')) openRun(r.id); });
+  card.querySelector('.run-go').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (r.joined) return openRun(r.id);
+    try {
+      await api(`/api/partners/${r.id}/join`, { method: 'POST' });
+      haptic('success');
+      openRun(r.id);
+    } catch (err) { alertMsg(err.data?.error || 'Не получилось. Попробуй ещё раз.'); }
+  });
+  return card;
+}
+function goingWord(n) {
+  const a = n % 100, b = n % 10;
+  return a > 10 && a < 20 ? 'идут' : b === 1 ? 'идёт' : 'идут';
+}
+
+// ---------- Город ----------
+function openCitySheet() {
+  $('cityInput').value = runsCity || '';
+  const known = (runsData?.cities || []).map((c) => c.city);
+  const all = [...new Set([...known, ...POPULAR_CITIES])].slice(0, 14);
+  $('cityChips').innerHTML = all.map((c) => `<button type="button" class="chip">${esc(c)}</button>`).join('');
+  $('cityChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => { $('cityInput').value = c.textContent; saveCity(); }));
+  $('citySheet').classList.remove('hidden');
+}
+async function saveCity() {
+  const city = $('cityInput').value.trim();
+  if (!city) return;
+  $('citySheet').classList.add('hidden');
+  try { await api('/api/partners/city', { method: 'PUT', body: JSON.stringify({ city }) }); } catch (e) { /* не страшно */ }
+  runsCity = city;
+  runsData = null;
+  loadRunsTab(city);
+}
+$('runsCityBtn').addEventListener('click', openCitySheet);
+$('citySave').addEventListener('click', saveCity);
+$('cityCancel').addEventListener('click', () => $('citySheet').classList.add('hidden'));
+$('citySheet').addEventListener('click', (e) => { if (e.target === $('citySheet')) $('citySheet').classList.add('hidden'); });
+
+// ---------- Позвать на пробежку ----------
+function openRunSheet() {
+  if (!runsCity) return openCitySheet();
+  $('rnCity').textContent = runsCity;
+  $('rnDate').min = localDateStr();
+  $('rnDate').max = addDays(localDateStr(), 30);
+  $('rnDate').value = addDays(localDateStr(), 1);
+  $('rnPlace').value = ''; $('rnDesc').value = ''; $('rnMax').value = '';
+  paintRunDayChips();
+  $('runSheet').classList.remove('hidden');
+}
+function paintRunDayChips() {
+  $('rnDayChips').querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', addDays(localDateStr(), +c.dataset.day) === $('rnDate').value));
+}
+$('rnDayChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => { $('rnDate').value = addDays(localDateStr(), +c.dataset.day); paintRunDayChips(); }));
+$('rnDate').addEventListener('change', paintRunDayChips);
+$('runCreateBtn').addEventListener('click', openRunSheet);
+$('rnCancel').addEventListener('click', () => $('runSheet').classList.add('hidden'));
+$('runSheet').addEventListener('click', (e) => { if (e.target === $('runSheet')) $('runSheet').classList.add('hidden'); });
+$('rnSave').addEventListener('click', async () => {
+  const btn = $('rnSave');
+  btn.disabled = true;
+  try {
+    const { id } = await api('/api/partners', {
+      method: 'POST',
+      body: JSON.stringify({ city: runsCity, date: $('rnDate').value, time: $('rnTime').value, place: $('rnPlace').value, description: $('rnDesc').value, max_people: $('rnMax').value }),
+    });
+    $('runSheet').classList.add('hidden');
+    haptic('success');
+    runsData = null;
+    openRun(id);
+  } catch (err) {
+    alertMsg(err.data?.error || 'Не удалось создать пробежку.');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------- Экран пробежки ----------
+async function openRun(id) {
+  showScreen('runScreen');
+  $('runInfo').innerHTML = '<div class="muted center">Загружаю…</div>';
+  $('runActions').innerHTML = '';
+  $('runMessages').innerHTML = '';
+  $('runWhen').textContent = '';
+  currentRun = null;
+  await refreshRun(id, true);
+  clearInterval(runPoll);
+  runPoll = setInterval(() => {
+    if (document.querySelector('.screen:not(.hidden)')?.id !== 'runScreen' || !currentRun) return clearInterval(runPoll);
+    refreshRun(currentRun.run.id, false);
+  }, 8000);
+}
+async function refreshRun(id, first) {
+  try {
+    const data = await api(`/api/partners/${id}`);
+    const newMsgs = !currentRun || data.messages.length !== currentRun.messages.length;
+    currentRun = data;
+    renderRun(first || newMsgs);
+  } catch (err) {
+    if (first) {
+      $('runInfo').innerHTML = `<div class="empty-hint">${esc(err.data?.error || 'Не удалось открыть пробежку.')}</div>`;
+    }
+  }
+}
+function renderRun(scrollChat) {
+  const { run, members, messages } = currentRun;
+  $('runCityLabel').textContent = `Пробежка · ${run.city}`;
+  $('runWhen').textContent = runWhen(run.date, run.time);
+  $('runInfo').innerHTML = `
+    <div class="run-place big">📍 ${esc(run.place)}</div>
+    ${run.description ? `<div class="run-desc">${esc(run.description)}</div>` : ''}
+    <div class="run-author">Зовёт: <button type="button" class="link-btn run-author-btn">${nameHtml(run.author || {})}</button></div>
+    <div class="run-members-title">${members.length}${run.max_people ? ` из ${run.max_people}` : ''} ${goingWord(members.length)}</div>
+    <div class="run-members">${members.map((u) => `<span class="run-member">${avatarHtml(u)}<span>${esc(personName(u))}</span></span>`).join('')}</div>`;
+  const authorBtn = $('runInfo').querySelector('.run-author-btn');
+  authorBtn.addEventListener('click', () => {
+    const u = run.author;
+    if (u?.username) { try { tg?.openTelegramLink ? tg.openTelegramLink(`https://t.me/${u.username}`) : window.open(`https://t.me/${u.username}`, '_blank'); } catch (e) {} }
+  });
+
+  const acts = $('runActions');
+  acts.innerHTML = '';
+  const addBtn = (label, cls, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = cls; b.innerHTML = label;
+    b.addEventListener('click', fn);
+    acts.appendChild(b);
+  };
+  if (run.mine) {
+    addBtn('Отменить пробежку', 'ghost-btn danger', async () => {
+      if (!(await confirmAsk({ icon: 'trash', title: 'Отменить пробежку?', text: 'Участники получат сообщение от бота.', ok: 'Отменить', danger: true }))) return;
+      try { await api(`/api/partners/${run.id}`, { method: 'DELETE' }); runsData = null; $('runBackBtn').click(); }
+      catch (err) { alertMsg(err.data?.error || 'Не удалось отменить.'); }
+    });
+  } else if (run.joined) {
+    addBtn('✓ Ты идёшь · не пойду', 'ghost-btn', async () => {
+      try { await api(`/api/partners/${run.id}/leave`, { method: 'POST' }); refreshRun(run.id, false); } catch (err) { alertMsg(err.data?.error || 'Не получилось.'); }
+    });
+  } else {
+    const full = run.max_people && members.length >= run.max_people;
+    addBtn(full ? 'Мест нет' : '🏃 Иду', 'primary-btn', async () => {
+      if (full) return;
+      try { await api(`/api/partners/${run.id}/join`, { method: 'POST' }); haptic('success'); refreshRun(run.id, false); }
+      catch (err) { alertMsg(err.data?.error || 'Не получилось.'); }
+    });
+  }
+  if (!run.mine && run.author?.username) {
+    addBtn('Написать автору', 'ghost-btn', () => authorBtn.click());
+  }
+  $('runReportBtn').classList.toggle('hidden', !!run.mine);
+
+  const box = $('runMessages');
+  if (!messages.length) {
+    box.innerHTML = '<div class="muted center run-chat-empty">Здесь можно договориться: где встречаемся, какой темп, кто опаздывает.</div>';
+  } else {
+    box.innerHTML = messages.map((m) => `
+      <div class="run-msg ${m.mine ? 'mine' : ''}">
+        ${m.mine ? '' : `<div class="run-msg-name">${esc(personName(m.author || {}))}</div>`}
+        <div class="run-msg-text">${esc(m.text)}</div>
+        <div class="run-msg-time">${esc(timeAgo(m.created_at))}</div>
+      </div>`).join('');
+  }
+  if (scrollChat) setTimeout(() => box.lastElementChild?.scrollIntoView({ block: 'nearest' }), 50);
+}
+async function sendRunMessage() {
+  const input = $('runInput');
+  const text = input.value.trim();
+  if (!text || !currentRun) return;
+  input.value = '';
+  try {
+    await api(`/api/partners/${currentRun.run.id}/messages`, { method: 'POST', body: JSON.stringify({ text }) });
+    haptic();
+    refreshRun(currentRun.run.id, false).then(() => $('runMessages').lastElementChild?.scrollIntoView({ block: 'nearest' }));
+  } catch (err) {
+    input.value = text;
+    alertMsg(err.data?.error || 'Не удалось отправить.');
+  }
+}
+$('runSendBtn').addEventListener('mousedown', (e) => e.preventDefault()); // не теряем нажатие при открытой клавиатуре
+$('runSendBtn').addEventListener('click', sendRunMessage);
+$('runInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendRunMessage(); } });
+$('runBackBtn').addEventListener('click', () => {
+  clearInterval(runPoll);
+  showScreen('friendsScreen');
+  setFriendsTab('runs');
+});
+$('runReportBtn').addEventListener('click', async () => {
+  if (!currentRun) return;
+  if (!(await confirmAsk({ icon: 'warn', title: 'Пожаловаться на пробежку?', text: 'Если здесь спам, реклама или что-то неприличное — я проверю и удалю.', ok: 'Пожаловаться', danger: true }))) return;
+  try { await api(`/api/partners/${currentRun.run.id}/report`, { method: 'POST', body: JSON.stringify({ reason: 'жалоба из приложения' }) }); alertMsg('Спасибо! Жалоба отправлена.'); }
+  catch (err) { alertMsg('Не удалось отправить жалобу.'); }
+});
 
 // Открыли приложение по ссылке-приглашению в группу (?join=код или start_param g_код)
 function pendingJoinCode() {
