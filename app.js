@@ -184,8 +184,15 @@ function mondayOf(str) {
 
 // ---------- API ----------
 async function api(path, options = {}) {
-  const res = await fetch(API_BASE + path, {
+  // не ждём сервер бесконечно: если связи нет (например, сайт заблокирован), через 20 секунд — ошибка,
+  // и приложение покажет понятное сообщение вместо вечной заставки
+  const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), options.timeout || 20000) : null;
+  let res;
+  try {
+    res = await fetch(API_BASE + path, {
     ...options,
+    signal: ctrl ? ctrl.signal : undefined,
     headers: {
       'Content-Type': 'application/json',
       'X-Telegram-Init-Data': tg?.initData || '',
@@ -193,6 +200,13 @@ async function api(path, options = {}) {
       ...(options.headers || {}),
     },
   });
+  } catch (e) {
+    const err = new Error(`Нет связи с сервером (${path})`);
+    err.network = true;
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
   if (!res.ok) {
     let data = null;
     try { data = await res.json(); } catch {}
@@ -791,6 +805,20 @@ async function init() {
   } catch (err) {
     console.error('Login failed', err);
     $('statusMsg').textContent = 'Не удалось связаться с сервером. Попробуй открыть приложение ещё раз.';
+    hideSplash();
+    setTimeout(async () => {
+      const again = await showDialog({
+        icon: 'warn',
+        title: 'Нет связи с Forma',
+        text: err.network
+          ? 'Сервер не отвечает. Проверь интернет. В России без VPN приложение пока может не открываться — включи VPN и попробуй снова.'
+          : 'Сервер ответил ошибкой. Попробуй ещё раз через минуту.',
+        ok: 'Повторить',
+        cancel: 'Закрыть',
+      });
+      if (again) location.reload();
+    }, 1500);
+    return;
   }
   hideSplash();
 }
@@ -799,7 +827,7 @@ async function loadMyWorkouts() {
   const { workouts, streak } = await api('/api/workouts');
   myWorkouts = workouts.map((w) => ({ ...w, date: normDate(w.date) }));
   workoutsByDate = {};
-  myWorkouts.forEach((w) => { (workoutsByDate[w.date] ||= []).push(w); });
+  myWorkouts.forEach((w) => { (workoutsByDate[w.date] = workoutsByDate[w.date] || []).push(w); });
   Object.values(workoutsByDate).forEach((list) => list.sort((a, b) => (a.session || 1) - (b.session || 1)));
   if (currentUser && streak) {
     currentUser.current_streak = streak.current;
@@ -985,7 +1013,7 @@ $('saveBtn').addEventListener('click', async () => {
       await loadMyWorkouts();
     } catch (e) {
       const w = { ...result.workout, date: normDate(result.workout.date) };
-      (workoutsByDate[w.date] ||= []).push(w);
+      (workoutsByDate[w.date] = workoutsByDate[w.date] || []).push(w);
     }
 
     statusEl.textContent = '';
@@ -3612,8 +3640,8 @@ function parseXmlWorkout(text) {
   }
   const hrs = out.records.map((r) => r.hr).filter(Boolean);
   if (out.session && hrs.length) {
-    out.session.hrAvg ??= Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length);
-    out.session.hrMax ??= Math.max(...hrs);
+    if (out.session.hrAvg == null) out.session.hrAvg = Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length);
+    if (out.session.hrMax == null) out.session.hrMax = Math.max(...hrs);
   }
   return out;
 }
