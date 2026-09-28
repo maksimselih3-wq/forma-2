@@ -1741,3 +1741,14 @@ button.rank-row { cursor: pointer; }
 .member-well .morning-sum { font-size: 14px; }
 
 .sport-note { font-size: 13px; margin: -4px 0 12px; }
+
+/* ---------- Личный рекорд на карточке старта ---------- */
+.wk-chip.pb-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: #ffd15a;
+  background: rgba(255, 209, 90, 0.12);
+  border-color: rgba(255, 209, 90, 0.45);
+  box-shadow: 0 0 14px rgba(255, 209, 90, 0.18);
+}
+.wk-chip.pb-chip .ico, .wk-chip.pb-chip svg { width: 13px; height: 13px; }
+#fpRecordsCard { margin-top: 14px; }
