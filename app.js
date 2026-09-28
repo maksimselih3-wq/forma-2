@@ -4808,21 +4808,64 @@ $('cityCancel').addEventListener('click', () => $('citySheet').classList.add('hi
 $('citySheet').addEventListener('click', (e) => { if (e.target === $('citySheet')) $('citySheet').classList.add('hidden'); });
 
 // ---------- Позвать на пробежку ----------
+let rnMax = '';
+const RN_WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+function rnDayShort(dateStr) {
+  const d = parseDateStr(dateStr);
+  return `${RN_WD[d.getDay()]}, ${d.getDate()} ${MONTHS_GEN[d.getMonth()].slice(0, 3)}`;
+}
 function openRunSheet() {
   if (!runsCity) return openCitySheet();
   $('rnCity').textContent = runsCity;
-  $('rnDate').min = localDateStr();
-  $('rnDate').max = addDays(localDateStr(), 30);
-  $('rnDate').value = addDays(localDateStr(), 1);
-  $('rnPlace').value = ''; $('rnDesc').value = ''; $('rnMax').value = '';
-  paintRunDayChips();
+  const today = localDateStr();
+  $('rnDate').min = today;
+  $('rnDate').max = addDays(today, 30);
+  $('rnDate').value = addDays(today, 1);
+  $('rnTime').value = '07:00';
+  $('rnPlace').value = ''; $('rnDesc').value = '';
+  rnMax = '';
+  $('rnDayChips').querySelectorAll('.rn-day[data-day]').forEach((c) => { c.querySelector('span').textContent = rnDayShort(addDays(today, +c.dataset.day)); });
+  // третья плашка — день недели («Среда»), чтобы влезало
+  const d2 = parseDateStr(addDays(today, 2));
+  $('rnDay2').textContent = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'][d2.getDay()];
+  paintRunSheet();
   $('runSheet').classList.remove('hidden');
 }
-function paintRunDayChips() {
-  $('rnDayChips').querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', addDays(localDateStr(), +c.dataset.day) === $('rnDate').value));
+function paintRunSheet() {
+  const today = localDateStr();
+  const date = $('rnDate').value;
+  let quick = false;
+  $('rnDayChips').querySelectorAll('.rn-day[data-day]').forEach((c) => {
+    const on = addDays(today, +c.dataset.day) === date;
+    quick = quick || on;
+    c.classList.toggle('active', on);
+  });
+  $('rnOtherDay').classList.toggle('active', !quick && !!date);
+  $('rnOtherLabel').textContent = !quick && date ? rnDayShort(date) : 'день';
+  const time = $('rnTime').value;
+  let quickT = false;
+  $('rnTimeChips').querySelectorAll('.rn-time[data-time]').forEach((c) => {
+    const on = c.dataset.time === time;
+    quickT = quickT || on;
+    c.classList.toggle('active', on);
+  });
+  const own = $('rnTimeChips').querySelector('.rn-time-own');
+  own.classList.toggle('active', !quickT && !!time);
+  $('rnTimeLabel').textContent = !quickT && time ? time : 'Другое';
+  $('rnMaxChips').querySelectorAll('.rn-time').forEach((c) => c.classList.toggle('active', c.dataset.max === rnMax));
 }
-$('rnDayChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => { $('rnDate').value = addDays(localDateStr(), +c.dataset.day); paintRunDayChips(); }));
-$('rnDate').addEventListener('change', paintRunDayChips);
+$('rnDayChips').querySelectorAll('.rn-day[data-day]').forEach((c) => c.addEventListener('click', () => { $('rnDate').value = addDays(localDateStr(), +c.dataset.day); paintRunSheet(); }));
+$('rnTimeChips').querySelectorAll('.rn-time[data-time]').forEach((c) => c.addEventListener('click', () => { $('rnTime').value = c.dataset.time; paintRunSheet(); }));
+$('rnMaxChips').querySelectorAll('.rn-time').forEach((c) => c.addEventListener('click', () => { rnMax = c.dataset.max; paintRunSheet(); }));
+// «Другой день» и «своё время» — открываем системный выбор даты/времени
+for (const id of ['rnDate', 'rnTime']) {
+  const input = $(id);
+  input.addEventListener('change', paintRunSheet);
+  input.addEventListener('input', paintRunSheet);
+  input.parentElement.addEventListener('click', (e) => {
+    if (e.target !== input) { try { input.showPicker(); } catch (err) { input.focus(); } }
+  });
+}
 $('runCreateBtn').addEventListener('click', openRunSheet);
 $('rnCancel').addEventListener('click', () => $('runSheet').classList.add('hidden'));
 $('runSheet').addEventListener('click', (e) => { if (e.target === $('runSheet')) $('runSheet').classList.add('hidden'); });
@@ -4832,7 +4875,7 @@ $('rnSave').addEventListener('click', async () => {
   try {
     const { id } = await api('/api/partners', {
       method: 'POST',
-      body: JSON.stringify({ city: runsCity, date: $('rnDate').value, time: $('rnTime').value, place: $('rnPlace').value, description: $('rnDesc').value, max_people: $('rnMax').value }),
+      body: JSON.stringify({ city: runsCity, date: $('rnDate').value, time: $('rnTime').value, place: $('rnPlace').value, description: $('rnDesc').value, max_people: rnMax }),
     });
     $('runSheet').classList.add('hidden');
     haptic('success');
