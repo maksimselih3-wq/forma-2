@@ -1951,3 +1951,45 @@ input[type="date"], input[type="time"] {
 }
 html[data-theme="light"] input[type="date"], html[data-theme="light"] input[type="time"] { color-scheme: light; }
 html[data-theme="light"] .date-input-wrap input[type="date"] { color-scheme: light; }
+
+/* ---------- Окно «Позвать на пробежку» ---------- */
+.run-sheet { max-height: 88vh; overflow-y: auto; }
+.rn-block { margin-bottom: 14px; }
+.rn-label { font-size: 13px; font-weight: 700; color: var(--muted); margin: 0 0 8px 2px; }
+.rn-block input[type="text"] { margin: 0; }
+.rn-days { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.rn-day {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 56px; padding: 8px 4px;
+  border-radius: 14px; border: 1px solid var(--border); background: var(--input);
+  color: var(--text); cursor: pointer; text-align: center;
+}
+.rn-day b { font-size: 13px; font-weight: 800; }
+.rn-day span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.rn-day.active, .rn-time.active { background: var(--grad-lime); border-color: transparent; color: #0b0d10; }
+.rn-day.active span { color: rgba(11, 13, 16, 0.7); }
+.rn-times, .rn-max { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.rn-max { margin-top: 0; }
+.rn-time {
+  position: relative; overflow: hidden;
+  padding: 9px 13px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--input);
+  color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+/* системные поля даты и времени спрятаны под «плашками» — нажатие открывает выбор, но выглядят как наши кнопки */
+.rn-day-other input, .rn-time-own input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; border: none; padding: 0; margin: 0; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+}
+/* Safari (Telegram на Mac и iPhone): у полей даты своя высота и текст по центру — выравниваем */
+.st-date input[type="date"], #rcDate {
+  -webkit-appearance: none; appearance: none;
+  min-height: 46px; text-align: left; display: block;
+}
+input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+.rn-times, .rn-max { display: grid; grid-template-columns: repeat(5, 1fr); }
+.rn-times .rn-time, .rn-max .rn-time { padding: 10px 2px; text-align: center; white-space: nowrap; }
+.rn-day b { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
