@@ -60,7 +60,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=53" />
+<link rel="stylesheet" href="style.css?v=54" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -328,6 +328,12 @@
         <span>Друзья видят весь мой календарь</span>
       </label>
       <div class="muted privacy-hint">Друзья видят подробно только те тренировки, где включено «Показывать друзьям». Остальные дни — просто отметкой в календаре. Выключи, и отметки закрытых дней пропадут.</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="showRecordsToggle" checked />
+        <span class="toggle"></span>
+        <span>Друзья видят мои личные рекорды</span>
+      </label>
+      <div class="muted privacy-hint">Лучший результат в каждой дисциплине — в твоём профиле у друзей.</div>
       <button type="button" class="ghost-btn wide" id="previewProfileBtn"><i data-ico="eye"></i> Как меня видят друзья</button>
     </section>
 
@@ -717,6 +723,11 @@
       <div id="fpCalHelp" class="muted cal-help">Нажми на отмеченный день — покажем тренировку. Закрытые дни видны без подробностей.</div>
     </section>
 
+    <section class="card records-card hidden" id="fpRecordsCard">
+      <div class="card-label"><i data-ico="trophy"></i>Личные рекорды</div>
+      <div id="fpRecordsList"></div>
+    </section>
+
     <h3 class="section-title">Открытые тренировки</h3>
     <div id="fpWorkouts"></div>
 
@@ -864,6 +875,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=53"></script>
+  <script src="app.js?v=54"></script>
 </body>
 </html>
