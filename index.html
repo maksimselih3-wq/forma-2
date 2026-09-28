@@ -46,11 +46,21 @@
     50% { filter: drop-shadow(0 0 4px rgba(180, 245, 60, 0.9)) drop-shadow(0 0 10px rgba(180, 245, 60, 0.5)); }
   }
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=50" />
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Шрифты и скрипт Telegram: на своём домене берём их через наш сервер (в России внешние адреса часто недоступны),
+     на GitHub Pages — как раньше, из интернета -->
+<script>
+  (function () {
+    var self = !/github\.io$/.test(location.hostname) && location.protocol !== 'file:';
+    var fonts = self ? '/api/asset/fonts.css' : 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap';
+    document.write('<link rel="stylesheet" href="' + fonts + '" />');
+    document.write('<script src="' + (self ? '/api/asset/tg.js' : 'https://telegram.org/js/telegram-web-app.js') + '"><\/script>');
+  })();
+</script>
+<script>
+  // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
+  if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
+</script>
+<link rel="stylesheet" href="style.css?v=52" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -765,7 +775,7 @@
       <span class="fom-badge big">F</span>
       <div>
         <div class="chat-head-name">Fom</div>
-        <div class="muted">ИИ-помощник · знает твой дневник</div>
+        <div class="muted">Помощник · знает твой дневник</div>
       </div>
     </div>
     <div id="chatMessages" class="chat-messages"></div>
@@ -854,6 +864,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=50"></script>
+  <script src="app.js?v=52"></script>
 </body>
 </html>
