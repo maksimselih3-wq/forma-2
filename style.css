@@ -1739,3 +1739,5 @@ button.rank-row { cursor: pointer; }
 .private-wk { border-style: dashed; }
 .private-wk .wk-date::after { content: ' · 🔒 закрытая'; color: var(--muted); }
 .member-well .morning-sum { font-size: 14px; }
+
+.sport-note { font-size: 13px; margin: -4px 0 12px; }
