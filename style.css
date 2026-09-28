@@ -1993,3 +1993,8 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .rn-times, .rn-max { display: grid; grid-template-columns: repeat(5, 1fr); }
 .rn-times .rn-time, .rn-max .rn-time { padding: 10px 2px; text-align: center; white-space: nowrap; }
 .rn-day b { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* свой выбор времени */
+#timeSheet { z-index: 60; }
+.tp-value { margin-left: 6px; font-family: var(--font-head); color: var(--lime-text); }
+.tp-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 14px; }
+.tp-grid .rn-time { padding: 10px 0; text-align: center; }
