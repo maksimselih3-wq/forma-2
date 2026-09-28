@@ -81,7 +81,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=55" />
+<link rel="stylesheet" href="style.css?v=56" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -480,20 +480,47 @@
 
   <!-- Позвать на пробежку -->
   <div id="runSheet" class="sheet-backdrop hidden">
-    <div class="sheet start-sheet">
+    <div class="sheet run-sheet">
       <div class="sheet-title">🏃 Позвать на пробежку</div>
-      <div class="comp-chips" id="rnDayChips">
-        <button type="button" class="chip" data-day="0">Сегодня</button>
-        <button type="button" class="chip" data-day="1">Завтра</button>
-        <button type="button" class="chip" data-day="2">Послезавтра</button>
+
+      <div class="rn-block">
+        <div class="rn-label">Когда</div>
+        <div class="rn-days" id="rnDayChips">
+          <button type="button" class="rn-day" data-day="0"><b>Сегодня</b><span></span></button>
+          <button type="button" class="rn-day" data-day="1"><b>Завтра</b><span></span></button>
+          <button type="button" class="rn-day" data-day="2"><b id="rnDay2">Послезавтра</b><span></span></button>
+          <label class="rn-day rn-day-other" id="rnOtherDay"><b>Другой</b><span id="rnOtherLabel">день</span><input type="date" id="rnDate" /></label>
+        </div>
+        <div class="rn-times" id="rnTimeChips">
+          <button type="button" class="rn-time" data-time="07:00">07:00</button>
+          <button type="button" class="rn-time" data-time="08:00">08:00</button>
+          <button type="button" class="rn-time" data-time="10:00">10:00</button>
+          <button type="button" class="rn-time" data-time="19:00">19:00</button>
+          <label class="rn-time rn-time-own"><span id="rnTimeLabel">Другое</span><input type="time" id="rnTime" value="07:30" /></label>
+        </div>
       </div>
-      <div class="rn-row">
-        <label class="hr-field"><span>Дата</span><input type="date" id="rnDate" /></label>
-        <label class="hr-field"><span>Время</span><input type="time" id="rnTime" value="07:30" /></label>
+
+      <div class="rn-block">
+        <div class="rn-label">Где встречаемся</div>
+        <input type="text" id="rnPlace" maxlength="80" placeholder="Например, вход в парк Горького" />
       </div>
-      <input type="text" id="rnPlace" maxlength="80" placeholder="Где встречаемся: например, вход в парк Горького" />
-      <input type="text" id="rnDesc" maxlength="200" placeholder="Что бежим: например, 10 км по 4:30, спокойно" class="st-goal" />
-      <input type="number" id="rnMax" min="2" max="100" inputmode="numeric" placeholder="Сколько человек максимум (необязательно)" class="st-goal" />
+
+      <div class="rn-block">
+        <div class="rn-label">Что бежим <span class="optional">необязательно</span></div>
+        <input type="text" id="rnDesc" maxlength="200" placeholder="Например, 10 км по 4:30, спокойно" />
+      </div>
+
+      <div class="rn-block">
+        <div class="rn-label">Сколько человек максимум</div>
+        <div class="rn-max" id="rnMaxChips">
+          <button type="button" class="rn-time" data-max="">Любое</button>
+          <button type="button" class="rn-time" data-max="2">2</button>
+          <button type="button" class="rn-time" data-max="4">4</button>
+          <button type="button" class="rn-time" data-max="6">6</button>
+          <button type="button" class="rn-time" data-max="10">10</button>
+        </div>
+      </div>
+
       <div class="muted run-safety">Пробежку увидят бегуны города <b id="rnCity"></b>. Встречайтесь в людных местах.</div>
       <div class="btn-row">
         <button type="button" class="ghost-btn" id="rnCancel">Отмена</button>
@@ -1045,6 +1072,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=55"></script>
+  <script src="app.js?v=56"></script>
 </body>
 </html>
