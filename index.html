@@ -7,6 +7,22 @@
 <meta name="theme-color" content="#0a0c11" />
 <!-- Заставка: стили прямо здесь, чтобы она появилась мгновенно, ещё до загрузки остального -->
 <script>
+  // Страховка от «вечной заставки»: если через 25 секунд приложение так и не запустилось
+  // (нет связи, очень старый телефон, ошибка) — показываем понятный текст и кнопку «Обновить»
+  window.__bootErr = '';
+  window.addEventListener('error', function (e) { if (!window.__bootErr) window.__bootErr = (e.message || 'ошибка') + (e.lineno ? ' @' + e.lineno : ''); });
+  setTimeout(function () {
+    var sp = document.getElementById('splash');
+    if (!sp || sp.classList.contains('hide')) return;
+    var box = document.createElement('div');
+    box.style.cssText = 'position:absolute;left:24px;right:24px;bottom:12%;text-align:center;font:500 15px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:#9aa1ae';
+    box.innerHTML = 'Не получается загрузить Forma.<br>Проверь интернет' + (/github\.io$/.test(location.hostname) ? ' — в России без VPN может не открываться' : '') + '.' +
+      '<br><button type="button" style="margin-top:14px;padding:12px 22px;border:none;border-radius:14px;background:#b4f53c;color:#0b0d10;font-weight:800;font-size:15px" onclick="location.reload()">Обновить</button>' +
+      (window.__bootErr ? '<div style="margin-top:10px;font-size:11px;opacity:.7">' + String(window.__bootErr).replace(/</g, '&lt;').slice(0, 160) + '</div>' : '');
+    sp.appendChild(box);
+  }, 25000);
+</script>
+<script>
   // тема ещё до отрисовки: тёмная / светлая / как в Telegram (по цвету фона из параметров Telegram)
   (function () {
     var pref = 'dark';
@@ -81,7 +97,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=57" />
+<link rel="stylesheet" href="style.css?v=58" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -1087,6 +1103,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=57"></script>
+  <script src="app.js?v=58"></script>
 </body>
 </html>
