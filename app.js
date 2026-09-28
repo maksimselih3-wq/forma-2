@@ -3260,12 +3260,14 @@ const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн'
 // (темп «3:40/км», «4:00 км» и минуты «мин» не считаются)
 function textMeters(text) {
   const t = String(text || '').replace(/(\d)[\s ](\d{3})(?!\d)/g, '$1$2');
-  const re = /(?:(\d{1,2})\s*(?:[x×х*]|по)\s*)?(?<![\d:.,])(\d+(?:[.,]\d+)?)\s*(км|km|м|m)(?![a-zа-яё])(?!\s*\/\s*[чсh])/gi;
+  // перед числом не должно быть цифры, «:» или запятой (иначе это темп «3:40 км»). Проверяем через первую группу —
+  // «заглядывание назад» (?<!…) не работает на iPhone со старой iOS, и из-за него приложение не запускалось
+  const re = /(^|[^\d:.,])(?:(\d{1,2})\s*(?:[x×х*]|по)\s*)?(\d+(?:[.,]\d+)?)\s*(км|km|м|m)(?![a-zа-яё])(?!\s*\/\s*[чсh])/gi;
   let m = 0;
   for (const x of t.matchAll(re)) {
-    const val = Number(x[2].replace(',', '.'));
-    const unit = x[3].toLowerCase();
-    const mult = x[1] && Number(x[1]) > 0 && Number(x[1]) <= 50 ? Number(x[1]) : 1;
+    const val = Number(x[3].replace(',', '.'));
+    const unit = x[4].toLowerCase();
+    const mult = x[2] && Number(x[2]) > 0 && Number(x[2]) <= 50 ? Number(x[2]) : 1;
     if (unit === 'км' || unit === 'km') { if (val > 0 && val < 100) m += val * 1000 * mult; }
     else if (val >= 20 && val <= 30000) m += val * mult;
   }
