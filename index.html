@@ -6,8 +6,29 @@
 <title>Forma</title>
 <meta name="theme-color" content="#0a0c11" />
 <!-- Заставка: стили прямо здесь, чтобы она появилась мгновенно, ещё до загрузки остального -->
+<script>
+  // тема ещё до отрисовки: тёмная / светлая / как в Telegram (по цвету фона из параметров Telegram)
+  (function () {
+    var pref = 'dark';
+    try { pref = localStorage.getItem('forma_theme') || 'dark'; } catch (e) {}
+    var light = pref === 'light';
+    if (pref === 'auto') {
+      try {
+        var m = /tgWebAppThemeParams=([^&]+)/.exec(location.hash);
+        var bg = m ? JSON.parse(decodeURIComponent(m[1])).bg_color : null;
+        if (bg) {
+          var n = parseInt(bg.slice(1), 16);
+          light = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 150;
+        }
+      } catch (e) {}
+    }
+    document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
+  })();
+</script>
 <style>
   html, body { background: #0a0c11; }
+  html[data-theme="light"], html[data-theme="light"] body, html[data-theme="light"] #splash { background: #f3f4ef; }
+  html[data-theme="light"] #splash path { stroke: #151820; }
   #splash {
     position: fixed; inset: 0; z-index: 9999;
     display: flex; align-items: center; justify-content: center;
@@ -60,7 +81,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=54" />
+<link rel="stylesheet" href="style.css?v=55" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -217,6 +238,7 @@
     <div class="profile-hero" id="profileHero">
       <div class="profile-hero-shade"></div>
       <!-- смена фото — маленькая круглая кнопка в углу -->
+      <button type="button" class="photo-btn settings-btn" id="settingsBtn" aria-label="Настройки" title="Настройки"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 8.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.5-2-3.4-2.3.9a7.4 7.4 0 0 0-2.6-1.5L14.1 2.5h-4.2l-.4 2.5a7.4 7.4 0 0 0-2.6 1.5l-2.3-.9-2 3.4 2 1.5a7.6 7.6 0 0 0 0 3l-2 1.5 2 3.4 2.3-.9c.8.7 1.6 1.2 2.6 1.5l.4 2.5h4.2l.4-2.5c1-.3 1.8-.8 2.6-1.5l2.3.9 2-3.4-2-1.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
       <button type="button" class="photo-btn" id="photoBtn" aria-label="Сменить фото" title="Сменить фото">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.6l1.2-1.7c.3-.4.7-.6 1.2-.6h3c.5 0 .9.2 1.2.6L15.9 6h1.6A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       </button>
@@ -226,6 +248,7 @@
         <div class="profile-name" id="profileName">Спортсмен</div>
         <div class="profile-tags">
           <span class="tag" id="profileUsername"></span>
+          <span class="tag tag-pioneer hidden" id="profilePioneer"></span>
           <span class="tag tag-soft hidden" id="profileRecord"></span>
           <button type="button" class="tag tag-soft tag-btn hidden" id="profileFriends"></button>
         </div>
@@ -276,7 +299,10 @@
 
     <!-- Личные рекорды: лучший результат в каждой дисциплине по стартам -->
     <section class="card records-card" id="recordsCard">
-      <div class="card-label"><i data-ico="trophy"></i>Личные рекорды</div>
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="trophy"></i>Личные рекорды</div>
+        <button type="button" class="gift-rules-btn" id="recordAddBtn">＋ Добавить</button>
+      </div>
       <div id="recordsList"></div>
     </section>
 
@@ -308,45 +334,9 @@
       <div class="muted athlete-note">Видно только тебе и Fom. Друзья это не видят.</div>
     </section>
 
-    <section class="card">
-      <div class="eyebrow">Напоминания</div>
-      <label class="toggle-row privacy-row">
-        <input type="checkbox" id="reminderToggle" checked />
-        <span class="toggle"></span>
-        <span>Напоминать вечером, если день не записан</span>
-      </label>
-      <div class="muted privacy-hint">Бот напишет в 21:00 (МСК), только если за сегодня ещё нет записи.</div>
-      <button type="button" class="ghost-btn wide" id="tourAgainBtn"><i data-ico="sparkle"></i> Как пользоваться Forma</button>
-      <button type="button" class="ghost-btn wide" id="exportBtn"><i data-ico="share"></i> Выгрузить дневник (таблица)</button>
-    </section>
-
-    <section class="card">
-      <div class="eyebrow">Приватность</div>
-      <label class="toggle-row privacy-row">
-        <input type="checkbox" id="shareCalendarToggle" checked />
-        <span class="toggle"></span>
-        <span>Друзья видят весь мой календарь</span>
-      </label>
-      <div class="muted privacy-hint">Друзья видят подробно только те тренировки, где включено «Показывать друзьям». Остальные дни — просто отметкой в календаре. Выключи, и отметки закрытых дней пропадут.</div>
-      <label class="toggle-row privacy-row">
-        <input type="checkbox" id="showRecordsToggle" checked />
-        <span class="toggle"></span>
-        <span>Друзья видят мои личные рекорды</span>
-      </label>
-      <div class="muted privacy-hint">Лучший результат в каждой дисциплине — в твоём профиле у друзей.</div>
-      <button type="button" class="ghost-btn wide" id="previewProfileBtn"><i data-ico="eye"></i> Как меня видят друзья</button>
-    </section>
 
 
-    <!-- Поддержка -->
-    <section class="card support-card">
-      <div class="support-ico" data-ico="chat"></div>
-      <div class="support-main">
-        <div class="support-title">Поддержка</div>
-        <div class="muted">Нашёл ошибку или есть идея? Пиши — отвечу лично.</div>
-      </div>
-      <button type="button" class="gift-rules-btn" id="supportBtn">Написать</button>
-    </section>
+
   </section>
 
   <!-- Меню «Фото» (выезжает снизу) -->
@@ -419,6 +409,24 @@
     </div>
   </div>
 
+  <!-- Личный рекорд вручную -->
+  <div id="recordSheet" class="sheet-backdrop hidden">
+    <div class="sheet start-sheet">
+      <div class="sheet-title">🏆 Личный рекорд</div>
+      <div class="muted center rec-hint">Внеси лучший результат — друзья и Fom увидят его сразу, без записи старта.</div>
+      <div class="card-label comp-sub">Дисциплина</div>
+      <div class="comp-chips" id="rcChips"></div>
+      <input type="text" id="rcDisc" maxlength="40" placeholder="Или напиши свою" />
+      <input type="text" id="rcResult" maxlength="20" placeholder="Результат: например, 4:05,1 или 6,45 м" class="st-goal" />
+      <label class="hr-field st-date"><span>Когда <span class="optional">необязательно</span></span><input type="date" id="rcDate" /></label>
+      <input type="text" id="rcNote" maxlength="60" placeholder="Где (необязательно): например, Кубок города" class="st-goal" />
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="rcCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="rcSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Поделиться: карточка для сторис -->
   <div id="shareSheet" class="sheet-backdrop hidden">
     <div class="sheet share-sheet">
@@ -454,6 +462,54 @@
       <div class="muted center repeat-hint">Поля заполнятся как в выбранной тренировке — останется поправить цифры.</div>
       <div id="repeatList"></div>
       <button type="button" class="sheet-btn muted-btn" id="repeatCancelBtn">Отмена</button>
+    </div>
+  </div>
+
+  <!-- Город для поиска пробежек -->
+  <div id="citySheet" class="sheet-backdrop hidden">
+    <div class="sheet start-sheet">
+      <div class="sheet-title">📍 Твой город</div>
+      <input type="text" id="cityInput" maxlength="40" placeholder="Например, Москва" />
+      <div class="comp-chips city-chips" id="cityChips"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="cityCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="citySave">Готово</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Позвать на пробежку -->
+  <div id="runSheet" class="sheet-backdrop hidden">
+    <div class="sheet start-sheet">
+      <div class="sheet-title">🏃 Позвать на пробежку</div>
+      <div class="comp-chips" id="rnDayChips">
+        <button type="button" class="chip" data-day="0">Сегодня</button>
+        <button type="button" class="chip" data-day="1">Завтра</button>
+        <button type="button" class="chip" data-day="2">Послезавтра</button>
+      </div>
+      <div class="rn-row">
+        <label class="hr-field"><span>Дата</span><input type="date" id="rnDate" /></label>
+        <label class="hr-field"><span>Время</span><input type="time" id="rnTime" value="07:30" /></label>
+      </div>
+      <input type="text" id="rnPlace" maxlength="80" placeholder="Где встречаемся: например, вход в парк Горького" />
+      <input type="text" id="rnDesc" maxlength="200" placeholder="Что бежим: например, 10 км по 4:30, спокойно" class="st-goal" />
+      <input type="number" id="rnMax" min="2" max="100" inputmode="numeric" placeholder="Сколько человек максимум (необязательно)" class="st-goal" />
+      <div class="muted run-safety">Пробежку увидят бегуны города <b id="rnCity"></b>. Встречайтесь в людных местах.</div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="rnCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="rnSave">Позвать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Кому показать тренировку -->
+  <div id="friendPickSheet" class="sheet-backdrop hidden">
+    <div class="sheet friend-pick-sheet">
+      <div class="sheet-title">Кому показать тренировку</div>
+      <div class="muted center friend-pick-hint">Запись увидят только отмеченные друзья.</div>
+      <div id="friendPickList"></div>
+      <button type="button" class="sheet-btn primary-sheet-btn" id="friendPickSave">Готово</button>
+      <button type="button" class="sheet-btn muted-btn" id="friendPickCancel">Отмена</button>
     </div>
   </div>
 
@@ -526,11 +582,114 @@
   </div>
 
   <!-- ===================== ДРУЗЬЯ: ЛЕНТА + СПИСОК ===================== -->
+  <!-- Пробежка: подробности, участники и чат -->
+  <section id="runScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="runBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="group-head-main">
+        <div class="eyebrow" id="runCityLabel">Пробежка</div>
+        <h2 class="title small" id="runWhen"></h2>
+      </div>
+    </div>
+    <section class="card run-info" id="runInfo"></section>
+    <div class="run-actions" id="runActions"></div>
+    <h3 class="section-title">Чат пробежки</h3>
+    <div id="runMessages" class="chat-messages run-messages"></div>
+    <div class="chat-input-row run-input-row">
+      <input type="text" id="runInput" placeholder="Напиши участникам…" maxlength="500" autocomplete="off" />
+      <button id="runSendBtn" class="send-btn" type="button" title="Отправить" aria-label="Отправить"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21.85 12.5a.55.55 0 0 0 0-1L3.4 3.6a.5.5 0 0 0-.7.6L5 11l9 1-9 1-2.3 6.8a.5.5 0 0 0 .7.6Z"/></svg></button>
+    </div>
+    <div class="muted run-safety">Встречайтесь в людных местах и не делитесь лишними личными данными.</div>
+    <button type="button" class="link-btn run-report" id="runReportBtn">Пожаловаться</button>
+  </section>
+
+  <!-- Настройки: тема, уведомления, приватность -->
+  <section id="settingsScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="settingsBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="group-head-main">
+        <div class="eyebrow">Forma</div>
+        <h2 class="title small">Настройки</h2>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="eyebrow">Оформление</div>
+      <div class="segmented seg-3 theme-seg" id="themeSeg">
+        <button type="button" class="seg-btn" data-theme-pick="dark">🌙 Тёмная</button>
+        <button type="button" class="seg-btn" data-theme-pick="light">☀️ Светлая</button>
+        <button type="button" class="seg-btn" data-theme-pick="auto">Как в Telegram</button>
+      </div>
+      <div class="muted privacy-hint">«Как в Telegram» — тема меняется вместе с оформлением Telegram.</div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Уведомления от бота</div>
+
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="reminderToggle" checked />
+        <span class="toggle"></span>
+        <span>Напоминать вечером, если день не записан</span>
+      </label>
+      <div class="muted privacy-hint">Бот напишет в 21:00 (МСК), только если за сегодня ещё нет записи.</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="digestToggle" checked />
+        <span class="toggle"></span>
+        <span>Итоги недели от Fom</span>
+      </label>
+      <div class="muted privacy-hint">По воскресеньям в 19:00 — короткий разбор недели.</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="partnersNotifyToggle" checked />
+        <span class="toggle"></span>
+        <span>Совместные пробежки</span>
+      </label>
+      <div class="muted privacy-hint">Когда кто-то идёт на твою пробежку или пишет в её чат.</div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Приватность</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="shareCalendarToggle" checked />
+        <span class="toggle"></span>
+        <span>Друзья видят весь мой календарь</span>
+      </label>
+      <div class="muted privacy-hint">Друзья видят подробно только тренировки, открытые им («Все друзья» или «Выбрать»). Остальные дни — просто отметкой в календаре. Выключи, и отметки закрытых дней пропадут.</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="showRecordsToggle" checked />
+        <span class="toggle"></span>
+        <span>Друзья видят мои личные рекорды</span>
+      </label>
+      <div class="muted privacy-hint">Лучший результат в каждой дисциплине — в твоём профиле у друзей.</div>
+      <button type="button" class="ghost-btn wide" id="previewProfileBtn"><i data-ico="eye"></i> Как меня видят друзья</button>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Дневник</div>
+      <button type="button" class="ghost-btn wide" id="tourAgainBtn"><i data-ico="sparkle"></i> Как пользоваться Forma</button>
+      <button type="button" class="ghost-btn wide" id="exportBtn"><i data-ico="share"></i> Выгрузить дневник (таблица)</button>
+    </section>
+
+    <!-- Поддержка -->
+    <section class="card support-card">
+      <div class="support-ico" data-ico="chat"></div>
+      <div class="support-main">
+        <div class="support-title">Поддержка</div>
+        <div class="muted">Нашёл ошибку или есть идея? Пиши — отвечу лично.</div>
+      </div>
+      <button type="button" class="gift-rules-btn" id="supportBtn">Написать</button>
+    </section>
+  </section>
+
   <section id="friendsScreen" class="screen hidden">
     <h2 class="page-title">Друзья</h2>
 
-    <div class="segmented" id="friendsTabs">
+    <div class="segmented seg-4" id="friendsTabs">
       <button type="button" class="seg-btn active" data-tab="feed">Лента</button>
+      <button type="button" class="seg-btn" data-tab="runs">Пробежки</button>
       <button type="button" class="seg-btn" data-tab="list">Друзья <span class="tab-badge hidden" id="requestsBadge"></span></button>
       <button type="button" class="seg-btn" data-tab="groups">Группы</button>
     </div>
@@ -547,6 +706,17 @@
       <div id="feedList"></div>
       <button type="button" class="ghost-btn wide hidden" id="feedMoreBtn">Показать ещё</button>
       <div id="feedStatus" class="status-msg"></div>
+    </div>
+
+    <!-- Совместные пробежки: поиск напарников в своём городе -->
+    <div id="runsTab" class="hidden">
+      <section class="card runs-head">
+        <button type="button" class="runs-city" id="runsCityBtn">📍 <b id="runsCity">Выбери город</b> <span class="vis-edit">изменить</span></button>
+        <div class="muted runs-hint">Найди компанию на пробежку: позови сам или присоединяйся к другим бегунам своего города.</div>
+        <button type="button" class="primary-btn" id="runCreateBtn">＋ Позвать на пробежку</button>
+      </section>
+      <div id="runsList"></div>
+      <div id="runsStatus" class="status-msg"></div>
     </div>
 
     <!-- Группы и приглашения -->
@@ -678,7 +848,7 @@
       <div class="profile-hero-bottom">
         <div class="hero-sport" id="fpEyebrow">Спортсмен</div>
         <div class="profile-name" id="fpName"></div>
-        <div class="profile-tags"><span class="tag" id="fpUsername"></span><span class="tag tag-soft hidden" id="fpRecord"></span><span class="tag tag-soft hidden" id="fpFriends"></span></div>
+        <div class="profile-tags"><span class="tag" id="fpUsername"></span><span class="tag tag-pioneer hidden" id="fpPioneer"></span><span class="tag tag-soft hidden" id="fpRecord"></span><span class="tag tag-soft hidden" id="fpFriends"></span></div>
       </div>
     </div>
 
@@ -875,6 +1045,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=54"></script>
+  <script src="app.js?v=55"></script>
 </body>
 </html>
