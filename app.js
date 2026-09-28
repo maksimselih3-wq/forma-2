@@ -1,5 +1,9 @@
-// Адрес бэкенда на Railway
-const API_BASE = 'https://forma-production-9c7a.up.railway.app';
+// Где живёт приложение:
+//  - на GitHub Pages (или открыт файлом) — ходим напрямую на сервер Railway;
+//  - на своём домене (российский сервер) — всё через тот же адрес: сервер сам перешлёт /api на Railway.
+//    Так приложение открывается в России без VPN и прокси.
+const SELF_HOSTED = !/github\.io$/.test(location.hostname) && location.protocol !== 'file:';
+const API_BASE = SELF_HOSTED ? '' : 'https://forma-production-9c7a.up.railway.app';
 
 const tg = window.Telegram?.WebApp;
 if (tg) {
@@ -1792,7 +1796,7 @@ function renderChatMessages() {
   container.innerHTML = '';
   if (chatHistory.length === 0) {
     container.innerHTML =
-      '<div class="chat-empty">Привет! Я Fom, твой ИИ-помощник 👋<br />Спроси про свои тренировки — например, «сколько я бегал на этой неделе?» или «не перегружаюсь ли я?»</div>';
+      '<div class="chat-empty">Привет! Я Fom, твой помощник 👋<br />Спроси про свои тренировки — например, «сколько я бегал на этой неделе?» или «не перегружаюсь ли я?»</div>';
     return;
   }
   chatHistory.forEach((msg) => {
@@ -2542,7 +2546,9 @@ function giftSlug(name) { return name.toLowerCase().replace(/[^a-z0-9]/g, ''); }
 function giftImageUrls(name) {
   if (!GIFT_IMAGE_NAMES.has(name)) return [];
   const slug = giftSlug(name);
-  return [`https://fragment.com/file/gifts/${slug}/thumb.webp`, `https://nft.fragment.com/gift/${slug}-1.webp`];
+  const remote = [`https://fragment.com/file/gifts/${slug}/thumb.webp`, `https://nft.fragment.com/gift/${slug}-1.webp`];
+  // на своём домене картинки подарков идут через наш сервер (fragment.com в России открывается не у всех)
+  return SELF_HOSTED ? [`/api/asset/gift/${slug}.webp`, ...remote] : remote;
 }
 // Какие картинки реально загрузились (иначе показываем значок, чтобы барабан не был пустым)
 const giftImageOk = {};
@@ -2826,7 +2832,7 @@ try { tg?.disableVerticalSwipes?.(); } catch (e) {}
 const TOUR_KEY = 'forma_tour_done';
 const TOUR_SLIDES = [
   { art: '<span class="tour-logo">Forma<span class="logo-dot"></span></span>', title: 'Привет! Это Forma',
-    text: 'Дневник тренировок с ИИ-помощником Fom. Покажу за 20 секунд, как тут всё устроено.' },
+    text: 'Дневник тренировок с помощником Fom. Покажу за 20 секунд, как тут всё устроено.' },
   { icon: 'sparkle', title: 'Запись за минуту',
     text: 'Нажми «+» внизу и заполни поля. Или просто опиши тренировку своими словами в «Умном вводе» — Fom сам разложит всё по полям.' },
   { art: '<span class="fom-badge tour-fom">F</span>', title: 'Fom — твой помощник',
@@ -4222,7 +4228,7 @@ function membersWord(n) {
 }
 
 $('inviteShareBtn').addEventListener('click', () => {
-  if (inviteInfo?.link) shareLink(inviteInfo.link, 'Го вести дневник тренировок в Forma вместе 🔥 ИИ-помощник, серии и розыгрыши подарков');
+  if (inviteInfo?.link) shareLink(inviteInfo.link, 'Го вести дневник тренировок в Forma вместе 🔥 Помощник Fom, серии и розыгрыши подарков');
 });
 $('inviteCopyBtn').addEventListener('click', async () => {
   if (!inviteInfo?.link) return;
