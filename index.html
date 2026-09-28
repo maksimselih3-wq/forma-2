@@ -81,7 +81,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=56" />
+<link rel="stylesheet" href="style.css?v=57" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -496,7 +496,7 @@
           <button type="button" class="rn-time" data-time="08:00">08:00</button>
           <button type="button" class="rn-time" data-time="10:00">10:00</button>
           <button type="button" class="rn-time" data-time="19:00">19:00</button>
-          <label class="rn-time rn-time-own"><span id="rnTimeLabel">Другое</span><input type="time" id="rnTime" value="07:30" /></label>
+          <button type="button" class="rn-time rn-time-own" id="rnTimeOwn"><span id="rnTimeLabel">Другое</span></button><input type="hidden" id="rnTime" value="07:00" />
         </div>
       </div>
 
@@ -525,6 +525,21 @@
       <div class="btn-row">
         <button type="button" class="ghost-btn" id="rnCancel">Отмена</button>
         <button type="button" class="ghost-btn crop-save" id="rnSave">Позвать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Своё время для пробежки: часы и минуты (системный выбор времени на Mac не открывается) -->
+  <div id="timeSheet" class="sheet-backdrop hidden">
+    <div class="sheet run-sheet">
+      <div class="sheet-title">🕒 Время пробежки <b class="tp-value" id="tpValue">07:00</b></div>
+      <div class="rn-label">Часы</div>
+      <div class="tp-grid tp-hours" id="tpHours"></div>
+      <div class="rn-label">Минуты</div>
+      <div class="tp-grid tp-mins" id="tpMins"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="tpCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="tpSave">Готово</button>
       </div>
     </div>
   </div>
@@ -1072,6 +1087,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=56"></script>
+  <script src="app.js?v=57"></script>
 </body>
 </html>
