@@ -694,6 +694,7 @@ async function init() {
     const { user } = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ start_param: tg?.initDataUnsafe?.start_param || '' }) });
     currentUser = user;
     $('shareCalendarToggle').checked = user.share_calendar !== false;
+    $('showRecordsToggle').checked = user.show_records !== false;
     $('reminderToggle').checked = user.remind_enabled !== false;
     renderMySport();
     updateAvatar();
@@ -1235,6 +1236,8 @@ function buildWorkoutCard(w, { showAuthor = true } = {}) {
   // RPE и самочувствие показываем цветными значками, поэтому в тексте их не повторяем
   const lines = buildDetailLines(w).filter((l) => !l.startsWith('Самочувствие') && !l.startsWith('RPE'));
   const chips = [];
+  // личный рекорд на старте — заметный значок, чтобы друзья сразу видели и ставили 🔥
+  if (w.competition && (w.is_pb || (isMine && isPersonalBest(w)))) chips.push(`<span class="wk-chip pb-chip">${ico('trophy')} Личный рекорд</span>`);
   if (w.rpe) chips.push(`<span class="wk-chip" style="color:${scaleColor(w.rpe, true)}">RPE ${esc(w.rpe)}</span>`);
   if (w.feeling) chips.push(`<span class="wk-chip" style="color:${scaleColor(w.feeling)}">😊 ${esc(w.feeling)}/10</span>`);
 
@@ -1619,6 +1622,7 @@ async function openFriendProfile(userId, returnTo) {
       : 'Нажми на отмеченный день — покажем тренировку. Закрытые дни видны без подробностей.';
 
     renderFpCalendar();
+    renderFpRecords(fpData.records, isMe, u);
 
     const list = $('fpWorkouts');
     if (!fpData.workouts.length) {
@@ -1630,6 +1634,31 @@ async function openFriendProfile(userId, returnTo) {
     console.error(err);
     $('fpStatus').textContent = err.data?.error || 'Не удалось загрузить профиль.';
   }
+}
+
+// Личные рекорды друга (или «как меня видят друзья»)
+function renderFpRecords(records, isMe, u) {
+  const card = $('fpRecordsCard');
+  const box = $('fpRecordsList');
+  const list = Array.isArray(records) ? records.slice() : [];
+  const order = (d) => { const i = COMP_DISCIPLINES.findIndex((x) => disciplineKey(x) === disciplineKey(d)); return i < 0 ? 999 : i; };
+  list.sort((a, b) => order(a.discipline) - order(b.discipline));
+  // у друга без рекордов (или если он их скрыл) блок не показываем; себе — показываем с подсказкой
+  card.classList.toggle('hidden', !isMe && !list.length);
+  if (!list.length) {
+    box.innerHTML = `<div class="muted records-empty">${isMe
+      ? (u.show_records === false ? 'Ты скрыл рекорды — друзья их не видят. Включить можно в «Приватности».' : 'Отметь «Старт» в записи — лучший результат в каждой дисциплине увидят друзья.')
+      : ''}</div>`;
+    return;
+  }
+  box.innerHTML = list.map((r) => `
+    <div class="record-row">
+      <span class="record-disc">${esc(r.discipline)}</span>
+      <span class="record-main">
+        <b class="record-res">${esc(r.result)}</b>
+        <span class="record-sub">${esc(formatDayMonth(r.date))}${r.name ? ' · ' + esc(r.name) : ''}</span>
+      </span>
+    </div>`).join('') + (isMe && u.show_records === false ? '<div class="muted records-empty">Сейчас друзья их не видят — включить можно в «Приватности».</div>' : '');
 }
 
 function renderFpCalendar() {
@@ -1732,6 +1761,17 @@ $('shareCalendarToggle').addEventListener('change', async (e) => {
   } catch (err) {
     console.error(err);
     e.target.checked = !share;
+    alertMsg('Не удалось сохранить настройку.');
+  }
+});
+$('showRecordsToggle').addEventListener('change', async (e) => {
+  const show = e.target.checked;
+  try {
+    await api('/api/friends/settings', { method: 'POST', body: JSON.stringify({ show_records: show }) });
+    if (currentUser) currentUser.show_records = show;
+  } catch (err) {
+    console.error(err);
+    e.target.checked = !show;
     alertMsg('Не удалось сохранить настройку.');
   }
 });
