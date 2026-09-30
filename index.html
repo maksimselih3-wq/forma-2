@@ -97,7 +97,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=61" />
+<link rel="stylesheet" href="style.css?v=62" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -905,9 +905,28 @@
       <button type="button" class="primary-btn" id="groupInviteBtn">Пригласить в группу</button>
     </div>
     <div class="muted group-coach-note hidden" id="groupCoachNote"></div>
+    <section class="card group-task hidden" id="groupTask">
+      <div class="card-label">📋 Задание от тренера <span class="muted group-task-at" id="groupTaskAt"></span></div>
+      <div class="group-task-text" id="groupTaskText"></div>
+    </section>
     <div class="segmented" id="groupTabs">
-      <button type="button" class="seg-btn active" data-gtab="rating">Рейтинг недели</button>
+      <button type="button" class="seg-btn hidden" data-gtab="coach">Кабинет</button>
+      <button type="button" class="seg-btn active" data-gtab="rating">Рейтинг</button>
       <button type="button" class="seg-btn" data-gtab="feed">Лента</button>
+    </div>
+    <div id="groupCoach" class="hidden">
+      <div class="coach-tiles" id="coachTiles"></div>
+      <div class="coach-actions">
+        <button type="button" class="ghost-btn" id="coachDigestBtn">📊 Сводка недели</button>
+        <button type="button" class="ghost-btn" id="coachTaskBtn">📋 Задание команде</button>
+      </div>
+      <div class="segmented seg-3 coach-filter" id="coachFilter">
+        <button type="button" class="seg-btn active" data-cf="all">Все</button>
+        <button type="button" class="seg-btn" data-cf="need">Внимание</button>
+        <button type="button" class="seg-btn" data-cf="camp">На сборе</button>
+      </div>
+      <div id="coachList"></div>
+      <div class="muted rank-hint">Пометки считает программа по записям: объём к прошлой неделе (за те же дни), тяжёлые тренировки (RPE 8+) за 7 дней, самочувствие, сон из утренних отметок, дни без записей, высота.</div>
     </div>
     <div id="groupRating"></div>
     <div id="groupFeed" class="hidden"></div>
@@ -925,10 +944,54 @@
         <h2 class="title small" id="memberName"></h2>
       </div>
     </div>
+    <div id="memberCoach" class="hidden">
+      <div class="coach-tiles" id="mcTiles"></div>
+      <section class="card mc-week">
+        <div class="mc-week-head"><span class="card-label">Неделя по дням</span><span class="muted">км · цвет — RPE</span></div>
+        <div class="mc-bars" id="mcBars"></div>
+      </section>
+      <section class="card mc-fom">
+        <div class="mc-fom-head"><span class="fom-badge">F</span><b>Fom — для тренера</b></div>
+        <div class="mc-fom-text" id="mcFomText"></div>
+        <button type="button" class="ghost-btn" id="mcFomBtn">Спросить Fom</button>
+      </section>
+      <section class="card mc-msg">
+        <div class="card-label">💬 Написать спортсмену</div>
+        <textarea id="mcMsgText" rows="2" maxlength="1000" placeholder="Сообщение придёт от бота Forma"></textarea>
+        <button type="button" class="primary-btn" id="mcMsgSend">Отправить</button>
+        <div class="muted mc-msgs" id="mcMsgs"></div>
+      </section>
+    </div>
     <section class="card member-well hidden" id="memberWell"></section>
     <div id="memberWorkouts"></div>
     <button type="button" class="ghost-btn danger wide" id="memberRemoveBtn">Убрать из группы</button>
   </section>
+
+  <!-- Сводка недели от Fom (тренеру) -->
+  <div id="coachDigestSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title">📊 Сводка недели</div>
+      <div class="coach-digest-text" id="coachDigestText"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="coachDigestRefresh">Обновить</button>
+        <button type="button" class="ghost-btn crop-save" id="coachDigestClose">Закрыть</button>
+      </div>
+      <div class="muted gc-hint">Каждое воскресенье в 19:00 (МСК) сводка сама приходит тебе в бота.</div>
+    </div>
+  </div>
+
+  <!-- Задание команде -->
+  <div id="coachTaskSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title">📋 Задание команде</div>
+      <textarea id="coachTaskText" rows="5" maxlength="1500" placeholder="Например: завтра 18:00 манеж. Разминка 3 км + СБУ, 6×300 через 3', заминка 2 км."></textarea>
+      <div class="muted gc-hint">Придёт каждому спортсмену от бота и появится вверху экрана группы на 7 дней.</div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="coachTaskCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="coachTaskSend">Отправить</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Создать группу -->
   <div id="groupCreateSheet" class="sheet-backdrop hidden">
@@ -1174,6 +1237,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=61"></script>
+  <script src="app.js?v=62"></script>
 </body>
 </html>
