@@ -67,6 +67,7 @@ function esc(v) {
 // ---------- Наши иконки (вместо обычных смайликов) ----------
 // Рисуются SVG, цвета берут градиенты из index.html (gLime, gFire, gPurple...).
 const ICONS = {
+  clock: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="url(#gLime)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
   rocket: '<path d="M14.5 3.5c3 .1 5.3 1.4 6 2.1.7.7 2 3 2.1 6-.1.2-3.6 4.4-7.3 6.9l-4.3-4.3c2.5-3.7 6.7-7.2 6.9-7.3Z" transform="translate(-2 1)" fill="url(#gLime)"/><circle cx="15.2" cy="8.8" r="1.7" fill="#0b0d10"/><path d="M8.2 12.3 5 12.9l-2 2.6 4 .6M11.7 15.8l-.6 3.2-2.6 2-.6-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.2 17.8c-1 .3-2 1.3-2.3 3 1.7-.3 2.7-1.3 3-2.3" fill="none" stroke="#ffb84d" stroke-width="1.6" stroke-linecap="round"/>',
   flame: '<path d="M12.3 2.5c.4 2.5-.7 4.2-2.1 5.8C8.7 10 7 11.8 7 14.8a5 5 0 0 0 10 0c0-2.3-1-4-2.4-5.4.1 1.5-.4 2.7-1.4 3.3.3-3.8-.1-7.3-.9-10.2Z" fill="url(#gFire)"/><path d="M12 19.8a2.5 2.5 0 0 1-2.5-2.6c0-1.5 1.1-2.5 2.1-3.7.2 1 .8 1.6 1.5 2 .8.5 1.4 1.1 1.4 1.9a2.5 2.5 0 0 1-2.5 2.4Z" fill="#fff3b8"/>',
   calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="13" y="13" width="4.2" height="4.2" rx="1.3" fill="url(#gLime)"/>',
@@ -131,6 +132,8 @@ const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', '�
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
 function pad2(n) { return String(n).padStart(2, '0'); }
+function nowRoundedTime(shiftMin = 0) { const d = new Date(Date.now() + shiftMin * 60000); const m = Math.round(d.getMinutes() / 5) * 5; d.setMinutes(m, 0, 0); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+function addMinutesToTime(t, add) { const parts = String(t).split(':').map(Number); const x = (((parts[0] * 60 + parts[1] + add) % 1440) + 1440) % 1440; return pad2(Math.floor(x / 60)) + ':' + pad2(x % 60); }
 
 // Дата по часам телефона в формате 'ГГГГ-ММ-ДД'
 function localDateStr(d = new Date()) {
@@ -190,8 +193,9 @@ async function api(path, options = {}) {
   const timer = ctrl ? setTimeout(() => ctrl.abort(), options.timeout || 20000) : null;
   let res;
   try {
+    const { timeout, ...fetchOptions } = options;
     res = await fetch(API_BASE + path, {
-    ...options,
+    ...fetchOptions,
     signal: ctrl ? ctrl.signal : undefined,
     headers: {
       'Content-Type': 'application/json',
@@ -387,6 +391,19 @@ const FORM_TEMPLATE = `
   </section>
 
   <div data-f="trainingFields">
+    <section class="card time-card">
+      <div class="card-head">
+        <div class="card-label">${ico('clock')}Время тренировки</div>
+        <div class="card-hint">необязательно · Fom поймёт, когда тебе лучше тренироваться</div>
+      </div>
+      <div class="wt-row">
+        <button type="button" class="wt-btn" data-f="startBtn"><span>Начало</span><b data-f="startLabel">—:—</b></button>
+        <span class="wt-dash">—</span>
+        <button type="button" class="wt-btn" data-f="endBtn"><span>Конец</span><b data-f="endLabel">—:—</b></button>
+        <button type="button" class="wt-clear hidden" data-f="timeClear" aria-label="Убрать время">✕</button>
+      </div>
+    </section>
+
     <section class="card">
       <div class="card-label">Разминка</div>
       <textarea data-f="warmup" rows="2" placeholder="Например: 3 км трусцой + суставная"></textarea>
@@ -464,6 +481,25 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   let mode = 'training'; // training | competition | rest
   let sets = [];      // беговые отрезки: { distance_m, reps, time_or_pace, rest_between }
   let exercises = []; // силовая/ОФП:     { name, sets, reps, weight }
+  // время тренировки «ЧЧ:ММ» (или null)
+  let startTime = null, endTime = null;
+  function paintTimes() {
+    f('startLabel').textContent = startTime || '—:—';
+    f('endLabel').textContent = endTime || '—:—';
+    f('startBtn').classList.toggle('set', !!startTime);
+    f('endBtn').classList.toggle('set', !!endTime);
+    f('timeClear').classList.toggle('hidden', !startTime && !endTime);
+  }
+  f('startBtn').addEventListener('click', () => openTimePicker({
+    title: 'Начало тренировки', value: startTime || nowRoundedTime(-90),
+    onDone: (t) => { startTime = t; paintTimes(); },
+  }));
+  f('endBtn').addEventListener('click', () => openTimePicker({
+    title: 'Конец тренировки', value: endTime || (startTime ? addMinutesToTime(startTime, 90) : nowRoundedTime(0)),
+    onDone: (t) => { endTime = t; if (!startTime) startTime = addMinutesToTime(t, -90); paintTimes(); },
+  }));
+  f('timeClear').addEventListener('click', () => { startTime = null; endTime = null; paintTimes(); });
+
   // кто видит запись: private — только я, public — все друзья, custom — выбранные друзья (visTo — их id)
   let vis = 'private';
   let visTo = [];
@@ -523,7 +559,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
 
   // --- повторить прошлую тренировку ---
   f('repeatBtn').addEventListener('click', () => openRepeatSheet((w) => {
-    setData({ ...w, notes: '', competition: null, visibility: vis, visible_to: visTo });
+    setData({ ...w, notes: '', competition: null, visibility: vis, visible_to: visTo, start_time: null, end_time: null });
     setType('training');
     f('smartStatus').textContent = '';
   }));
@@ -609,6 +645,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     if (p.hr_avg) f('hrAvg').value = p.hr_avg;
     if (p.hr_max) f('hrMax').value = p.hr_max;
     if (p.hr_min) f('hrMin').value = p.hr_min;
+    if (p.start_time) { startTime = p.start_time; endTime = p.end_time || endTime; paintTimes(); }
     if (Array.isArray(p.sets) && p.sets.length) {
       sets = p.sets.map((s) => ({
         distance_m: s.duration_s ? durLabel(s.duration_s) : (s.distance_m ?? ''), reps: s.reps ?? '', time_or_pace: s.time_or_pace ?? '', rest_between: s.rest_between ?? '',
@@ -637,7 +674,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     try {
       const w = await readWatchFile(file);
       status.textContent = 'Fom раскладывает круги по полям...';
-      const { parsed } = await api('/api/workouts/parse', { method: 'POST', body: JSON.stringify({ text: w.text, source: 'watch' }) });
+      const { parsed } = await api('/api/workouts/parse', { method: 'POST', body: JSON.stringify({ text: w.text, source: 'watch' }), timeout: 60000 });
       applyParsed({ ...parsed, type: 'training' });
       setType(mode === 'competition' ? 'competition' : 'training');
       // пульс берём прямо из файла — он точнее
@@ -668,7 +705,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     f('smartBtn').disabled = true;
     status.textContent = 'Fom разбирает текст...';
     try {
-      const { parsed } = await api('/api/workouts/parse', { method: 'POST', body: JSON.stringify({ text }) });
+      const { parsed } = await api('/api/workouts/parse', { method: 'POST', body: JSON.stringify({ text }), timeout: 60000 });
       applyParsed(parsed);
       growAll(root);
       status.textContent = 'Готово! Проверь поля ниже и сохрани запись.';
@@ -687,6 +724,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       f('cooldown').value = w.cooldown || '';
       f('notes').value = w.notes || '';
       setVisibility(w.visibility, w.visible_to);
+      startTime = w.start_time || null; endTime = w.end_time || null; paintTimes();
       setSlider('feeling', w.feeling);
       setSlider('rpe', w.rpe);
       f('hrAvg').value = w.hr_avg ?? '';
@@ -727,6 +765,8 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
         notes: f('notes').value,
         visibility: vis,
         visible_to: vis === 'custom' ? visTo : [],
+        start_time: startTime,
+        end_time: endTime,
         // в поле «метры» можно написать время («1'», «30"») — тогда это отрезок по времени
         sets: type === 'training' ? sets.map((x) => {
           const dur = looksLikeDuration(x.distance_m) ? parseDuration(x.distance_m) : null;
@@ -792,6 +832,7 @@ async function init() {
     loadMorning();
     loadStarts();
     loadManualRecords();
+    loadGoals();
     // достижения: через пару секунд, когда подгрузятся анкета и утренние отметки
     setTimeout(() => { achievementsReady = true; renderAchievements(); }, 2500);
     // новичку — короткое знакомство с приложением
@@ -1005,7 +1046,7 @@ $('saveBtn').addEventListener('click', async () => {
   statusEl.textContent = payload.type === 'training' ? 'Сохраняю, Fom смотрит тренировку...' : 'Сохраняю...';
 
   try {
-    const result = await api('/api/workouts', { method: 'POST', body: JSON.stringify(payload) });
+    const result = await api('/api/workouts', { method: 'POST', body: JSON.stringify(payload), timeout: 60000 });
     applyStreak(result.streak);
 
     // обновляем список записей — из него рисуется карточка «сохранено», календарь и цифры
@@ -1772,8 +1813,14 @@ function renderFpRecords(records, isMe, u) {
 
 function renderFpCalendar() {
   if (!fpData) return;
+  // по дате: главная запись дня (для цвета) + id всех открытых мне записей этого дня
   const byDate = {};
-  fpData.days.forEach((d) => { byDate[normDate(d.date)] = d; });
+  fpData.days.forEach((d) => {
+    const k = normDate(d.date);
+    const cur = byDate[k] || (byDate[k] = { ...d, ids: [] });
+    if (d.type === 'training') cur.type = 'training';
+    if (d.public && d.id) { cur.public = true; cur.ids.push(d.id); }
+  });
 
   const y = fpMonth.getFullYear();
   const m = fpMonth.getMonth();
@@ -1808,16 +1855,9 @@ function renderFpCalendar() {
     if (ds === today) cell.classList.add('today');
     if (ds > today) cell.classList.add('future');
 
-    if (day?.public && day.id) {
-      cell.addEventListener('click', () => {
-        const target = $('wk-' + day.id);
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          target.classList.remove('flash');
-          void target.offsetWidth;
-          target.classList.add('flash');
-        }
-      });
+    if (day?.public && day.ids.length) {
+      // нажал на открытый день — показываем тренировку прямо в окошке (даже если она старая и её нет в списке ниже)
+      cell.addEventListener('click', () => openFriendDay(ds, day.ids));
     } else {
       cell.disabled = true;
     }
@@ -1825,6 +1865,25 @@ function renderFpCalendar() {
   }
   $('fpCalSummary').textContent = trainings ? `Тренировок за месяц: ${trainings}` : 'В этом месяце тренировок не видно.';
 }
+
+async function openFriendDay(dateStr, ids) {
+  const sheet = $('daySheet');
+  $('dayTitle').textContent = formatWithWeekday(dateStr);
+  const list = $('dayList');
+  list.innerHTML = '<div class="muted center">Загружаю…</div>';
+  sheet.classList.remove('hidden');
+  const cards = [];
+  for (const id of ids) {
+    try {
+      const { workout } = await api(`/api/friends/workouts/${id}`);
+      cards.push(buildWorkoutCard({ ...workout, date: normDate(workout.date) }, { showAuthor: false }));
+    } catch (err) { /* закрытая или удалённая — пропускаем */ }
+  }
+  list.innerHTML = cards.length ? '' : '<div class="empty-hint">Эту тренировку сейчас не открыть.</div>';
+  cards.forEach((c) => list.appendChild(c));
+}
+$('dayClose').addEventListener('click', () => $('daySheet').classList.add('hidden'));
+$('daySheet').addEventListener('click', (e) => { if (e.target === $('daySheet')) $('daySheet').classList.add('hidden'); });
 
 $('fpCalPrev').addEventListener('click', () => {
   fpMonth = new Date(fpMonth.getFullYear(), fpMonth.getMonth() - 1, 1);
@@ -1925,7 +1984,7 @@ async function loadInsight() {
   boxEl.classList.add('hidden');
 
   try {
-    const { insight, workoutsCount } = await api(`/api/insights?period=${selectedInsightPeriod}`);
+    const { insight, workoutsCount } = await api(`/api/insights?period=${selectedInsightPeriod}`, { timeout: 60000 });
     loadingEl.classList.add('hidden');
 
     if (!insight || workoutsCount === 0) {
@@ -1998,6 +2057,7 @@ async function sendChatMessage() {
 
   try {
     const { reply, left } = await api('/api/chat', {
+      timeout: 60000,
       method: 'POST',
       body: JSON.stringify({ message, history: chatHistory.slice(0, -1) }),
     });
@@ -2063,6 +2123,7 @@ function formatExercise(e) {
 function buildDetailLines(w) {
   const lines = [];
   if (w.type === 'training' && w.competition) lines.push(`🏆 ${competitionLine(w.competition)}`);
+  if (w.type === 'training' && w.start_time) lines.push(`🕒 ${w.start_time}${w.end_time ? '–' + w.end_time : ''}`);
   if (w.type === 'training') {
     if (w.warmup) lines.push(`Разминка: ${w.warmup}`);
     const setLines = (Array.isArray(w.sets) ? w.sets : [])
@@ -2159,6 +2220,7 @@ async function openEditScreen(workoutId, returnTo = 'profileScreen') {
     currentEditWorkout = workout;
     $('editDateLabel').textContent = formatWithWeekday(workout.date);
     editForm.setData(workout);
+    renderEditFeedback(workout);
     $('editStatusMsg').textContent = '';
     renderEditSocial(workout);
 
@@ -2188,6 +2250,15 @@ function leaveEditScreen() {
   else renderEntryState();
 }
 
+// Отзыв Fom на экране редактирования — после изменений он обновляется
+function renderEditFeedback(w, fresh = false) {
+  const box = $('editFeedback');
+  box.classList.toggle('hidden', !(w && w.type === 'training' && w.ai_feedback));
+  if (!w?.ai_feedback) return;
+  $('editFeedbackText').textContent = w.ai_feedback;
+  if (fresh) { box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash'); }
+}
+
 $('editBackBtn').addEventListener('click', leaveEditScreen);
 
 $('editSaveBtn').addEventListener('click', async () => {
@@ -2195,15 +2266,19 @@ $('editSaveBtn').addEventListener('click', async () => {
   const statusEl = $('editStatusMsg');
   const problem = editForm.problem();
   if (problem) { statusEl.textContent = problem; haptic('warning'); return; }
-  statusEl.textContent = 'Сохраняю...';
+  statusEl.textContent = 'Сохраняю… Fom заново смотрит тренировку';
+  const oldFeedback = currentEditWorkout.ai_feedback || '';
 
   try {
     const result = await api(`/api/workouts/${currentEditWorkout.id}`, {
       method: 'PUT',
       body: JSON.stringify(editForm.getPayload()),
+      timeout: 60000,
     });
     currentEditWorkout = { ...currentEditWorkout, ...result.workout, date: normDate(result.workout.date) };
-    statusEl.textContent = 'Сохранено ✓';
+    const updatedFb = result.workout.ai_feedback && result.workout.ai_feedback !== oldFeedback;
+    statusEl.textContent = updatedFb ? 'Сохранено ✓ Fom обновил отзыв' : 'Сохранено ✓';
+    renderEditFeedback(currentEditWorkout, updatedFb);
     haptic('success');
     renderEditSocial(currentEditWorkout);
     try { await loadMyWorkouts(); } catch (e) { console.error(e); }
@@ -2450,6 +2525,9 @@ function goBack() {
   if (!$('friendPickSheet').classList.contains('hidden')) return $('friendPickCancel').click();
   if (!$('recordSheet').classList.contains('hidden')) return closeRecordSheet();
   if (!$('citySheet').classList.contains('hidden')) return $('cityCancel').click();
+  if (!$('daySheet').classList.contains('hidden')) return $('dayClose').click();
+  if (!$('goalSheet').classList.contains('hidden')) return $('gCancel').click();
+  if (!$('weightSheet').classList.contains('hidden')) return $('wCancel').click();
   if (!$('timeSheet').classList.contains('hidden')) return $('tpCancel').click();
   if (!$('runSheet').classList.contains('hidden')) return $('rnCancel').click();
   if (screen === 'runScreen') return $('runBackBtn').click();
@@ -3172,6 +3250,7 @@ async function openFriendPicker(selected, onDone) {
 //  ЛИЧНЫЕ РЕКОРДЫ (профиль)
 // =====================================================================
 function renderRecords() {
+  try { renderGoals(); } catch (e) { /* цели обновляем вместе с рекордами (после новой записи) */ }
   const box = $('recordsList');
   if (!box) return;
   const best = Object.values(bestResults());
@@ -4174,6 +4253,153 @@ function daysLabel(n) {
   return a > 10 && a < 20 ? 'дней' : b === 1 ? 'день' : b >= 2 && b <= 4 ? 'дня' : 'дней';
 }
 
+
+// =====================================================================
+//  ЦЕЛИ НА МЕСЯЦ — Fom видит их и следит за прогрессом
+// =====================================================================
+let myGoals = [];
+let myWeightKg = null;
+let goalKind = 'volume';
+
+async function loadGoals() {
+  try {
+    const r = await api('/api/auth/goals');
+    myGoals = r.goals || [];
+    myWeightKg = r.weight;
+  } catch (e) { /* не страшно */ }
+  renderGoals();
+}
+function monthKm(prefix) {
+  return myWorkouts.filter((w) => w.date.startsWith(prefix)).reduce((a, w) => a + volumeKm(w), 0);
+}
+function goalProgress(g) {
+  const month = localDateStr().slice(0, 7);
+  const f = (n) => fmtNum(Math.round(n * 10) / 10);
+  if (g.kind === 'volume') {
+    const km = monthKm(month);
+    return { title: `${f(g.target_num)} км за месяц`, now: `${f(km)} из ${f(g.target_num)} км`, frac: km / g.target_num, icon: 'target' };
+  }
+  if (g.kind === 'count') {
+    const n = myWorkouts.filter((w) => w.date.startsWith(month) && w.type === 'training').length;
+    return { title: `${g.target_num} тренировок`, now: `${n} из ${g.target_num}`, frac: n / g.target_num, icon: 'runner' };
+  }
+  if (g.kind === 'pb') {
+    const best = bestResults()[disciplineKey(g.discipline)];
+    const tv = parseResult(g.target, g.discipline);
+    let frac = 0, done = false;
+    if (best && tv != null) {
+      done = higherIsBetter(g.discipline) ? best.value >= tv : best.value <= tv;
+      frac = done ? 1 : Math.max(0, Math.min(0.95, higherIsBetter(g.discipline) ? best.value / tv : tv / best.value));
+    }
+    return { title: `${g.discipline} — ${g.target}`, now: best ? `лучший: ${best.w.competition.result}${done ? ' — цель взята! 🏆' : ''}` : 'рекорда пока нет', frac, icon: 'trophy' };
+  }
+  if (g.kind === 'weight') {
+    const start = g.start_num, target = g.target_num, now = myWeightKg;
+    const lose = start != null && target < start;
+    const frac = start != null && now != null && start !== target ? (start - now) / (start - target) : 0;
+    return {
+      title: `${lose ? 'Похудеть' : 'Набрать'} до ${f(target)} кг`,
+      now: now != null ? `сейчас ${f(now)} кг${start != null ? ` · было ${f(start)}` : ''}` : 'укажи вес',
+      frac, icon: 'heart', weight: true,
+    };
+  }
+  return { title: g.title, now: g.done ? 'выполнено ✓' : 'отметь, когда сделаешь', frac: g.done ? 1 : 0, icon: 'check', custom: true };
+}
+function renderGoals() {
+  const box = $('goalsList');
+  if (!box) return;
+  $('goalsMonth').textContent = MONTHS[new Date().getMonth()].toLowerCase();
+  if (!myGoals.length) {
+    box.innerHTML = '<div class="muted records-empty">Поставь 1–3 цели на месяц: объём, число тренировок, рекорд, вес или свою. Fom будет видеть их и подсказывать, как идёшь.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  myGoals.forEach((g) => {
+    const p = goalProgress(g);
+    const pct = Math.round(Math.max(0, Math.min(1, p.frac || 0)) * 100);
+    const row = document.createElement('div');
+    row.className = 'goal-row' + (pct >= 100 ? ' done' : '');
+    row.innerHTML = `
+      <span class="goal-ico">${ico(p.icon)}</span>
+      <span class="goal-main">
+        <b class="goal-title">${esc(p.title)}</b>
+        <span class="goal-now">${esc(p.now)}</span>
+        <span class="goal-bar"><i style="width:${pct}%"></i></span>
+      </span>
+      ${p.custom ? `<button type="button" class="goal-act goal-check">${g.done ? '✓' : '○'}</button>` : ''}
+      ${p.weight ? '<button type="button" class="goal-act goal-weight">вес</button>' : ''}
+      <button type="button" class="row-del" aria-label="Удалить">✕</button>`;
+    row.querySelector('.row-del').addEventListener('click', async () => {
+      if (!(await confirmAsk({ icon: 'trash', title: 'Убрать цель?', text: p.title, ok: 'Убрать', danger: true }))) return;
+      try { await api(`/api/auth/goals/${g.id}`, { method: 'DELETE' }); myGoals = myGoals.filter((x) => x.id !== g.id); renderGoals(); }
+      catch (e) { alertMsg('Не удалось удалить.'); }
+    });
+    row.querySelector('.goal-check')?.addEventListener('click', async () => {
+      g.done = !g.done; renderGoals(); haptic(g.done ? 'success' : 'select');
+      try { await api(`/api/auth/goals/${g.id}/done`, { method: 'POST', body: JSON.stringify({ done: g.done }) }); } catch (e) { /* не страшно */ }
+    });
+    row.querySelector('.goal-weight')?.addEventListener('click', openWeightSheet);
+    box.appendChild(row);
+  });
+}
+
+function paintGoalSheet() {
+  $('goalKinds').querySelectorAll('.rn-day').forEach((b) => b.classList.toggle('active', b.dataset.kind === goalKind));
+  document.querySelectorAll('#goalSheet .goal-f').forEach((el) => el.classList.toggle('hidden', !el.dataset.for.split(' ').includes(goalKind)));
+  $('gNumLabel').textContent = goalKind === 'volume' ? 'Сколько км за месяц' : 'Сколько тренировок за месяц';
+  $('gNum').placeholder = goalKind === 'volume' ? 'Например, 250' : 'Например, 20';
+}
+function openGoalSheet() {
+  goalKind = 'volume';
+  ['gNum', 'gDisc', 'gTarget', 'gWeightTarget', 'gTitle'].forEach((id) => { $(id).value = ''; });
+  $('gWeightNow').value = myWeightKg ?? athleteProfile?.weight_kg ?? '';
+  $('gDiscChips').innerHTML = COMP_DISCIPLINES.map((d) => `<button type="button" class="chip">${esc(d)}</button>`).join('');
+  $('gDiscChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => {
+    $('gDisc').value = c.textContent;
+    $('gDiscChips').querySelectorAll('.chip').forEach((x) => x.classList.toggle('active', x === c));
+  }));
+  paintGoalSheet();
+  $('goalSheet').classList.remove('hidden');
+}
+$('goalKinds').querySelectorAll('.rn-day').forEach((b) => b.addEventListener('click', () => { goalKind = b.dataset.kind; paintGoalSheet(); }));
+$('goalAddBtn').addEventListener('click', openGoalSheet);
+$('gCancel').addEventListener('click', () => $('goalSheet').classList.add('hidden'));
+$('goalSheet').addEventListener('click', (e) => { if (e.target === $('goalSheet')) $('goalSheet').classList.add('hidden'); });
+$('gSave').addEventListener('click', async () => {
+  const body = { kind: goalKind };
+  if (goalKind === 'volume' || goalKind === 'count') body.target_num = $('gNum').value;
+  if (goalKind === 'pb') { body.discipline = $('gDisc').value; body.target = $('gTarget').value; }
+  if (goalKind === 'weight') { body.target_num = $('gWeightTarget').value; body.current_num = $('gWeightNow').value; }
+  if (goalKind === 'custom') body.title = $('gTitle').value;
+  const btn = $('gSave'); btn.disabled = true;
+  try {
+    const { goal } = await api('/api/auth/goals', { method: 'POST', body: JSON.stringify(body) });
+    myGoals.push(goal);
+    if (goalKind === 'weight' && $('gWeightNow').value) myWeightKg = parseFloat(String($('gWeightNow').value).replace(',', '.'));
+    $('goalSheet').classList.add('hidden');
+    haptic('success');
+    renderGoals();
+  } catch (err) {
+    alertMsg(err.data?.error || 'Не удалось сохранить цель.');
+  } finally { btn.disabled = false; }
+});
+
+function openWeightSheet() {
+  $('wKg').value = myWeightKg ?? '';
+  $('weightSheet').classList.remove('hidden');
+}
+$('wCancel').addEventListener('click', () => $('weightSheet').classList.add('hidden'));
+$('weightSheet').addEventListener('click', (e) => { if (e.target === $('weightSheet')) $('weightSheet').classList.add('hidden'); });
+$('wSave').addEventListener('click', async () => {
+  try {
+    const { kg } = await api('/api/auth/weight', { method: 'POST', body: JSON.stringify({ kg: $('wKg').value }) });
+    myWeightKg = kg;
+    $('weightSheet').classList.add('hidden');
+    haptic('success');
+    renderGoals();
+  } catch (err) { alertMsg(err.data?.error || 'Не удалось сохранить вес.'); }
+});
+
 async function loadManualRecords() {
   try { myManualRecords = (await api('/api/auth/records')).records || []; } catch (e) { /* не страшно */ }
   renderRecords();
@@ -4909,19 +5135,27 @@ $('tpHours').innerHTML = Array.from({ length: 24 }, (_, h) => `<button type="but
 $('tpMins').innerHTML = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => `<button type="button" class="rn-time" data-m="${m}">${tp2(m)}</button>`).join('');
 $('tpHours').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { tpH = +b.dataset.h; paintTimePicker(); }));
 $('tpMins').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { tpM = +b.dataset.m; paintTimePicker(); }));
-$('rnTimeOwn').addEventListener('click', () => {
-  const [h, m] = ($('rnTime').value || '07:00').split(':').map(Number);
-  tpH = h; tpM = m - (m % 5);
+// Общий выбор времени (часы + минуты): для пробежек и для времени тренировки
+let tpDone = null;
+function openTimePicker({ title = 'Время', value = '07:00', onDone } = {}) {
+  const [h, m] = String(value || '07:00').split(':').map(Number);
+  tpH = Number.isFinite(h) ? h : 7;
+  tpM = Number.isFinite(m) ? m - (m % 5) : 0;
+  tpDone = onDone;
+  $('tpTitle').textContent = title;
   paintTimePicker();
   $('timeSheet').classList.remove('hidden');
-});
+}
+$('rnTimeOwn').addEventListener('click', () => openTimePicker({
+  title: 'Время пробежки', value: $('rnTime').value || '07:00',
+  onDone: (t) => { $('rnTime').value = t; paintRunSheet(); },
+}));
 $('tpCancel').addEventListener('click', () => $('timeSheet').classList.add('hidden'));
 $('timeSheet').addEventListener('click', (e) => { if (e.target === $('timeSheet')) $('timeSheet').classList.add('hidden'); });
 $('tpSave').addEventListener('click', () => {
-  $('rnTime').value = `${tp2(tpH)}:${tp2(tpM)}`;
   $('timeSheet').classList.add('hidden');
   haptic('select');
-  paintRunSheet();
+  if (tpDone) tpDone(`${tp2(tpH)}:${tp2(tpM)}`);
 });
 $('runCreateBtn').addEventListener('click', openRunSheet);
 $('rnCancel').addEventListener('click', () => $('runSheet').classList.add('hidden'));
