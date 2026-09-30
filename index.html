@@ -97,7 +97,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=58" />
+<link rel="stylesheet" href="style.css?v=61" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -290,6 +290,15 @@
       </div>
     </div>
 
+    <!-- Цели на месяц: Fom видит их и следит за прогрессом -->
+    <section class="card goals-card" id="goalsCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="target"></i>Цели на <span id="goalsMonth">месяц</span></div>
+        <button type="button" class="gift-rules-btn" id="goalAddBtn">＋ Цель</button>
+      </div>
+      <div id="goalsList"></div>
+    </section>
+
     <section class="card">
       <div class="eyebrow">Календарь</div>
       <div class="cal-header">
@@ -425,6 +434,58 @@
     </div>
   </div>
 
+  <!-- Новая цель на месяц -->
+  <div id="goalSheet" class="sheet-backdrop hidden">
+    <div class="sheet run-sheet">
+      <div class="sheet-title">🎯 Цель на месяц</div>
+      <div class="goal-kinds" id="goalKinds">
+        <button type="button" class="rn-day" data-kind="volume"><b>Объём</b><span>км за месяц</span></button>
+        <button type="button" class="rn-day" data-kind="count"><b>Тренировки</b><span>сколько раз</span></button>
+        <button type="button" class="rn-day" data-kind="pb"><b>Рекорд</b><span>результат</span></button>
+        <button type="button" class="rn-day" data-kind="weight"><b>Вес</b><span>похудеть / масса</span></button>
+        <button type="button" class="rn-day" data-kind="custom"><b>Своя</b><span>любая цель</span></button>
+      </div>
+      <div class="rn-block goal-f" data-for="volume count">
+        <div class="rn-label" id="gNumLabel">Сколько</div>
+        <input type="number" id="gNum" inputmode="decimal" placeholder="Например, 250" />
+      </div>
+      <div class="rn-block goal-f" data-for="pb">
+        <div class="rn-label">Дисциплина</div>
+        <div class="comp-chips" id="gDiscChips"></div>
+        <input type="text" id="gDisc" maxlength="40" placeholder="Или напиши свою" />
+        <div class="rn-label" style="margin-top:10px">Цель — результат</div>
+        <input type="text" id="gTarget" maxlength="20" placeholder="Например, 1:52,0 или 7,20 м" />
+      </div>
+      <div class="rn-block goal-f" data-for="weight">
+        <div class="rn-row">
+          <label class="hr-field"><span>Сейчас, кг</span><input type="number" id="gWeightNow" inputmode="decimal" placeholder="70" /></label>
+          <label class="hr-field"><span>Цель, кг</span><input type="number" id="gWeightTarget" inputmode="decimal" placeholder="73" /></label>
+        </div>
+        <div class="muted run-safety">Fom будет смотреть, как идут тренировки и вес. Питание — бережно, без жёстких диет; вопросы здоровья обсуди с врачом.</div>
+      </div>
+      <div class="rn-block goal-f" data-for="custom">
+        <div class="rn-label">Твоя цель</div>
+        <input type="text" id="gTitle" maxlength="80" placeholder="Например, каждый день растяжка 10 минут" />
+      </div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="gCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="gSave">Поставить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Обновить вес (для цели по весу) -->
+  <div id="weightSheet" class="sheet-backdrop hidden">
+    <div class="sheet start-sheet">
+      <div class="sheet-title">⚖️ Вес сегодня</div>
+      <input type="number" id="wKg" inputmode="decimal" placeholder="Например, 71,5" />
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="wCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="wSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Личный рекорд вручную -->
   <div id="recordSheet" class="sheet-backdrop hidden">
     <div class="sheet start-sheet">
@@ -548,7 +609,7 @@
   <!-- Своё время для пробежки: часы и минуты (системный выбор времени на Mac не открывается) -->
   <div id="timeSheet" class="sheet-backdrop hidden">
     <div class="sheet run-sheet">
-      <div class="sheet-title">🕒 Время пробежки <b class="tp-value" id="tpValue">07:00</b></div>
+      <div class="sheet-title">🕒 <span id="tpTitle">Время</span> <b class="tp-value" id="tpValue">07:00</b></div>
       <div class="rn-label">Часы</div>
       <div class="tp-grid tp-hours" id="tpHours"></div>
       <div class="rn-label">Минуты</div>
@@ -557,6 +618,15 @@
         <button type="button" class="ghost-btn" id="tpCancel">Отмена</button>
         <button type="button" class="ghost-btn crop-save" id="tpSave">Готово</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Тренировка друга за выбранный день (из его календаря) -->
+  <div id="daySheet" class="sheet-backdrop hidden">
+    <div class="sheet day-sheet">
+      <div class="sheet-title" id="dayTitle"></div>
+      <div id="dayList"></div>
+      <button type="button" class="sheet-btn muted-btn" id="dayClose">Закрыть</button>
     </div>
   </div>
 
@@ -1052,6 +1122,7 @@
       <button id="editDeleteBtn" class="ghost-btn danger" type="button"><i data-ico="trash"></i> Удалить</button>
     </div>
     <div id="editStatusMsg" class="status-msg"></div>
+    <div class="ai-box hidden" id="editFeedback"><div class="ai-box-title"><span class="fom-badge">F</span> Fom</div><div class="fb" id="editFeedbackText"></div></div>
 
     <!-- Реакции и комментарии друзей к этой записи -->
     <section class="card hidden" id="editSocialCard">
@@ -1103,6 +1174,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=59"></script>
+  <script src="app.js?v=61"></script>
 </body>
 </html>
