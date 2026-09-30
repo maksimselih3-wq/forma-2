@@ -97,7 +97,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=67" />
+<link rel="stylesheet" href="style.css?v=68" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -151,7 +151,7 @@
 
   <!-- ===================== ГЛАВНАЯ: НОВАЯ ЗАПИСЬ ===================== -->
   <main id="mainScreen" class="screen">
-    <div class="stats-row">
+    <div class="stats-row stats-compact">
       <div class="stat">
         <div class="stat-icon" data-ico="flame"></div>
         <div class="stat-num accent" id="statStreak">0</div>
@@ -167,6 +167,40 @@
         <div class="stat-num" id="statMonth">0</div>
         <div class="stat-label">тренировок за месяц</div>
       </div>
+    </div>
+
+
+
+
+
+    <section class="card card-hero">
+      <div class="eyebrow">Дневник</div>
+      <h2 class="title" id="entryTitle">Запись за сегодня</h2>
+      <!-- Выбор даты: быстрые кнопки + календарь -->
+      <div class="date-picker-row">
+        <button type="button" class="chip" data-shift="0">Сегодня</button>
+        <button type="button" class="chip" data-shift="1">Вчера</button>
+        <label class="date-input-wrap">
+          <i data-ico="calendar"></i><input type="date" id="entryDate" />
+        </label>
+      </div>
+    </section>
+
+    <!-- Карточка «запись уже есть / сохранена» — показывается вместо формы -->
+    <section id="entryDone" class="card done-card hidden">
+      <div class="done-title" id="doneTitle">Запись сохранена</div>
+      <!-- сюда рисуются все записи дня: основная и вторая тренировка -->
+      <div id="doneList"></div>
+      <button type="button" id="doneAddBtn" class="add-second-btn hidden">➕ Добавить вторую тренировку</button>
+      <div class="muted done-hint">Новые записи — только за сегодня и вчера. Прошлые можно открыть и поправить в календаре профиля.</div>
+    </section>
+
+    <!-- Форма новой записи (поля рисуются из app.js) -->
+    <div id="entryForm">
+      <div id="mainFormFields"></div>
+      <button id="saveBtn" class="primary-btn" type="button">Сохранить запись <span class="plus-ico">+</span></button>
+      <div id="statusMsg" class="status-msg"></div>
+      <button type="button" id="entryBackBtn" class="ghost-btn wide hidden">← Назад к записи дня</button>
     </div>
 
     <!-- Утренняя отметка: сон, пульс покоя, самочувствие -->
@@ -207,46 +241,6 @@
       </div>
       <div id="challengeRows"></div>
     </section>
-
-    <!-- Розыгрыши подарков за честную серию -->
-    <section class="card gift-card hidden" id="giftCard">
-      <div class="gift-head">
-        <div class="card-label"><i data-ico="gift"></i>Розыгрыши</div>
-        <button type="button" class="gift-rules-btn" id="giftRulesBtn">Правила</button>
-      </div>
-      <div class="muted gift-sub" id="giftStreak"></div>
-      <div id="giftRows"></div>
-    </section>
-
-    <section class="card card-hero">
-      <div class="eyebrow">Дневник</div>
-      <h2 class="title" id="entryTitle">Запись за сегодня</h2>
-      <!-- Выбор даты: быстрые кнопки + календарь -->
-      <div class="date-picker-row">
-        <button type="button" class="chip" data-shift="0">Сегодня</button>
-        <button type="button" class="chip" data-shift="1">Вчера</button>
-        <label class="date-input-wrap">
-          <i data-ico="calendar"></i><input type="date" id="entryDate" />
-        </label>
-      </div>
-    </section>
-
-    <!-- Карточка «запись уже есть / сохранена» — показывается вместо формы -->
-    <section id="entryDone" class="card done-card hidden">
-      <div class="done-title" id="doneTitle">Запись сохранена</div>
-      <!-- сюда рисуются все записи дня: основная и вторая тренировка -->
-      <div id="doneList"></div>
-      <button type="button" id="doneAddBtn" class="add-second-btn hidden">➕ Добавить вторую тренировку</button>
-      <div class="muted done-hint">Новые записи — только за сегодня и вчера. Прошлые можно открыть и поправить в календаре профиля.</div>
-    </section>
-
-    <!-- Форма новой записи (поля рисуются из app.js) -->
-    <div id="entryForm">
-      <div id="mainFormFields"></div>
-      <button id="saveBtn" class="primary-btn" type="button">Сохранить запись <span class="plus-ico">+</span></button>
-      <div id="statusMsg" class="status-msg"></div>
-      <button type="button" id="entryBackBtn" class="ghost-btn wide hidden">← Назад к записи дня</button>
-    </div>
   </main>
 
   <!-- ===================== ПРОФИЛЬ + КАЛЕНДАРЬ ===================== -->
@@ -290,24 +284,7 @@
       </div>
     </div>
 
-    <!-- Цели на месяц: Fom видит их и следит за прогрессом -->
-    <section class="card goals-card" id="goalsCard">
-      <div class="gift-head">
-        <div class="card-label"><i data-ico="target"></i>Цели на <span id="goalsMonth">месяц</span></div>
-        <button type="button" class="gift-rules-btn" id="goalAddBtn">＋ Цель</button>
-      </div>
-      <div id="goalsList"></div>
-    </section>
 
-    <!-- Здоровье: питание по фото, анализы крови, БАДы — видит только сам спортсмен -->
-    <button type="button" class="card health-entry" id="healthEntry">
-      <span class="health-entry-ico">❤️</span>
-      <span class="health-entry-main">
-        <span class="health-entry-title">Здоровье</span>
-        <span class="health-entry-sub" id="healthEntrySub">Питание по фото · анализы крови · БАДы</span>
-      </span>
-      <span class="history-arrow">›</span>
-    </button>
 
     <section class="card">
       <div class="eyebrow">Календарь</div>
@@ -332,6 +309,15 @@
       <div class="muted cal-help">Нажми на отмеченный день — откроешь запись. Новые записи — только за сегодня и вчера.</div>
     </section>
 
+    <!-- Цели на месяц: Fom видит их и следит за прогрессом -->
+    <section class="card goals-card" id="goalsCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="target"></i>Цели на <span id="goalsMonth">месяц</span></div>
+        <button type="button" class="gift-rules-btn" id="goalAddBtn">＋ Цель</button>
+      </div>
+      <div id="goalsList"></div>
+    </section>
+
     <!-- Личные рекорды: лучший результат в каждой дисциплине по стартам -->
     <section class="card records-card" id="recordsCard">
       <div class="gift-head">
@@ -341,14 +327,6 @@
       <div id="recordsList"></div>
     </section>
 
-    <!-- Достижения -->
-    <section class="card achievements-card" id="achievementsCard">
-      <div class="gift-head">
-        <div class="card-label"><i data-ico="sparkle"></i>Достижения</div>
-        <span class="muted" id="achievementsCount"></span>
-      </div>
-      <div class="ach-grid" id="achievementsGrid"></div>
-    </section>
 
     <!-- Календарь стартов -->
     <section class="card starts-card" id="startsCard">
@@ -357,6 +335,35 @@
         <button type="button" class="gift-rules-btn" id="startAddBtn">＋ Добавить</button>
       </div>
       <div id="startsList"></div>
+    </section>
+
+    <!-- Разделы: здоровье и розыгрыши — чтобы не загромождать профиль -->
+    <div class="menu-group">
+    <button type="button" class="card health-entry" id="healthEntry">
+      <span class="health-entry-ico">❤️</span>
+      <span class="health-entry-main">
+        <span class="health-entry-title">Здоровье</span>
+        <span class="health-entry-sub" id="healthEntrySub">Питание по фото · анализы крови · БАДы</span>
+      </span>
+      <span class="history-arrow">›</span>
+    </button>
+    <button type="button" class="card health-entry" id="giftsEntry">
+      <span class="health-entry-ico gifts-ico">🎁</span>
+      <span class="health-entry-main">
+        <span class="health-entry-title">Розыгрыши</span>
+        <span class="health-entry-sub" id="giftsEntrySub">Подарки за честную серию дней</span>
+      </span>
+      <span class="history-arrow">›</span>
+    </button>
+    </div>
+
+    <!-- Достижения -->
+    <section class="card achievements-card" id="achievementsCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="sparkle"></i>Достижения <span class="muted ach-count" id="achievementsCount"></span></div>
+        <button type="button" class="gift-rules-btn" id="achToggle">Все</button>
+      </div>
+      <div class="ach-grid" id="achievementsGrid"></div>
     </section>
 
     <!-- Личная анкета: видна только тебе и Fom -->
@@ -744,6 +751,29 @@
   </section>
 
   <!-- Настройки: тема, уведомления, приватность -->
+  <!-- ===================== РОЗЫГРЫШИ ===================== -->
+  <section id="giftsScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="giftsBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="group-head-main">
+        <div class="eyebrow">За честную серию</div>
+        <h2 class="title small">Розыгрыши</h2>
+      </div>
+    </div>
+    <!-- Розыгрыши подарков за честную серию -->
+    <section class="card gift-card hidden" id="giftCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="gift"></i>Розыгрыши</div>
+        <button type="button" class="gift-rules-btn" id="giftRulesBtn">Правила</button>
+      </div>
+      <div class="muted gift-sub" id="giftStreak"></div>
+      <div id="giftRows"></div>
+    </section>
+    <div class="muted empty-hint hidden" id="giftsEmpty">Сейчас розыгрышей нет — загляни позже.</div>
+  </section>
+
   <!-- ===================== ЗДОРОВЬЕ ===================== -->
   <section id="healthScreen" class="screen hidden">
     <div class="screen-head">
@@ -1379,6 +1409,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=67"></script>
+  <script src="app.js?v=68"></script>
 </body>
 </html>
