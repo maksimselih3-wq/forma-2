@@ -2187,3 +2187,26 @@ html[data-theme="light"] .bv-row.low .bv-val em, html[data-theme="light"] .bv-ro
 .fb-refresh { margin-left: auto; border: 1px solid var(--border); background: var(--input); color: var(--text); border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .fb-refresh:disabled { opacity: 0.5; }
 #editFeedback .ai-box-title { display: flex; align-items: center; gap: 8px; }
+
+/* ---------- Компоновка: главная без лишнего ---------- */
+/* серия и тренировки — одной тонкой строкой, чтобы запись тренировки была сразу видна */
+.stats-row.stats-compact { gap: 6px; margin-bottom: 12px; }
+.stats-row.stats-compact .stat { display: flex;
+  flex-direction: row; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 8px; border-radius: 14px; min-height: 0; text-align: left;
+}
+.stats-row.stats-compact .stat-icon { width: 24px; height: 24px; border-radius: 8px; margin: 0; flex: none; }
+.stats-row.stats-compact .stat-icon .ico { width: 15px; height: 15px; }
+.stats-row.stats-compact .stat-num { font-size: 18px; line-height: 1; margin: 0; }
+.stats-row.stats-compact .stat-label { font-size: 10px; margin: 0; line-height: 1.15; }
+/* необязательные блоки формы — в кнопки */
+.opt-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 2px 14px; }
+.opt-chips-label { font-size: 13px; color: var(--muted); width: 100%; }
+.opt-chip { display: inline-flex; align-items: center; gap: 6px; }
+.opt-chip .ico { width: 16px; height: 16px; }
+/* меню разделов в профиле */
+.menu-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.menu-group .health-entry { margin: 0; }
+.gifts-ico { background: rgba(155, 107, 255, 0.14); }
+.ach-count { font-weight: 600; font-size: 13px; margin-left: 4px; }
+#giftsScreen .gift-card { margin-top: 4px; }
