@@ -2034,3 +2034,83 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .goal-row.done .goal-check { background: var(--grad-lime); color: #0b0d10; border-color: transparent; }
 .goal-kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
 .goal-kinds .rn-day b { font-size: 13px; }
+
+/* ---------- Место тренировки ---------- */
+.place-input-wrap { display: flex; align-items: center; gap: 8px; }
+.place-input-wrap input { flex: 1; min-width: 0; }
+.place-suggest {
+  margin-top: 6px; border: 1px solid var(--border-strong); border-radius: 14px;
+  background: var(--card-solid); overflow: hidden;
+}
+.place-opt {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
+  padding: 10px 14px; border: 0; border-bottom: 1px solid var(--border);
+  background: transparent; color: var(--text); text-align: left; cursor: pointer; font: inherit;
+}
+.place-opt:last-child { border-bottom: 0; }
+.place-opt b { font-size: 14px; }
+.place-opt span { font-size: 12px; color: var(--muted); }
+.place-chips { margin-top: 10px; }
+.chip-ico { display: inline-flex; align-items: center; gap: 6px; }
+.chip-ico .ico { width: 16px; height: 16px; }
+.place-row { display: flex; align-items: flex-end; gap: 12px; margin-top: 10px; }
+.place-alt { flex: 0 0 132px; }
+.place-alt > span { display: inline-flex; align-items: center; gap: 4px; }
+.place-alt > span .ico { width: 14px; height: 14px; }
+.place-camp { margin-top: 0; padding-bottom: 10px; }
+
+/* ---------- Кабинет тренера ---------- */
+#groupTabs.seg-3 .seg-btn { font-size: 13px; }
+.group-task { border-color: rgba(155, 107, 255, 0.35); }
+.group-task-at { font-weight: 500; font-size: 12px; }
+.group-task-text { white-space: pre-line; font-size: 14px; line-height: 1.45; margin-top: 6px; }
+.coach-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+#mcTiles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.coach-tile {
+  background: var(--card-solid); border: 1px solid var(--border); border-radius: 16px;
+  padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.coach-tile b { font-family: var(--font-head); font-size: 17px; white-space: nowrap; }
+#mcTiles .coach-tile b { font-size: 14px; }
+.coach-tile span { font-size: 11px; color: var(--muted); }
+.coach-tile.warn { background: rgba(255, 154, 60, 0.12); border-color: rgba(255, 154, 60, 0.4); }
+.coach-tile.warn b { color: #ffb066; }
+.coach-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.coach-actions .ghost-btn { font-size: 13px; padding: 12px 8px; }
+.coach-filter { margin-bottom: 10px; }
+.coach-row {
+  display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left;
+  padding: 12px 14px; margin-bottom: 10px; border-radius: 18px; cursor: pointer; font: inherit; color: var(--text);
+  background: linear-gradient(180deg, var(--card-top), var(--card-bottom)); border: 1px solid var(--border);
+}
+.coach-row-top { display: flex; align-items: center; gap: 12px; }
+.coach-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.coach-row-name { font-weight: 700; font-size: 15px; }
+.coach-row-last { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coach-row-km { display: flex; flex-direction: column; align-items: flex-end; }
+.coach-row-km b { font-family: var(--font-head); font-size: 15px; }
+.coach-row-km span { font-size: 11px; color: var(--muted); }
+.coach-row-flags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.coach-flag { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--input); }
+.coach-flag.ok { background: rgba(180, 245, 60, 0.14); color: var(--lime-text); }
+.coach-flag.warn { background: rgba(255, 154, 60, 0.16); color: #ffb066; }
+.coach-flag.bad { background: rgba(255, 90, 79, 0.16); color: #ff8a80; }
+.coach-flag.camp { background: rgba(155, 107, 255, 0.18); color: #c4a8ff; }
+.coach-row-meta { font-size: 12px; color: var(--muted); }
+.coach-digest-text { white-space: pre-line; font-size: 14px; line-height: 1.5; max-height: 55vh; overflow-y: auto; margin-bottom: 12px; }
+.mc-week-head, .mc-fom-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.mc-fom-head { justify-content: flex-start; align-items: center; }
+.mc-week-head .muted { font-size: 12px; }
+.mc-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end; height: 112px; margin-top: 10px; }
+.mc-bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
+.mc-bar.future { opacity: 0.35; }
+.mc-bar-km { font-size: 10px; color: var(--muted); }
+.mc-bar-fill { width: 100%; border-radius: 6px; }
+.mc-bar-wd { font-size: 11px; color: var(--muted); font-weight: 600; }
+.mc-fom { border-color: rgba(155, 107, 255, 0.35); }
+.mc-fom-text { font-size: 14px; line-height: 1.5; margin: 10px 0 12px; white-space: pre-line; }
+.mc-msg textarea { margin: 8px 0 10px; }
+.mc-msgs { font-size: 12px; margin-top: 10px; line-height: 1.5; }
+html[data-theme="light"] .coach-flag.warn, html[data-theme="light"] .coach-tile.warn b { color: #b8570a; }
+html[data-theme="light"] .coach-flag.bad { color: #c62f25; }
+html[data-theme="light"] .coach-flag.camp { color: #6a3fd6; }
