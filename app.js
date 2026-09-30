@@ -230,9 +230,9 @@ async function api(path, options = {}) {
 }
 
 // ---------- Переключение экранов + подсветка нижней панели ----------
-const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen', 'groupScreen', 'memberScreen', 'settingsScreen', 'runScreen', 'healthScreen'];
+const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen', 'groupScreen', 'memberScreen', 'settingsScreen', 'runScreen', 'healthScreen', 'giftsScreen'];
 // какая кнопка нижней панели подсвечивается на «вложенных» экранах
-const NAV_PARENT = { friendProfileScreen: 'friendsScreen', groupScreen: 'friendsScreen', memberScreen: 'friendsScreen', settingsScreen: 'profileScreen', healthScreen: 'profileScreen', runScreen: 'friendsScreen' };
+const NAV_PARENT = { friendProfileScreen: 'friendsScreen', groupScreen: 'friendsScreen', memberScreen: 'friendsScreen', settingsScreen: 'profileScreen', healthScreen: 'profileScreen', giftsScreen: 'profileScreen', runScreen: 'friendsScreen' };
 const TAB_SCREENS = ['mainScreen', 'chatScreen', 'insightsScreen', 'friendsScreen', 'profileScreen'];
 const tabHistory = []; // какие вкладки открывались — чтобы жест «назад» вёл туда, откуда пришёл
 function showScreen(targetId) {
@@ -399,41 +399,6 @@ const FORM_TEMPLATE = `
   </section>
 
   <div data-f="trainingFields">
-    <section class="card time-card">
-      <div class="card-head">
-        <div class="card-label">${ico('clock')}Время тренировки</div>
-        <div class="card-hint">необязательно · Fom поймёт, когда тебе лучше тренироваться</div>
-      </div>
-      <div class="wt-row">
-        <button type="button" class="wt-btn" data-f="startBtn"><span>Начало</span><b data-f="startLabel">—:—</b></button>
-        <span class="wt-dash">—</span>
-        <button type="button" class="wt-btn" data-f="endBtn"><span>Конец</span><b data-f="endLabel">—:—</b></button>
-        <button type="button" class="wt-clear hidden" data-f="timeClear" aria-label="Убрать время">✕</button>
-      </div>
-    </section>
-
-    <section class="card place-card">
-      <div class="card-head">
-        <div class="card-label">${ico('pin')}Где тренировался</div>
-        <div class="card-hint">необязательно · Fom учтёт высоту над уровнем моря</div>
-      </div>
-      <div class="place-input-wrap">
-        <input type="text" data-f="placeInput" maxlength="80" placeholder="Город или стадион: Кисловодск, Манеж…" autocomplete="off" />
-        <button type="button" class="wt-clear hidden" data-f="placeClear" aria-label="Убрать место">✕</button>
-      </div>
-      <div class="place-suggest hidden" data-f="placeSuggest"></div>
-      <div class="comp-chips place-chips" data-f="placeChips"></div>
-      <div class="place-row">
-        <label class="hr-field place-alt"><span>${ico('mountain')}Высота, м</span><input type="number" inputmode="numeric" data-f="placeAlt" min="-500" max="6000" placeholder="—" /></label>
-        <label class="toggle-row place-camp">
-          <input type="checkbox" data-f="placeCamp" />
-          <span class="toggle"></span>
-          <span>Я на сборе</span>
-        </label>
-      </div>
-      <div class="muted hr-hint" data-f="placeHint">Выбери город из подсказки — высота подставится сама. Для стадиона в горах можно поправить её вручную.</div>
-    </section>
-
     <section class="card">
       <div class="card-label">Разминка</div>
       <textarea data-f="warmup" rows="2" placeholder="Например: 3 км трусцой + суставная"></textarea>
@@ -477,7 +442,49 @@ const FORM_TEMPLATE = `
       </div>
     </section>
 
-    <section class="card">
+    <div class="opt-chips" data-f="optChips">
+      <span class="opt-chips-label">Можно добавить:</span>
+      <button type="button" class="chip opt-chip" data-opt="time">${ico('clock')} Время</button>
+      <button type="button" class="chip opt-chip" data-opt="place">${ico('pin')} Место</button>
+      <button type="button" class="chip opt-chip" data-opt="pulse">${ico('heart')} Пульс</button>
+    </div>
+
+    <section class="card time-card opt-card hidden" data-f="timeCard">
+      <div class="card-head">
+        <div class="card-label">${ico('clock')}Время тренировки</div>
+        <div class="card-hint">необязательно · Fom поймёт, когда тебе лучше тренироваться</div>
+      </div>
+      <div class="wt-row">
+        <button type="button" class="wt-btn" data-f="startBtn"><span>Начало</span><b data-f="startLabel">—:—</b></button>
+        <span class="wt-dash">—</span>
+        <button type="button" class="wt-btn" data-f="endBtn"><span>Конец</span><b data-f="endLabel">—:—</b></button>
+        <button type="button" class="wt-clear hidden" data-f="timeClear" aria-label="Убрать время">✕</button>
+      </div>
+    </section>
+
+    <section class="card place-card opt-card hidden" data-f="placeCard">
+      <div class="card-head">
+        <div class="card-label">${ico('pin')}Где тренировался</div>
+        <div class="card-hint">необязательно · Fom учтёт высоту над уровнем моря</div>
+      </div>
+      <div class="place-input-wrap">
+        <input type="text" data-f="placeInput" maxlength="80" placeholder="Город или стадион: Кисловодск, Манеж…" autocomplete="off" />
+        <button type="button" class="wt-clear hidden" data-f="placeClear" aria-label="Убрать место">✕</button>
+      </div>
+      <div class="place-suggest hidden" data-f="placeSuggest"></div>
+      <div class="comp-chips place-chips" data-f="placeChips"></div>
+      <div class="place-row">
+        <label class="hr-field place-alt"><span>${ico('mountain')}Высота, м</span><input type="number" inputmode="numeric" data-f="placeAlt" min="-500" max="6000" placeholder="—" /></label>
+        <label class="toggle-row place-camp">
+          <input type="checkbox" data-f="placeCamp" />
+          <span class="toggle"></span>
+          <span>Я на сборе</span>
+        </label>
+      </div>
+      <div class="muted hr-hint" data-f="placeHint">Выбери город из подсказки — высота подставится сама. Для стадиона в горах можно поправить её вручную.</div>
+    </section>
+
+    <section class="card opt-card hidden" data-f="pulseCard">
       <div class="card-label">${ico('heart')}Пульс, уд/мин <span class="optional">необязательно</span></div>
       <div class="hr-row">
         <label class="hr-field"><span>Средний</span><input type="number" inputmode="numeric" data-f="hrAvg" min="30" max="250" placeholder="—" /></label>
@@ -519,6 +526,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     f('startBtn').classList.toggle('set', !!startTime);
     f('endBtn').classList.toggle('set', !!endTime);
     f('timeClear').classList.toggle('hidden', !startTime && !endTime);
+    if (typeof syncOptional === 'function' && f('optChips')) try { syncOptional(); } catch (e) { /* ещё не готово */ }
   }
   f('startBtn').addEventListener('click', () => openTimePicker({
     title: 'Начало тренировки', value: startTime || nowRoundedTime(-90),
@@ -529,6 +537,33 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     onDone: (t) => { endTime = t; if (!startTime) startTime = addMinutesToTime(t, -90); paintTimes(); },
   }));
   f('timeClear').addEventListener('click', () => { startTime = null; endTime = null; paintTimes(); });
+
+  // --- необязательные блоки (время, место, пульс): свёрнуты в кнопки, раскрываются по нажатию или если в них есть данные ---
+  const optOpen = { time: false, place: false, pulse: false };
+  function optHasData(k) {
+    if (k === 'time') return !!(startTime || endTime);
+    if (k === 'place') return !!(f('placeInput').value.trim() || f('placeAlt').value || f('placeCamp').checked);
+    return !!(f('hrAvg').value || f('hrMax').value || f('hrMin').value);
+  }
+  function syncOptional() {
+    const cards = { time: 'timeCard', place: 'placeCard', pulse: 'pulseCard' };
+    let any = false;
+    Object.keys(cards).forEach((k) => {
+      const open = optOpen[k] || optHasData(k);
+      f(cards[k]).classList.toggle('hidden', !open);
+      f('optChips').querySelector(`[data-opt="${k}"]`).classList.toggle('hidden', open);
+      if (!open) any = true;
+    });
+    f('optChips').classList.toggle('hidden', !any);
+  }
+  f('optChips').querySelectorAll('.opt-chip').forEach((b) => b.addEventListener('click', () => {
+    optOpen[b.dataset.opt] = true;
+    syncOptional();
+    const card = f({ time: 'timeCard', place: 'placeCard', pulse: 'pulseCard' }[b.dataset.opt]);
+    card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (b.dataset.opt === 'time') f('startBtn').click();
+    if (b.dataset.opt === 'place') setTimeout(() => f('placeInput').focus(), 250);
+  }));
 
   // --- место тренировки: название, координаты, высота, сбор ---
   let placeGeo = null; // { lat, lon } — если место выбрано из подсказки или «где я сейчас»
@@ -552,6 +587,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   }
   function paintPlace() {
     f('placeClear').classList.toggle('hidden', !f('placeInput').value && !f('placeAlt').value);
+    syncOptional();
     // быстрые варианты: мои прошлые места (по частоте) + «где я сейчас»
     const seen = {};
     (typeof myWorkouts !== 'undefined' ? myWorkouts : []).forEach((w) => {
@@ -782,6 +818,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     if (p.hr_avg) f('hrAvg').value = p.hr_avg;
     if (p.hr_max) f('hrMax').value = p.hr_max;
     if (p.hr_min) f('hrMin').value = p.hr_min;
+    syncOptional();
     if (p.start_time) { startTime = p.start_time; endTime = p.end_time || endTime; paintTimes(); }
     if (p.place && !f('placeInput').value.trim()) { f('placeInput').value = p.place; placeGeo = null; paintPlace(); }
     if (Array.isArray(p.sets) && p.sets.length) {
@@ -877,6 +914,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       }));
       renderSets();
       renderExercises();
+      syncOptional();
       growAll(root);
   }
 
@@ -924,6 +962,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       const lastCamp = (typeof myWorkouts !== 'undefined' ? myWorkouts : []).find((w) => w.type === 'training');
       const keep = lastCamp && lastCamp.camp && daysAgo(lastCamp.date) <= 3
         ? { place: lastCamp.place, place_lat: lastCamp.place_lat, place_lon: lastCamp.place_lon, altitude_m: lastCamp.altitude_m, camp: true } : {};
+      optOpen.time = false; optOpen.place = false; optOpen.pulse = false;
       this.setData({ type: 'training', visibility: vis, visible_to: visTo, ...keep });
       f('smartText').value = '';
       f('smartStatus').textContent = '';
@@ -2730,6 +2769,7 @@ function goBack() {
   if (!$('bloodSheet').classList.contains('hidden')) return $('bloodCancel').click();
   if (!$('bloodViewSheet').classList.contains('hidden')) return $('bvClose').click();
   if (screen === 'healthScreen') return $('healthBackBtn').click();
+  if (screen === 'giftsScreen') return $('giftsBackBtn').click();
   if (screen === 'settingsScreen') return $('settingsBackBtn').click();
   if (screen === 'memberScreen') return $('memberBackBtn').click();
   if (screen === 'groupScreen') return $('groupBackBtn').click();
@@ -3075,6 +3115,7 @@ function renderGiveaway() {
   if (!giftData) return;
   $('giftCard').classList.remove('hidden');
   $('giftStreak').innerHTML = `Твоя честная серия: <b>${esc(giftData.honest_streak)} дн.</b> ${ico('flame')}`;
+  $('giftsEntrySub').textContent = `Твоя честная серия: ${giftData.honest_streak} дн. · подарки за неделю и месяц`;
   const rows = $('giftRows');
   rows.innerHTML = '';
   ['week', 'month'].forEach((kind) => {
@@ -3127,6 +3168,14 @@ function openGiftSheet() {
   $('giftSheet').classList.remove('hidden');
 }
 $('giftRulesBtn').addEventListener('click', openGiftSheet);
+// Розыгрыши живут на своей странице (вход из профиля), чтобы не мешать записи тренировки
+$('giftsEntry').addEventListener('click', async () => {
+  haptic();
+  showScreen('giftsScreen');
+  await loadGiveaway();
+  $('giftsEmpty').classList.toggle('hidden', !$('giftCard').classList.contains('hidden'));
+});
+$('giftsBackBtn').addEventListener('click', () => showScreen('profileScreen'));
 $('giftCloseBtn').addEventListener('click', () => $('giftSheet').classList.add('hidden'));
 $('giftSheet').addEventListener('click', (e) => { if (e.target === $('giftSheet')) $('giftSheet').classList.add('hidden'); });
 setInterval(renderGiveaway, 60000); // обновляем «итоги через…»
@@ -4827,12 +4876,18 @@ function achievementList() {
 }
 
 let achievementsReady = false;
+let achOpen = false;
+$('achToggle').addEventListener('click', () => { achOpen = !achOpen; renderAchievements(); });
 function renderAchievements() {
   if (!currentUser || !$('achievementsGrid')) return;
   const list = achievementList();
   const done = list.filter((a) => a.cur >= a.goal);
-  $('achievementsCount').textContent = `${done.length} из ${list.length}`;
-  $('achievementsGrid').innerHTML = list.map((a) => {
+  $('achievementsCount').textContent = `· ${done.length} из ${list.length}`;
+  // полученные — первыми; в свёрнутом виде видна одна строка
+  const sorted = [...list].sort((a, b) => (b.cur >= b.goal) - (a.cur >= a.goal));
+  const shown = achOpen ? sorted : sorted.slice(0, 3);
+  $('achToggle').textContent = achOpen ? 'Свернуть' : `Все ${list.length}`;
+  $('achievementsGrid').innerHTML = shown.map((a) => {
     const ok = a.cur >= a.goal;
     return `<div class="ach${ok ? ' on' : ''}${a.special ? ' ach-special' : ''}">
       <span class="ach-ico">${ico(a.icon)}</span>
