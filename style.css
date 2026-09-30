@@ -1998,3 +1998,39 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .tp-value { margin-left: 6px; font-family: var(--font-head); color: var(--lime-text); }
 .tp-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 14px; }
 .tp-grid .rn-time { padding: 10px 0; text-align: center; }
+/* тренировка друга за день — окошко */
+.day-sheet { max-height: 86vh; overflow-y: auto; }
+.day-sheet .wk-card { margin-bottom: 10px; }
+/* время тренировки в форме */
+.wt-row { display: flex; align-items: center; gap: 8px; }
+.wt-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 8px; border-radius: 14px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--input); color: var(--text);
+}
+.wt-btn span { font-size: 11px; color: var(--muted); font-weight: 700; }
+.wt-btn b { font-family: var(--font-head); font-size: 18px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.wt-btn.set { border-color: rgba(180, 245, 60, 0.5); }
+.wt-btn.set b { color: var(--text); }
+.wt-dash { color: var(--muted); }
+.wt-clear { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--input); color: var(--muted); cursor: pointer; flex: none; }
+#editFeedback { margin-top: 12px; } #editFeedback.flash { box-shadow: 0 0 0 2px var(--lime), 0 0 28px rgba(180, 245, 60, 0.3); transition: box-shadow 0.4s; }
+
+/* ---------- Цели на месяц ---------- */
+.goal-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); }
+.goal-row:first-child { border-top: none; padding-top: 4px; }
+.goal-ico { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--input); flex: none; }
+.goal-ico .ico { width: 20px; height: 20px; }
+.goal-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.goal-title { font-size: 14.5px; }
+.goal-now { font-size: 12.5px; color: var(--muted); }
+.goal-bar { height: 6px; border-radius: 999px; background: rgba(var(--ink), 0.08); overflow: hidden; margin-top: 3px; }
+.goal-bar i { display: block; height: 100%; border-radius: 999px; background: var(--grad-lime); transition: width 0.4s ease; }
+.goal-row.done .goal-title { color: var(--lime-text); }
+.goal-act {
+  flex: none; min-width: 34px; height: 34px; padding: 0 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--input); color: var(--text); font-weight: 800; cursor: pointer;
+}
+.goal-row.done .goal-check { background: var(--grad-lime); color: #0b0d10; border-color: transparent; }
+.goal-kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+.goal-kinds .rn-day b { font-size: 13px; }
