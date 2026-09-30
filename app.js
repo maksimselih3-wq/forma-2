@@ -230,9 +230,9 @@ async function api(path, options = {}) {
 }
 
 // ---------- Переключение экранов + подсветка нижней панели ----------
-const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen', 'groupScreen', 'memberScreen', 'settingsScreen', 'runScreen'];
+const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProfileScreen', 'insightsScreen', 'chatScreen', 'editScreen', 'groupScreen', 'memberScreen', 'settingsScreen', 'runScreen', 'healthScreen'];
 // какая кнопка нижней панели подсвечивается на «вложенных» экранах
-const NAV_PARENT = { friendProfileScreen: 'friendsScreen', groupScreen: 'friendsScreen', memberScreen: 'friendsScreen', settingsScreen: 'profileScreen', runScreen: 'friendsScreen' };
+const NAV_PARENT = { friendProfileScreen: 'friendsScreen', groupScreen: 'friendsScreen', memberScreen: 'friendsScreen', settingsScreen: 'profileScreen', healthScreen: 'profileScreen', runScreen: 'friendsScreen' };
 const TAB_SCREENS = ['mainScreen', 'chatScreen', 'insightsScreen', 'friendsScreen', 'profileScreen'];
 const tabHistory = []; // какие вкладки открывались — чтобы жест «назад» вёл туда, откуда пришёл
 function showScreen(targetId) {
@@ -2676,6 +2676,10 @@ function goBack() {
   if (!$('timeSheet').classList.contains('hidden')) return $('tpCancel').click();
   if (!$('runSheet').classList.contains('hidden')) return $('rnCancel').click();
   if (screen === 'runScreen') return $('runBackBtn').click();
+  if (!$('mealSheet').classList.contains('hidden')) return $('mealCancel').click();
+  if (!$('bloodSheet').classList.contains('hidden')) return $('bloodCancel').click();
+  if (!$('bloodViewSheet').classList.contains('hidden')) return $('bvClose').click();
+  if (screen === 'healthScreen') return $('healthBackBtn').click();
   if (screen === 'settingsScreen') return $('settingsBackBtn').click();
   if (screen === 'memberScreen') return $('memberBackBtn').click();
   if (screen === 'groupScreen') return $('groupBackBtn').click();
@@ -5651,3 +5655,389 @@ function pendingJoinCode() {
 hydrateIcons();
 
 init();
+
+// =====================================================================
+//  ЗДОРОВЬЕ: питание по фото, анализы крови, БАДы (видит только сам спортсмен)
+// =====================================================================
+let healthTab = 'food';
+let foodDate = null;
+let foodData = null;
+
+// Фото → сжатый JPEG (data URL): большая сторона не больше maxSide
+function fileToJpeg(file, maxSide, quality) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.naturalWidth * k));
+      c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не получилось открыть фото')); };
+    img.src = url;
+  });
+}
+
+function openHealth(tab) {
+  if (tab) healthTab = tab;
+  showScreen('healthScreen');
+  setHealthTab(healthTab);
+}
+function setHealthTab(tab) {
+  healthTab = tab;
+  $('healthTabs').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.htab === tab));
+  $('hFood').classList.toggle('hidden', tab !== 'food');
+  $('hBlood').classList.toggle('hidden', tab !== 'blood');
+  $('hSupps').classList.toggle('hidden', tab !== 'supps');
+  if (tab === 'food') loadFood();
+  else if (tab === 'blood') loadBlood();
+  else loadSupps();
+}
+$('healthTabs').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => setHealthTab(b.dataset.htab)));
+$('healthEntry').addEventListener('click', () => { haptic(); openHealth(); });
+$('healthBackBtn').addEventListener('click', () => showScreen('profileScreen'));
+
+// ---------- Питание ----------
+const LOAD_LABEL = { rest: 'без тренировки', light: 'лёгкая тренировка', moderate: 'средняя нагрузка', high: 'тяжёлый день' };
+function shiftDateStr(str, n) {
+  const d = new Date(str + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+async function loadFood() {
+  if (!foodDate) foodDate = localDateStr();
+  $('foodDay').textContent = relativeDateLabel(foodDate);
+  $('foodNext').disabled = foodDate >= localDateStr();
+  $('foodList').innerHTML = '<div class="empty-hint">Загружаю…</div>';
+  try {
+    foodData = await api(`/api/health/food?date=${foodDate}`);
+  } catch (err) {
+    $('foodList').innerHTML = `<div class="empty-hint">${esc(err.data?.error || 'Не удалось загрузить.')}</div>`;
+    return;
+  }
+  renderFood();
+}
+function renderFood() {
+  const d = foodData, t = d.targets, s = d.totals;
+  $('foodLoad').textContent = LOAD_LABEL[t.load] + (t.trainings ? ` · ${fmtNum(t.km)} км` : '');
+  const range = (x, r) => (r ? `${x} / ${r[0]}–${r[1]} г` : `${x} г`);
+  const low = (x, r) => r && d.meals.length && foodDate < localDateStr() && x < r[0];
+  $('foodTiles').innerHTML = coachTile(s.kcal, 'ккал')
+    + coachTile(s.protein, t.protein ? `белок · ориентир ${t.protein[0]}–${t.protein[1]}` : 'белок, г', low(s.protein, t.protein) ? 'warn' : '')
+    + coachTile(s.carbs, t.carbs ? `углеводы · ${t.carbs[0]}–${t.carbs[1]}` : 'углеводы, г', low(s.carbs, t.carbs) ? 'warn' : '');
+  const box = $('foodList');
+  box.innerHTML = d.meals.length ? '' : '<div class="empty-hint">За этот день еды пока нет. Сфоткай тарелку — Fom прикинет калории и белок.</div>';
+  d.meals.forEach((m) => {
+    const row = document.createElement('div');
+    row.className = 'meal-row';
+    row.innerHTML = `
+      ${m.thumb ? `<img class="meal-thumb" src="${m.thumb}" alt="" />` : '<span class="meal-thumb meal-thumb-empty">🍽</span>'}
+      <span class="meal-main">
+        <span class="meal-name">${m.time ? `<span class="muted">${esc(m.time)}</span> ` : ''}${esc(m.title || 'Приём пищи')}</span>
+        <span class="meal-sub">≈${m.kcal} ккал · Б ${Math.round(m.protein)} · Ж ${Math.round(m.fat)} · У ${Math.round(m.carbs)}</span>
+      </span>
+      <button type="button" class="wt-clear" aria-label="Удалить">✕</button>`;
+    row.querySelector('button').addEventListener('click', async () => {
+      if (!(await confirmAsk({ icon: 'trash', title: 'Удалить?', text: m.title, ok: 'Удалить', danger: true }))) return;
+      try { await api(`/api/health/food/${m.id}`, { method: 'DELETE' }); loadFood(); } catch (e) { alertMsg('Не получилось удалить.'); }
+    });
+    box.appendChild(row);
+  });
+  $('foodFomText').textContent = d.fom || (d.meals.length ? 'Нажми — Fom посмотрит, хватает ли энергии и белка под нагрузку и твои цели.' : 'Сфотографируй, что ешь за день, — Fom сравнит с нагрузкой и твоими целями: хватает ли энергии и белка.');
+  $('foodFomText').classList.toggle('muted', !d.fom);
+  $('foodFomBtn').disabled = !d.meals.length;
+  $('foodFomBtn').textContent = d.fom ? 'Спросить ещё раз' : 'Как я поел?';
+}
+$('foodPrev').addEventListener('click', () => { foodDate = shiftDateStr(foodDate, -1); loadFood(); });
+$('foodNext').addEventListener('click', () => { if (foodDate < localDateStr()) { foodDate = shiftDateStr(foodDate, 1); loadFood(); } });
+$('foodFomBtn').addEventListener('click', async () => {
+  $('foodFomBtn').disabled = true;
+  $('foodFomText').textContent = 'Fom смотрит твой день…';
+  try {
+    const { fom } = await api('/api/health/food/fom', { method: 'POST', body: JSON.stringify({ date: foodDate }), timeout: 60000 });
+    foodData.fom = fom;
+    $('foodFomText').textContent = fom;
+    $('foodFomText').classList.remove('muted');
+    $('foodFomBtn').textContent = 'Спросить ещё раз';
+  } catch (err) {
+    $('foodFomText').textContent = err.data?.error || 'Не получилось — попробуй ещё раз.';
+  } finally {
+    $('foodFomBtn').disabled = false;
+  }
+});
+
+// --- окно приёма пищи ---
+let mealDraft = null; // { thumb, items }
+function openMealSheet(mode) {
+  mealDraft = { thumb: null, items: [] };
+  $('mealPreview').classList.add('hidden');
+  $('mealDescribe').classList.toggle('hidden', mode !== 'text');
+  $('mealFields').classList.add('hidden');
+  $('mealStatus').textContent = '';
+  $('mealText').value = '';
+  $('mealSave').disabled = true;
+  $('mealSheet').classList.remove('hidden');
+}
+function fillMeal(p) {
+  $('mealName').value = p.title || 'Приём пищи';
+  $('mealKcal').value = p.kcal ?? 0;
+  $('mealP').value = p.protein ?? 0;
+  $('mealF').value = p.fat ?? 0;
+  $('mealC').value = p.carbs ?? 0;
+  mealDraft.items = p.items || [];
+  $('mealItems').textContent = (p.items || []).map((x) => `${x.name}${x.grams ? ` ~${x.grams} г` : ''}`).join(' · ')
+    + (p.note ? `\n${p.note}` : '') + (p.confidence === 'low' ? '\nОценка очень примерная — поправь цифры, если знаешь точнее.' : '');
+  $('mealFields').classList.remove('hidden');
+  $('mealSave').disabled = false;
+}
+async function estimateMeal(body) {
+  $('mealStatus').textContent = 'Fom прикидывает калории и белок…';
+  $('mealSave').disabled = true;
+  try {
+    const p = await api('/api/health/food/scan', { method: 'POST', body: JSON.stringify(body), timeout: 60000 });
+    $('mealStatus').textContent = 'Проверь цифры и сохрани 👇';
+    fillMeal(p);
+  } catch (err) {
+    $('mealStatus').textContent = err.data?.error || 'Не получилось оценить — впиши цифры сам.';
+    fillMeal({ title: body.text || 'Приём пищи', kcal: '', protein: '', fat: '', carbs: '' });
+  }
+}
+$('foodFile').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  openMealSheet('photo');
+  $('mealStatus').textContent = 'Готовлю фото…';
+  try {
+    const [big, thumb] = await Promise.all([fileToJpeg(file, 1024, 0.8), fileToJpeg(file, 200, 0.7)]);
+    mealDraft.thumb = thumb;
+    $('mealPreview').src = thumb;
+    $('mealPreview').classList.remove('hidden');
+    await estimateMeal({ image: big });
+  } catch (err) {
+    $('mealStatus').textContent = err.message || 'Не получилось открыть фото.';
+  }
+});
+$('foodTextBtn').addEventListener('click', () => { openMealSheet('text'); setTimeout(() => $('mealText').focus(), 50); });
+$('mealEstimateBtn').addEventListener('click', () => {
+  const text = $('mealText').value.trim();
+  if (text) estimateMeal({ text });
+});
+$('mealCancel').addEventListener('click', () => $('mealSheet').classList.add('hidden'));
+$('mealSheet').addEventListener('click', (e) => { if (e.target === $('mealSheet')) $('mealSheet').classList.add('hidden'); });
+$('mealSave').addEventListener('click', async () => {
+  $('mealSave').disabled = true;
+  const now = new Date();
+  const time = foodDate === localDateStr() ? `${pad2(now.getHours())}:${pad2(now.getMinutes())}` : null;
+  try {
+    await api('/api/health/food', {
+      method: 'POST',
+      body: JSON.stringify({
+        date: foodDate, time, title: $('mealName').value, thumb: mealDraft.thumb, items: mealDraft.items,
+        kcal: $('mealKcal').value, protein: $('mealP').value, fat: $('mealF').value, carbs: $('mealC').value,
+      }),
+    });
+    haptic('success');
+    $('mealSheet').classList.add('hidden');
+    loadFood();
+  } catch (err) {
+    $('mealStatus').textContent = err.data?.error || 'Не получилось сохранить.';
+    $('mealSave').disabled = false;
+  }
+});
+
+// ---------- Анализы крови ----------
+const BLOOD_PRESETS = [
+  ['Гемоглобин', 'г/л'], ['Ферритин', 'нг/мл'], ['Железо', 'мкмоль/л'], ['Витамин D (25-OH)', 'нг/мл'], ['Витамин B12', 'пг/мл'],
+  ['ТТГ', 'мМЕ/л'], ['КФК', 'Ед/л'], ['Глюкоза', 'ммоль/л'], ['Лейкоциты', '×10⁹/л'], ['Эритроциты', '×10¹²/л'],
+  ['СОЭ', 'мм/ч'], ['Тестостерон', 'нмоль/л'], ['Кортизол', 'нмоль/л'], ['Магний', 'ммоль/л'],
+];
+let bloodTests = [];
+let bloodEditId = null;
+let bloodView = null;
+
+async function loadBlood() {
+  const box = $('bloodList');
+  box.innerHTML = '<div class="empty-hint">Загружаю…</div>';
+  try { bloodTests = (await api('/api/health/blood')).tests || []; } catch (err) {
+    box.innerHTML = `<div class="empty-hint">${esc(err.data?.error || 'Не удалось загрузить.')}</div>`;
+    return;
+  }
+  box.innerHTML = bloodTests.length ? '' : '<div class="empty-hint">Анализов пока нет. Сфоткай бланк из лаборатории — Fom сам перенесёт показатели.</div>';
+  bloodTests.forEach((t) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'history-item blood-row';
+    row.innerHTML = `
+      <span class="history-ico rs">🩸</span>
+      <span class="history-main">
+        <span class="history-date">${esc(formatDayMonth(t.date))} ${t.date.slice(0, 4)}${t.lab ? ` · ${esc(t.lab)}` : ''}</span>
+        <span class="history-sub">${t.markers.length} показ.${t.off ? ` · <b class="blood-off">${t.off} вне нормы</b>` : ' · всё в норме'}</span>
+      </span>
+      <span class="history-arrow">›</span>`;
+    row.addEventListener('click', () => openBloodView(t));
+    box.appendChild(row);
+  });
+}
+
+function bloodRowHtml(m = {}) {
+  return `<div class="blood-row-edit">
+    <input type="text" class="br-name" maxlength="60" placeholder="Показатель" value="${esc(m.name || '')}" />
+    <input type="text" class="br-val" inputmode="decimal" placeholder="—" value="${esc(m.value ?? '')}" />
+    <input type="text" class="br-unit" maxlength="20" placeholder="ед." value="${esc(m.unit || '')}" />
+    <span class="br-ref"><input type="text" class="br-lo" inputmode="decimal" placeholder="от" value="${esc(m.ref_low ?? '')}" /><input type="text" class="br-hi" inputmode="decimal" placeholder="до" value="${esc(m.ref_high ?? '')}" /></span>
+    <button type="button" class="wt-clear br-del" aria-label="Убрать">✕</button>
+  </div>`;
+}
+function addBloodRows(list) {
+  const box = $('bloodRows');
+  list.forEach((m) => {
+    box.insertAdjacentHTML('beforeend', bloodRowHtml(m));
+    box.lastElementChild.querySelector('.br-del').addEventListener('click', (e) => e.currentTarget.parentElement.remove());
+  });
+}
+function openBloodSheet(t) {
+  bloodEditId = t?.id || null;
+  $('bloodDate').value = t?.date || localDateStr();
+  $('bloodDate').max = localDateStr();
+  $('bloodLab').value = t?.lab || '';
+  $('bloodRows').innerHTML = '';
+  $('bloodStatus').textContent = '';
+  addBloodRows(t?.markers?.length ? t.markers : [{ name: 'Гемоглобин', unit: 'г/л' }, { name: 'Ферритин', unit: 'нг/мл' }]);
+  $('bloodPresets').innerHTML = BLOOD_PRESETS.map(([n, u]) => `<button type="button" class="chip" data-u="${esc(u)}">＋ ${esc(n)}</button>`).join('');
+  $('bloodPresets').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => addBloodRows([{ name: c.textContent.replace('＋ ', ''), unit: c.dataset.u }])));
+  $('bloodSheet').classList.remove('hidden');
+}
+function readBloodRows() {
+  const n = (v) => { const x = String(v).trim().replace(',', '.'); return x === '' ? null : Number(x); };
+  return [...$('bloodRows').querySelectorAll('.blood-row-edit')].map((r) => ({
+    name: r.querySelector('.br-name').value.trim(), value: n(r.querySelector('.br-val').value), unit: r.querySelector('.br-unit').value.trim(),
+    ref_low: n(r.querySelector('.br-lo').value), ref_high: n(r.querySelector('.br-hi').value),
+  })).filter((m) => m.name && m.value != null && Number.isFinite(m.value));
+}
+$('bloodAddBtn').addEventListener('click', () => openBloodSheet(null));
+$('bloodCancel').addEventListener('click', () => $('bloodSheet').classList.add('hidden'));
+$('bloodFile').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  $('bloodStatus').textContent = 'Fom читает бланк… это может занять до минуты';
+  try {
+    const image = await fileToJpeg(file, 1800, 0.85);
+    const p = await api('/api/health/blood/scan', { method: 'POST', body: JSON.stringify({ image }), timeout: 90000 });
+    if (!p.markers?.length) { $('bloodStatus').textContent = 'Не нашёл показателей на фото — попробуй ровнее или внеси вручную.'; return; }
+    if (p.date) $('bloodDate').value = p.date;
+    if (p.lab) $('bloodLab').value = p.lab;
+    // пустые строки-заготовки убираем
+    [...$('bloodRows').querySelectorAll('.blood-row-edit')].forEach((r) => { if (!r.querySelector('.br-val').value.trim()) r.remove(); });
+    addBloodRows(p.markers);
+    $('bloodStatus').textContent = `Нашёл ${p.markers.length} показ. Сверь с бланком — Fom мог ошибиться — и сохрани.`;
+    haptic('success');
+  } catch (err) {
+    $('bloodStatus').textContent = err.data?.error || err.message || 'Не получилось прочитать бланк.';
+  }
+});
+$('bloodSave').addEventListener('click', async () => {
+  const markers = readBloodRows();
+  if (!markers.length) { $('bloodStatus').textContent = 'Впиши хотя бы один показатель с числом.'; return; }
+  $('bloodSave').disabled = true;
+  $('bloodStatus').textContent = 'Сохраняю, Fom смотрит анализ…';
+  try {
+    const { test } = await api('/api/health/blood', { method: 'POST', body: JSON.stringify({ id: bloodEditId, date: $('bloodDate').value, lab: $('bloodLab').value, markers }), timeout: 90000 });
+    $('bloodSheet').classList.add('hidden');
+    haptic('success');
+    await loadBlood();
+    openBloodView(bloodTests.find((x) => x.id === test.id) || test);
+  } catch (err) {
+    $('bloodStatus').textContent = err.data?.error || 'Не получилось сохранить.';
+  } finally {
+    $('bloodSave').disabled = false;
+  }
+});
+
+function openBloodView(t) {
+  bloodView = t;
+  $('bvTitle').textContent = `🩸 ${formatDayMonth(t.date)} ${t.date.slice(0, 4)}${t.lab ? ' · ' + t.lab : ''}`;
+  // прошлый анализ — для стрелочек «было → стало»
+  const prev = bloodTests.filter((x) => x.date < t.date).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+  const key = (s) => String(s || '').toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
+  $('bvMarkers').innerHTML = t.markers.map((m) => {
+    const p = prev?.markers.find((x) => key(x.name) === key(m.name));
+    const ref = m.ref_low != null && m.ref_high != null ? `${fmtNum(m.ref_low)}–${fmtNum(m.ref_high)}` : m.ref_high != null ? `до ${fmtNum(m.ref_high)}` : m.ref_low != null ? `от ${fmtNum(m.ref_low)}` : '';
+    const trend = p ? `<span class="bv-prev">было ${fmtNum(p.value)}${Number(m.value) > Number(p.value) ? ' ↑' : Number(m.value) < Number(p.value) ? ' ↓' : ''}</span>` : '';
+    return `<div class="bv-row ${m.status || ''}">
+      <span class="bv-name">${esc(m.name)}${ref ? `<small>норма ${esc(ref)}</small>` : ''}</span>
+      <span class="bv-val"><b>${fmtNum(m.value)}</b> ${esc(m.unit || '')}${m.status === 'low' ? ' <em>ниже</em>' : m.status === 'high' ? ' <em>выше</em>' : ''}${trend}</span>
+    </div>`;
+  }).join('');
+  $('bvFom').textContent = t.fom || 'Fom ещё не посмотрел этот анализ.';
+  $('bvFomBtn').textContent = t.fom ? 'Обновить' : 'Спросить Fom';
+  $('bloodViewSheet').classList.remove('hidden');
+}
+$('bvClose').addEventListener('click', () => $('bloodViewSheet').classList.add('hidden'));
+$('bloodViewSheet').addEventListener('click', (e) => { if (e.target === $('bloodViewSheet')) $('bloodViewSheet').classList.add('hidden'); });
+$('bvEdit').addEventListener('click', () => { $('bloodViewSheet').classList.add('hidden'); openBloodSheet(bloodView); });
+$('bvDelete').addEventListener('click', async () => {
+  if (!bloodView || !(await confirmAsk({ icon: 'trash', title: 'Удалить анализ?', text: formatDayMonth(bloodView.date), ok: 'Удалить', danger: true }))) return;
+  try { await api(`/api/health/blood/${bloodView.id}`, { method: 'DELETE' }); $('bloodViewSheet').classList.add('hidden'); loadBlood(); } catch (e) { alertMsg('Не получилось удалить.'); }
+});
+$('bvFomBtn').addEventListener('click', async () => {
+  if (!bloodView) return;
+  $('bvFomBtn').disabled = true;
+  $('bvFom').textContent = 'Fom смотрит анализ и нагрузку перед ним…';
+  try {
+    const { test } = await api(`/api/health/blood/${bloodView.id}/fom`, { method: 'POST', timeout: 90000 });
+    bloodView.fom = test.fom;
+    $('bvFom').textContent = test.fom;
+    const i = bloodTests.findIndex((x) => x.id === test.id);
+    if (i >= 0) bloodTests[i].fom = test.fom;
+  } catch (err) {
+    $('bvFom').textContent = err.data?.error || 'Не получилось — попробуй ещё раз.';
+  } finally {
+    $('bvFomBtn').disabled = false;
+  }
+});
+
+// ---------- БАДы ----------
+async function loadSupps() {
+  const box = $('suppList');
+  box.innerHTML = '<div class="empty-hint">Загружаю…</div>';
+  let supps = [];
+  try { supps = (await api('/api/health/supps')).supps || []; } catch (e) { box.innerHTML = '<div class="empty-hint">Не удалось загрузить.</div>'; return; }
+  box.innerHTML = supps.length ? '' : '<div class="empty-hint">Список пуст. Добавь, что принимаешь, — Fom будет это учитывать.</div>';
+  supps.forEach((x) => {
+    const row = document.createElement('div');
+    row.className = 'supp-row';
+    row.innerHTML = `<span class="supp-main"><b>${esc(x.name)}</b>${x.dose ? `<span class="muted">${esc(x.dose)}</span>` : ''}</span><button type="button" class="wt-clear" aria-label="Убрать">✕</button>`;
+    row.querySelector('button').addEventListener('click', async () => {
+      try { await api(`/api/health/supps/${x.id}`, { method: 'DELETE' }); loadSupps(); } catch (e) { alertMsg('Не получилось.'); }
+    });
+    box.appendChild(row);
+  });
+}
+$('suppAddBtn').addEventListener('click', async () => {
+  const name = $('suppName').value.trim();
+  if (!name) return $('suppName').focus();
+  try {
+    await api('/api/health/supps', { method: 'POST', body: JSON.stringify({ name, dose: $('suppDose').value }) });
+    $('suppName').value = ''; $('suppDose').value = '';
+    haptic('success');
+    loadSupps();
+  } catch (err) { alertMsg(err.data?.error || 'Не получилось добавить.'); }
+});
+$('rusadaBtn').addEventListener('click', () => {
+  const url = 'https://list.rusada.ru/';
+  if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
+});
+$('suppAskBtn').addEventListener('click', () => {
+  document.querySelector('.bottom-nav [data-screen="chatScreen"]')?.click();
+  setTimeout(() => {
+    $('chatInput').value = 'Какие добавки или витамины мне стоит обсудить с врачом или тренером — с учётом моих тренировок, сна и анализов?';
+    $('chatInput').dispatchEvent(new Event('input', { bubbles: true }));
+    $('chatInput').focus();
+  }, 150);
+});
