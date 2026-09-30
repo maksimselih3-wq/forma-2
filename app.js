@@ -7,6 +7,30 @@ const API_BASE = SELF_HOSTED ? '' : 'https://forma-production-9c7a.up.railway.ap
 
 const tg = window.Telegram?.WebApp;
 
+// Автообновление: Telegram иногда держит старую версию страницы в кэше.
+// При запуске смотрим свежий index.html — если там версия новее, один раз перезагружаемся на неё.
+(function checkFreshVersion() {
+  try {
+    const me = document.querySelector('script[src*="app.js"]');
+    const cur = Number((/[?&]v=(\d+)/.exec(me?.getAttribute('src') || '') || [])[1] || 0);
+    if (!cur || !window.fetch) return;
+    fetch(`index.html?nocache=${Date.now()}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.text() : ''))
+      .then((html) => {
+        const fresh = Number((/app\.js\?v=(\d+)/.exec(html) || [])[1] || 0);
+        if (!fresh || fresh <= cur) return;
+        let tried = null;
+        try { tried = sessionStorage.getItem('forma_reload_v'); } catch (e) { /* нет хранилища */ }
+        if (tried === String(fresh)) return; // уже пробовали — не зацикливаемся
+        try { sessionStorage.setItem('forma_reload_v', String(fresh)); } catch (e) { /* ничего */ }
+        const url = new URL(window.location.href);
+        url.searchParams.set('v', String(fresh)); // другой адрес — кэш не подсунет старую страницу
+        window.location.replace(url.toString()); // хэш с данными Telegram сохраняется
+      })
+      .catch(() => {});
+  } catch (e) { /* не страшно — просто работаем на текущей версии */ }
+})();
+
 // ---------- Тема: тёмная / светлая / как в Telegram ----------
 const THEME_KEY = 'forma_theme';
 function themePref() {
