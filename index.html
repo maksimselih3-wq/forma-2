@@ -97,7 +97,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=62" />
+<link rel="stylesheet" href="style.css?v=63" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -298,6 +298,16 @@
       </div>
       <div id="goalsList"></div>
     </section>
+
+    <!-- Здоровье: питание по фото, анализы крови, БАДы — видит только сам спортсмен -->
+    <button type="button" class="card health-entry" id="healthEntry">
+      <span class="health-entry-ico">❤️</span>
+      <span class="health-entry-main">
+        <span class="health-entry-title">Здоровье</span>
+        <span class="health-entry-sub" id="healthEntrySub">Питание по фото · анализы крови · БАДы</span>
+      </span>
+      <span class="history-arrow">›</span>
+    </button>
 
     <section class="card">
       <div class="eyebrow">Календарь</div>
@@ -734,6 +744,72 @@
   </section>
 
   <!-- Настройки: тема, уведомления, приватность -->
+  <!-- ===================== ЗДОРОВЬЕ ===================== -->
+  <section id="healthScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="healthBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="group-head-main">
+        <div class="eyebrow">Видишь только ты</div>
+        <h2 class="title small">Здоровье</h2>
+      </div>
+    </div>
+    <div class="segmented seg-3" id="healthTabs">
+      <button type="button" class="seg-btn active" data-htab="food">Питание</button>
+      <button type="button" class="seg-btn" data-htab="blood">Анализы</button>
+      <button type="button" class="seg-btn" data-htab="supps">БАДы</button>
+    </div>
+
+    <!-- Питание -->
+    <div id="hFood">
+      <div class="food-daynav">
+        <button type="button" class="round-btn" id="foodPrev" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="food-daylabel"><b id="foodDay">Сегодня</b><span class="muted" id="foodLoad"></span></div>
+        <button type="button" class="round-btn" id="foodNext" aria-label="Следующий день"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <div class="coach-tiles food-tiles" id="foodTiles"></div>
+      <div class="food-actions">
+        <label class="primary-btn food-photo-btn">📷 Сфоткать еду<input type="file" id="foodFile" accept="image/*" hidden /></label>
+        <button type="button" class="ghost-btn" id="foodTextBtn">✍️ Описать</button>
+      </div>
+      <div id="foodList"></div>
+      <section class="card mc-fom" id="foodFomCard">
+        <div class="mc-fom-head"><span class="fom-badge">F</span><b>Fom о питании за день</b></div>
+        <div class="mc-fom-text muted" id="foodFomText">Сфотографируй, что ешь за день, — Fom сравнит с нагрузкой и твоими целями: хватает ли энергии и белка.</div>
+        <button type="button" class="ghost-btn" id="foodFomBtn">Как я поел?</button>
+      </section>
+      <div class="muted health-note">Цифры — примерная оценка по фото, не точный подсчёт. Ориентиры белка и углеводов посчитаны на кг веса под нагрузку дня (вес берём из «Целей» или анкеты).</div>
+    </div>
+
+    <!-- Анализы -->
+    <div id="hBlood" class="hidden">
+      <button type="button" class="primary-btn" id="bloodAddBtn">＋ Добавить анализ</button>
+      <div id="bloodList"></div>
+      <div class="muted health-note">Fom свяжет показатели с нагрузкой перед сдачей и сравнит с прошлым анализом. Fom не врач: всё, что вне нормы, обсуди со спортивным врачом.</div>
+    </div>
+
+    <!-- БАДы -->
+    <div id="hSupps" class="hidden">
+      <section class="card rusada-card">
+        <div class="card-label">🛡️ Сначала — проверка РУСАДА</div>
+        <div class="rusada-text">Любой препарат и добавку перед приёмом проверь в официальном сервисе РУСАДА. Fom подскажет, о чём подумать, но <b>не может гарантировать</b>, что препарат разрешён. БАДы бывают загрязнены запрещёнными веществами — отвечает за это спортсмен. Решение о приёме — с врачом или тренером.</div>
+        <button type="button" class="ghost-btn" id="rusadaBtn">Проверить на list.rusada.ru ↗</button>
+      </section>
+      <section class="card">
+        <div class="card-label">💊 Что я принимаю</div>
+        <div id="suppList"></div>
+        <div class="supp-add">
+          <input type="text" id="suppName" maxlength="60" placeholder="Название: магний, витамин D…" />
+          <input type="text" id="suppDose" maxlength="60" placeholder="Как принимаю (необяз.)" />
+          <button type="button" class="ghost-btn crop-save" id="suppAddBtn">Добавить</button>
+        </div>
+        <div class="muted health-note">Fom видит этот список и учитывает его в ответах.</div>
+      </section>
+      <button type="button" class="ghost-btn wide" id="suppAskBtn">Спросить Fom о добавках</button>
+    </div>
+  </section>
+
   <section id="settingsScreen" class="screen hidden">
     <div class="screen-head">
       <button id="settingsBackBtn" class="round-btn" type="button" aria-label="Назад">
@@ -993,6 +1069,71 @@
     </div>
   </div>
 
+  <!-- Еда: оценка по фото или описанию -->
+  <div id="mealSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title" id="mealTitleHead">🍽 Приём пищи</div>
+      <img id="mealPreview" class="meal-preview hidden" alt="" />
+      <div id="mealDescribe" class="hidden">
+        <textarea id="mealText" rows="3" maxlength="300" placeholder="Например: гречка 200 г, куриная грудка, огурец, чай с сахаром"></textarea>
+        <button type="button" class="ghost-btn wide" id="mealEstimateBtn">Оценить</button>
+      </div>
+      <div class="status-msg" id="mealStatus"></div>
+      <div id="mealFields" class="hidden">
+        <input type="text" id="mealName" maxlength="60" placeholder="Название" />
+        <div class="meal-nums">
+          <label class="hr-field"><span>ккал</span><input type="number" inputmode="numeric" id="mealKcal" min="0" max="10000" /></label>
+          <label class="hr-field"><span>Белки, г</span><input type="number" inputmode="numeric" id="mealP" min="0" max="1000" /></label>
+          <label class="hr-field"><span>Жиры, г</span><input type="number" inputmode="numeric" id="mealF" min="0" max="1000" /></label>
+          <label class="hr-field"><span>Углев., г</span><input type="number" inputmode="numeric" id="mealC" min="0" max="2000" /></label>
+        </div>
+        <div class="muted meal-items" id="mealItems"></div>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="mealCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="mealSave" disabled>Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Анализ крови: ввод / правка -->
+  <div id="bloodSheet" class="sheet-backdrop hidden">
+    <div class="sheet blood-sheet">
+      <div class="sheet-title">🩸 Анализ крови</div>
+      <label class="primary-btn blood-scan-btn">📷 Сфоткать бланк — Fom заполнит сам<input type="file" id="bloodFile" accept="image/*" hidden /></label>
+      <div class="status-msg" id="bloodStatus"></div>
+      <div class="blood-meta">
+        <label class="hr-field"><span>Дата сдачи</span><input type="date" id="bloodDate" /></label>
+        <label class="hr-field"><span>Лаборатория</span><input type="text" id="bloodLab" maxlength="60" placeholder="необяз." /></label>
+      </div>
+      <div class="blood-head muted"><span>Показатель</span><span>Число</span><span>Ед.</span><span>Норма от–до</span><span></span></div>
+      <div id="bloodRows"></div>
+      <div class="comp-chips" id="bloodPresets"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="bloodCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="bloodSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Анализ крови: просмотр -->
+  <div id="bloodViewSheet" class="sheet-backdrop hidden">
+    <div class="sheet blood-sheet">
+      <div class="sheet-title" id="bvTitle">Анализ</div>
+      <div id="bvMarkers"></div>
+      <section class="card mc-fom">
+        <div class="mc-fom-head"><span class="fom-badge">F</span><b>Fom об анализе</b></div>
+        <div class="mc-fom-text" id="bvFom"></div>
+        <button type="button" class="ghost-btn" id="bvFomBtn">Обновить</button>
+      </section>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn danger" id="bvDelete">Удалить</button>
+        <button type="button" class="ghost-btn" id="bvEdit">Изменить</button>
+        <button type="button" class="ghost-btn crop-save" id="bvClose">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Создать группу -->
   <div id="groupCreateSheet" class="sheet-backdrop hidden">
     <div class="sheet">
@@ -1237,6 +1378,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=62"></script>
+  <script src="app.js?v=63"></script>
 </body>
 </html>
