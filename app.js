@@ -67,6 +67,9 @@ function esc(v) {
 // ---------- Наши иконки (вместо обычных смайликов) ----------
 // Рисуются SVG, цвета берут градиенты из index.html (gLime, gFire, gPurple...).
 const ICONS = {
+  pin: '<path d="M12 21s-6.5-5.8-6.5-11A6.5 6.5 0 0 1 18.5 10c0 5.2-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" fill="url(#gLime)"/>',
+  mountain: '<path d="M3 19l6.5-11 4 6.5 2.5-3.5L21 19z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 10.5l1.5 1.5 1.5-1.5" fill="none" stroke="url(#gLime)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  locate: '<circle cx="12" cy="12" r="3.2" fill="url(#gLime)"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/>',
   clock: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="url(#gLime)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
   rocket: '<path d="M14.5 3.5c3 .1 5.3 1.4 6 2.1.7.7 2 3 2.1 6-.1.2-3.6 4.4-7.3 6.9l-4.3-4.3c2.5-3.7 6.7-7.2 6.9-7.3Z" transform="translate(-2 1)" fill="url(#gLime)"/><circle cx="15.2" cy="8.8" r="1.7" fill="#0b0d10"/><path d="M8.2 12.3 5 12.9l-2 2.6 4 .6M11.7 15.8l-.6 3.2-2.6 2-.6-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6.2 17.8c-1 .3-2 1.3-2.3 3 1.7-.3 2.7-1.3 3-2.3" fill="none" stroke="#ffb84d" stroke-width="1.6" stroke-linecap="round"/>',
   flame: '<path d="M12.3 2.5c.4 2.5-.7 4.2-2.1 5.8C8.7 10 7 11.8 7 14.8a5 5 0 0 0 10 0c0-2.3-1-4-2.4-5.4.1 1.5-.4 2.7-1.4 3.3.3-3.8-.1-7.3-.9-10.2Z" fill="url(#gFire)"/><path d="M12 19.8a2.5 2.5 0 0 1-2.5-2.6c0-1.5 1.1-2.5 2.1-3.7.2 1 .8 1.6 1.5 2 .8.5 1.4 1.1 1.4 1.9a2.5 2.5 0 0 1-2.5 2.4Z" fill="#fff3b8"/>',
@@ -133,6 +136,11 @@ const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', '�
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 function nowRoundedTime(shiftMin = 0) { const d = new Date(Date.now() + shiftMin * 60000); const m = Math.round(d.getMinutes() / 5) * 5; d.setMinutes(m, 0, 0); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+// Сколько дней назад была дата 'ГГГГ-ММ-ДД' (0 — сегодня)
+function daysAgo(dateStr) {
+  const t = Date.parse(localDateStr() + 'T00:00:00Z'), d = Date.parse(String(dateStr).slice(0, 10) + 'T00:00:00Z');
+  return Number.isFinite(d) ? Math.round((t - d) / 86400000) : 9999;
+}
 function addMinutesToTime(t, add) { const parts = String(t).split(':').map(Number); const x = (((parts[0] * 60 + parts[1] + add) % 1440) + 1440) % 1440; return pad2(Math.floor(x / 60)) + ':' + pad2(x % 60); }
 
 // Дата по часам телефона в формате 'ГГГГ-ММ-ДД'
@@ -404,6 +412,28 @@ const FORM_TEMPLATE = `
       </div>
     </section>
 
+    <section class="card place-card">
+      <div class="card-head">
+        <div class="card-label">${ico('pin')}Где тренировался</div>
+        <div class="card-hint">необязательно · Fom учтёт высоту над уровнем моря</div>
+      </div>
+      <div class="place-input-wrap">
+        <input type="text" data-f="placeInput" maxlength="80" placeholder="Город или стадион: Кисловодск, Манеж…" autocomplete="off" />
+        <button type="button" class="wt-clear hidden" data-f="placeClear" aria-label="Убрать место">✕</button>
+      </div>
+      <div class="place-suggest hidden" data-f="placeSuggest"></div>
+      <div class="comp-chips place-chips" data-f="placeChips"></div>
+      <div class="place-row">
+        <label class="hr-field place-alt"><span>${ico('mountain')}Высота, м</span><input type="number" inputmode="numeric" data-f="placeAlt" min="-500" max="6000" placeholder="—" /></label>
+        <label class="toggle-row place-camp">
+          <input type="checkbox" data-f="placeCamp" />
+          <span class="toggle"></span>
+          <span>Я на сборе</span>
+        </label>
+      </div>
+      <div class="muted hr-hint" data-f="placeHint">Выбери город из подсказки — высота подставится сама. Для стадиона в горах можно поправить её вручную.</div>
+    </section>
+
     <section class="card">
       <div class="card-label">Разминка</div>
       <textarea data-f="warmup" rows="2" placeholder="Например: 3 км трусцой + суставная"></textarea>
@@ -499,6 +529,113 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     onDone: (t) => { endTime = t; if (!startTime) startTime = addMinutesToTime(t, -90); paintTimes(); },
   }));
   f('timeClear').addEventListener('click', () => { startTime = null; endTime = null; paintTimes(); });
+
+  // --- место тренировки: название, координаты, высота, сбор ---
+  let placeGeo = null; // { lat, lon } — если место выбрано из подсказки или «где я сейчас»
+  let placeTimer = null, placeSeq = 0;
+  function placeData() {
+    const alt = parseInt(f('placeAlt').value, 10);
+    return {
+      place: f('placeInput').value.trim() || null,
+      place_lat: placeGeo?.lat ?? null, place_lon: placeGeo?.lon ?? null,
+      altitude_m: Number.isFinite(alt) ? alt : null,
+      camp: f('placeCamp').checked,
+    };
+  }
+  function setPlace(w) {
+    f('placeInput').value = w?.place || '';
+    f('placeAlt').value = w?.altitude_m ?? '';
+    f('placeCamp').checked = !!w?.camp;
+    placeGeo = w?.place_lat != null && w?.place_lon != null ? { lat: w.place_lat, lon: w.place_lon } : null;
+    f('placeSuggest').classList.add('hidden');
+    paintPlace();
+  }
+  function paintPlace() {
+    f('placeClear').classList.toggle('hidden', !f('placeInput').value && !f('placeAlt').value);
+    // быстрые варианты: мои прошлые места (по частоте) + «где я сейчас»
+    const seen = {};
+    (typeof myWorkouts !== 'undefined' ? myWorkouts : []).forEach((w) => {
+      if (!w.place) return;
+      const k = w.place.toLowerCase();
+      if (!seen[k]) seen[k] = { n: 0, w };
+      seen[k].n++;
+    });
+    const cur = f('placeInput').value.trim().toLowerCase();
+    const recent = Object.values(seen).sort((a, b) => b.n - a.n).slice(0, 4).map((x) => x.w);
+    f('placeChips').innerHTML = recent.map((w, i) => `<button type="button" class="chip${w.place.toLowerCase() === cur ? ' active' : ''}" data-i="${i}">${esc(w.place)}${w.altitude_m != null && w.altitude_m >= 500 ? ` · ${w.altitude_m} м` : ''}</button>`).join('')
+      + `<button type="button" class="chip chip-ico" data-f="placeHere">${ico('locate')}Где я сейчас</button>`;
+    f('placeChips').querySelectorAll('[data-i]').forEach((b) => b.addEventListener('click', () => {
+      const w = recent[+b.dataset.i];
+      setPlace({ ...w, camp: f('placeCamp').checked || !!w.camp });
+    }));
+    f('placeHere').addEventListener('click', placeHere);
+  }
+  function showSuggest(list) {
+    const box = f('placeSuggest');
+    if (!list.length) { box.classList.add('hidden'); return; }
+    box.innerHTML = list.map((p, i) => `<button type="button" class="place-opt" data-i="${i}"><b>${esc(p.name)}</b><span>${esc(p.region || '')}${p.elevation != null ? ` · ${p.elevation} м` : ''}</span></button>`).join('');
+    box.classList.remove('hidden');
+    box.querySelectorAll('.place-opt').forEach((b) => b.addEventListener('click', () => {
+      const p = list[+b.dataset.i];
+      f('placeInput').value = p.name;
+      if (p.elevation != null) f('placeAlt').value = p.elevation;
+      placeGeo = { lat: p.lat, lon: p.lon };
+      if (p.elevation != null && p.elevation >= 1000) f('placeCamp').checked = true;
+      box.classList.add('hidden');
+      paintPlace();
+    }));
+  }
+  f('placeInput').addEventListener('input', () => {
+    placeGeo = null;
+    paintPlace();
+    clearTimeout(placeTimer);
+    const q = f('placeInput').value.trim();
+    if (q.length < 3) { f('placeSuggest').classList.add('hidden'); return; }
+    const my = ++placeSeq;
+    placeTimer = setTimeout(async () => {
+      try {
+        const { places } = await api('/api/geo/search?q=' + encodeURIComponent(q), { timeout: 9000 });
+        if (my === placeSeq) showSuggest(places || []);
+      } catch (e) { if (my === placeSeq) f('placeSuggest').classList.add('hidden'); }
+    }, 450);
+  });
+  f('placeInput').addEventListener('blur', () => setTimeout(() => f('placeSuggest').classList.add('hidden'), 250));
+  f('placeAlt').addEventListener('input', paintPlace);
+  f('placeClear').addEventListener('click', () => setPlace({ camp: f('placeCamp').checked }));
+  async function placeHere() {
+    const hint = f('placeHint');
+    const old = hint.textContent;
+    hint.textContent = 'Определяю, где ты…';
+    const done = async (lat, lon) => {
+      try {
+        const { place } = await api(`/api/geo/reverse?lat=${lat}&lon=${lon}`, { timeout: 12000 });
+        f('placeInput').value = place.name;
+        if (place.elevation != null) f('placeAlt').value = place.elevation;
+        placeGeo = { lat: place.lat, lon: place.lon };
+        if (place.elevation != null && place.elevation >= 1000) f('placeCamp').checked = true;
+        hint.textContent = old;
+        paintPlace();
+      } catch (err) { hint.textContent = err.data?.error || 'Не получилось определить место — впиши его сам.'; }
+    };
+    const fail = () => { hint.textContent = 'Нет доступа к геопозиции — впиши место сам или разреши доступ в настройках.'; };
+    // в Telegram — через его геолокацию (если есть), иначе через браузер
+    const lm = tg?.LocationManager;
+    if (lm && typeof lm.init === 'function' && typeof lm.getLocation === 'function') {
+      try {
+        lm.init(() => {
+          if (!lm.isLocationAvailable) return browserGeo();
+          lm.getLocation((loc) => (loc ? done(loc.latitude, loc.longitude) : fail()));
+        });
+        return;
+      } catch (e) { /* ниже — браузер */ }
+    }
+    browserGeo();
+    function browserGeo() {
+      if (!navigator.geolocation) return fail();
+      navigator.geolocation.getCurrentPosition((p) => done(p.coords.latitude, p.coords.longitude), fail, { timeout: 12000, maximumAge: 600000 });
+    }
+  }
+  paintPlace();
 
   // кто видит запись: private — только я, public — все друзья, custom — выбранные друзья (visTo — их id)
   let vis = 'private';
@@ -646,6 +783,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     if (p.hr_max) f('hrMax').value = p.hr_max;
     if (p.hr_min) f('hrMin').value = p.hr_min;
     if (p.start_time) { startTime = p.start_time; endTime = p.end_time || endTime; paintTimes(); }
+    if (p.place && !f('placeInput').value.trim()) { f('placeInput').value = p.place; placeGeo = null; paintPlace(); }
     if (Array.isArray(p.sets) && p.sets.length) {
       sets = p.sets.map((s) => ({
         distance_m: s.duration_s ? durLabel(s.duration_s) : (s.distance_m ?? ''), reps: s.reps ?? '', time_or_pace: s.time_or_pace ?? '', rest_between: s.rest_between ?? '',
@@ -725,6 +863,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       f('notes').value = w.notes || '';
       setVisibility(w.visibility, w.visible_to);
       startTime = w.start_time || null; endTime = w.end_time || null; paintTimes();
+      setPlace(w);
       setSlider('feeling', w.feeling);
       setSlider('rpe', w.rpe);
       f('hrAvg').value = w.hr_avg ?? '';
@@ -767,6 +906,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
         visible_to: vis === 'custom' ? visTo : [],
         start_time: startTime,
         end_time: endTime,
+        ...(type === 'training' ? placeData() : { place: null, altitude_m: null, camp: false }),
         // в поле «метры» можно написать время («1'», «30"») — тогда это отрезок по времени
         sets: type === 'training' ? sets.map((x) => {
           const dur = looksLikeDuration(x.distance_m) ? parseDuration(x.distance_m) : null;
@@ -780,7 +920,11 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     },
     setData,
     reset() {
-      this.setData({ type: 'training', visibility: vis, visible_to: visTo });
+      // на сборе место и высота переносятся из последней записи (если она не старше 3 дней)
+      const lastCamp = (typeof myWorkouts !== 'undefined' ? myWorkouts : []).find((w) => w.type === 'training');
+      const keep = lastCamp && lastCamp.camp && daysAgo(lastCamp.date) <= 3
+        ? { place: lastCamp.place, place_lat: lastCamp.place_lat, place_lon: lastCamp.place_lon, altitude_m: lastCamp.altitude_m, camp: true } : {};
+      this.setData({ type: 'training', visibility: vis, visible_to: visTo, ...keep });
       f('smartText').value = '';
       f('smartStatus').textContent = '';
       growAll(root);
@@ -2124,6 +2268,7 @@ function buildDetailLines(w) {
   const lines = [];
   if (w.type === 'training' && w.competition) lines.push(`🏆 ${competitionLine(w.competition)}`);
   if (w.type === 'training' && w.start_time) lines.push(`🕒 ${w.start_time}${w.end_time ? '–' + w.end_time : ''}`);
+  if (w.type === 'training' && (w.place || w.altitude_m != null)) lines.push(`📍 ${w.place || 'Место'}${w.altitude_m != null && w.altitude_m >= 300 ? ` · ${w.altitude_m} м` : ''}${w.camp ? ' · сбор' : ''}`);
   if (w.type === 'training') {
     if (w.warmup) lines.push(`Разминка: ${w.warmup}`);
     const setLines = (Array.isArray(w.sets) ? w.sets : [])
@@ -4790,7 +4935,26 @@ async function openGroup(id) {
     ? 'Ты видишь все записи участников, включая закрытые. Нажми на спортсмена — откроется его дневник.'
     : 'Тренер группы видит все твои записи и может их комментировать. Друзьям по-прежнему видны только открытые.';
   $('groupLeaveBtn').textContent = g.is_owner ? 'Удалить группу' : 'Выйти из группы';
+  // кабинет — только тренеру; открываем его первым, когда тренер заходит в группу
+  $('groupTabs').querySelector('[data-gtab="coach"]').classList.toggle('hidden', !g.is_coach);
+  $('groupTabs').classList.toggle('seg-3', !!g.is_coach);
+  if (g.is_coach && coachGroupId !== g.id) groupTab = 'coach';
+  if (!g.is_coach && groupTab === 'coach') groupTab = 'rating';
+  coachGroupId = g.is_coach ? g.id : null;
   setGroupTab(groupTab);
+  loadGroupTask(g.id);
+}
+
+// Задание от тренера (последнее за 7 дней) — видят все участники группы
+async function loadGroupTask(gid) {
+  $('groupTask').classList.add('hidden');
+  try {
+    const { task } = await api(`/api/coach/groups/${gid}/task`);
+    if (!task || currentGroup?.group?.id !== gid) return;
+    $('groupTaskText').textContent = task.text;
+    $('groupTaskAt').textContent = '· ' + relativeDateLabel(task.at.slice(0, 10)) + ', ' + task.at.slice(11, 16);
+    $('groupTask').classList.remove('hidden');
+  } catch (e) { /* нет задания — ничего не показываем */ }
 }
 
 function setGroupTab(tab) {
@@ -4798,7 +4962,9 @@ function setGroupTab(tab) {
   $('groupTabs').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.gtab === tab));
   $('groupRating').classList.toggle('hidden', tab !== 'rating');
   $('groupFeed').classList.toggle('hidden', tab !== 'feed');
-  if (tab === 'rating') renderGroupRating(); else loadGroupFeed();
+  $('groupCoach').classList.toggle('hidden', tab !== 'coach');
+  if (tab === 'coach') loadCoachTab();
+  else if (tab === 'rating') renderGroupRating(); else loadGroupFeed();
 }
 $('groupTabs').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => setGroupTab(b.dataset.gtab)));
 
@@ -4871,6 +5037,8 @@ async function openMember(m) {
   $('memberName').innerHTML = nameHtml(m);
   $('memberWorkouts').innerHTML = '<div class="empty-hint">Загружаю...</div>';
   $('memberWell').classList.add('hidden');
+  $('memberCoach').classList.add('hidden');
+  if (currentGroup?.group?.is_coach) loadMemberCoach(m);
   try {
     const { workouts, checks } = await api(`/api/friends/groups/${currentGroup.group.id}/members/${m.id}`);
     if (checks?.length) {
@@ -4898,6 +5066,183 @@ $('memberRemoveBtn').addEventListener('click', async () => {
     await api(`/api/friends/groups/${currentGroup.group.id}/remove`, { method: 'POST', body: JSON.stringify({ userId: currentMember.id }) });
     openGroup(currentGroup.group.id);
   } catch (err) { alertMsg(err.data?.error || 'Не получилось.'); }
+});
+
+// =====================================================================
+//  КАБИНЕТ ТРЕНЕРА
+// =====================================================================
+let coachGroupId = null;
+let coachData = null;       // { totals, athletes }
+let coachFilter = 'all';
+const FLAG_CLASS = { miss: 'bad', over: 'warn', down: 'warn', sleep: 'warn', camp: 'camp', ok: 'ok' };
+
+function coachTile(value, label, cls = '') {
+  return `<div class="coach-tile ${cls}"><b>${value}</b><span>${esc(label)}</span></div>`;
+}
+
+async function loadCoachTab() {
+  const g = currentGroup?.group;
+  if (!g?.is_coach) return;
+  $('coachList').innerHTML = '<div class="empty-hint">Считаю неделю…</div>';
+  try {
+    coachData = await api(`/api/coach/groups/${g.id}`);
+  } catch (err) {
+    $('coachList').innerHTML = `<div class="empty-hint">${esc(err.data?.error || 'Не удалось загрузить кабинет.')}</div>`;
+    return;
+  }
+  const t = coachData.totals;
+  $('coachTiles').innerHTML = coachTile(fmtNum(t.km), 'км команды') + coachTile(t.trainings, 'тренировок')
+    + coachTile(t.attention, 'нужно внимание', t.attention ? 'warn' : '');
+  $('coachFilter').querySelector('[data-cf="need"]').textContent = t.attention ? `Внимание · ${t.attention}` : 'Внимание';
+  $('coachFilter').querySelector('[data-cf="camp"]').textContent = t.camp ? `На сборе · ${t.camp}` : 'На сборе';
+  renderCoachList();
+}
+
+function renderCoachList() {
+  const box = $('coachList');
+  if (!coachData) return;
+  $('coachFilter').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.cf === coachFilter));
+  const list = coachData.athletes.filter((a) => coachFilter === 'all' || (coachFilter === 'need' && a.attention) || (coachFilter === 'camp' && a.camp));
+  if (!coachData.athletes.length) {
+    box.innerHTML = '<div class="empty-hint">В группе пока нет спортсменов. Нажми «Пригласить в группу» и отправь ссылку.</div>';
+    return;
+  }
+  box.innerHTML = list.length ? '' : `<div class="empty-hint">${coachFilter === 'need' ? 'Сейчас всё ровно — никому не нужно особое внимание 👌' : 'Никто сейчас не на сборе.'}</div>`;
+  list.forEach((a) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'coach-row';
+    const last = a.last
+      ? `${relativeDateLabel(a.last.date)}${a.last.start_time ? ' ' + a.last.start_time : ''} · ${a.last.text}${a.last.rpe ? ' · RPE ' + a.last.rpe : ''}`
+      : 'записей пока нет';
+    const flags = a.flags.map((fl) => `<span class="coach-flag ${FLAG_CLASS[fl.kind] || ''}">${esc(fl.label)}</span>`).join('');
+    const meta = [a.rpe_avg != null && `RPE ср. ${fmtNum(a.rpe_avg)}`, a.sleep_avg != null && `сон ${fmtNum(a.sleep_avg)} ч`, a.camp && `${a.camp.day}-й день на сборе`].filter(Boolean).join(' · ');
+    row.innerHTML = `
+      <span class="coach-row-top">
+        ${avatarHtml(a, 'small')}
+        <span class="coach-row-main">
+          <span class="coach-row-name">${nameHtml(a)}</span>
+          <span class="coach-row-last">${esc(last)}</span>
+        </span>
+        <span class="coach-row-km"><b>${fmtNum(a.week_km || 0)}</b><span>км / нед</span></span>
+      </span>
+      <span class="coach-row-flags">${flags}${meta ? `<span class="coach-row-meta">${esc(meta)}</span>` : ''}</span>`;
+    row.addEventListener('click', () => openMember(a));
+    box.appendChild(row);
+  });
+}
+$('coachFilter').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => { coachFilter = b.dataset.cf; renderCoachList(); }));
+
+// --- Сводка недели ---
+async function loadCoachDigest(fresh) {
+  const g = currentGroup?.group;
+  if (!g) return;
+  $('coachDigestText').textContent = 'Fom собирает сводку по команде…';
+  $('coachDigestRefresh').disabled = true;
+  try {
+    const { text } = await api(`/api/coach/groups/${g.id}/digest${fresh ? '?fresh=1' : ''}`, { timeout: 60000 });
+    $('coachDigestText').textContent = text;
+  } catch (err) {
+    $('coachDigestText').textContent = err.data?.error || 'Не получилось — попробуй ещё раз.';
+  } finally {
+    $('coachDigestRefresh').disabled = false;
+  }
+}
+$('coachDigestBtn').addEventListener('click', () => { $('coachDigestSheet').classList.remove('hidden'); loadCoachDigest(false); });
+$('coachDigestRefresh').addEventListener('click', () => loadCoachDigest(true));
+$('coachDigestClose').addEventListener('click', () => $('coachDigestSheet').classList.add('hidden'));
+$('coachDigestSheet').addEventListener('click', (e) => { if (e.target === $('coachDigestSheet')) $('coachDigestSheet').classList.add('hidden'); });
+
+// --- Задание команде ---
+$('coachTaskBtn').addEventListener('click', () => { $('coachTaskText').value = ''; $('coachTaskSheet').classList.remove('hidden'); });
+$('coachTaskCancel').addEventListener('click', () => $('coachTaskSheet').classList.add('hidden'));
+$('coachTaskSheet').addEventListener('click', (e) => { if (e.target === $('coachTaskSheet')) $('coachTaskSheet').classList.add('hidden'); });
+$('coachTaskSend').addEventListener('click', async () => {
+  const text = $('coachTaskText').value.trim();
+  const g = currentGroup?.group;
+  if (!text || !g) return;
+  $('coachTaskSend').disabled = true;
+  try {
+    const r = await api(`/api/coach/groups/${g.id}/task`, { method: 'POST', body: JSON.stringify({ text }), timeout: 60000 });
+    $('coachTaskSheet').classList.add('hidden');
+    haptic('success');
+    loadGroupTask(g.id);
+    alertMsg(`Задание отправлено: ${r.delivered} из ${r.total}.` + (r.delivered < r.total ? ' Кто-то не открывал бота — увидит задание в группе.' : ''));
+  } catch (err) {
+    alertMsg(err.data?.error || 'Не получилось отправить.');
+  } finally {
+    $('coachTaskSend').disabled = false;
+  }
+});
+
+// --- Спортсмен глазами тренера ---
+function rpeColor(r) {
+  if (!r) return 'var(--input)';
+  return r >= 8 ? '#ff9a3c' : r >= 6 ? 'var(--lime)' : '#7c9a44';
+}
+async function loadMemberCoach(m) {
+  const g = currentGroup.group;
+  let d;
+  try { d = await api(`/api/coach/groups/${g.id}/members/${m.id}`); } catch (e) { return; }
+  if (currentMember?.id !== m.id) return;
+  const st = d.stats;
+  const pct = st.prev_km >= 1 ? Math.round((st.week_km / st.prev_km - 1) * 100) : null;
+  const over = st.flags.some((x) => x.kind === 'over');
+  $('mcTiles').innerHTML =
+    coachTile(`${fmtNum(st.week_km)} км`, pct == null ? 'за неделю' : `${pct >= 0 ? '+' : ''}${pct}% к пр. нед.`, over ? 'warn' : '')
+    + coachTile(st.rpe_avg != null ? fmtNum(st.rpe_avg) : '—', 'RPE ср.')
+    + coachTile(st.sleep_avg != null ? `${fmtNum(st.sleep_avg)} ч` : '—', 'сон ср.', st.flags.some((x) => x.kind === 'sleep') ? 'warn' : '')
+    + coachTile(st.feel_avg != null ? `${fmtNum(st.feel_avg)}` : '—', 'самочувствие', st.flags.some((x) => x.kind === 'down') ? 'warn' : '');
+  const maxKm = Math.max(5, ...d.days.map((x) => x.km));
+  $('mcBars').innerHTML = d.days.map((x) => `
+    <div class="mc-bar${x.future ? ' future' : ''}">
+      <span class="mc-bar-km">${x.km ? fmtNum(x.km) : x.rest ? 'отд' : '—'}</span>
+      <span class="mc-bar-fill" style="height:${x.km ? Math.max(8, Math.round(x.km / maxKm * 72)) : 4}px;background:${x.km ? rpeColor(x.rpe) : 'var(--input)'}"></span>
+      <span class="mc-bar-wd">${x.wd}</span>
+    </div>`).join('');
+  $('mcFomText').textContent = d.fom || 'Fom посмотрит записи за 2 недели и коротко напишет, на что обратить внимание.';
+  $('mcFomText').classList.toggle('muted', !d.fom);
+  $('mcFomBtn').textContent = d.fom ? 'Обновить вывод' : 'Спросить Fom';
+  paintMcMsgs(d.messages);
+  $('mcMsgText').value = '';
+  $('memberCoach').classList.remove('hidden');
+}
+function paintMcMsgs(list) {
+  $('mcMsgs').innerHTML = (list || []).length
+    ? 'Отправлено: ' + list.slice(0, 3).map((x) => `<div>· ${esc(relativeDateLabel(x.at.slice(0, 10)))} ${x.at.slice(11, 16)} — ${esc(x.text.length > 80 ? x.text.slice(0, 78) + '…' : x.text)}</div>`).join('')
+    : '';
+}
+$('mcFomBtn').addEventListener('click', async () => {
+  if (!currentMember || !currentGroup) return;
+  $('mcFomBtn').disabled = true;
+  $('mcFomText').classList.add('muted');
+  $('mcFomText').textContent = 'Fom смотрит записи…';
+  try {
+    const { fom } = await api(`/api/coach/groups/${currentGroup.group.id}/members/${currentMember.id}/fom`, { method: 'POST', timeout: 60000 });
+    $('mcFomText').textContent = fom;
+    $('mcFomText').classList.remove('muted');
+    $('mcFomBtn').textContent = 'Обновить вывод';
+  } catch (err) {
+    $('mcFomText').textContent = err.data?.error || 'Не получилось — попробуй ещё раз.';
+  } finally {
+    $('mcFomBtn').disabled = false;
+  }
+});
+$('mcMsgSend').addEventListener('click', async () => {
+  const text = $('mcMsgText').value.trim();
+  if (!text || !currentMember || !currentGroup) return;
+  $('mcMsgSend').disabled = true;
+  try {
+    const r = await api(`/api/coach/groups/${currentGroup.group.id}/members/${currentMember.id}/message`, { method: 'POST', body: JSON.stringify({ text }) });
+    haptic('success');
+    $('mcMsgText').value = '';
+    alertMsg(r.delivered ? 'Отправлено ✓' : 'Сохранено, но бот не смог доставить: спортсмен ещё не открывал чат с ботом.');
+    loadMemberCoach(currentMember);
+  } catch (err) {
+    alertMsg(err.data?.error || 'Не получилось отправить.');
+  } finally {
+    $('mcMsgSend').disabled = false;
+  }
 });
 
 // ---------- Создать группу ----------
