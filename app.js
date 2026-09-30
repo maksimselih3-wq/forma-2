@@ -2007,7 +2007,14 @@ function renderFpCalendar() {
     }
     grid.appendChild(cell);
   }
-  $('fpCalSummary').textContent = trainings ? `Тренировок за месяц: ${trainings}` : 'В этом месяце тренировок не видно.';
+  const fu = fpData.user || {};
+  const hidden = fu.share_calendar === false && fu.id !== currentUser?.id;
+  $('fpCalSummary').textContent = trainings
+    ? `Тренировок за месяц: ${trainings}`
+    : hidden
+      ? `У ${fu.first_name || fu.username || 'друга'} календарь скрыт от друзей — видны только тренировки, которые открыты для тебя.`
+      : 'В этом месяце тренировок не видно.';
+  $('fpCalSummary').classList.toggle('cal-hidden-note', !trainings && hidden);
 }
 
 async function openFriendDay(dateStr, ids) {
@@ -2395,6 +2402,30 @@ function leaveEditScreen() {
   else renderEntryState();
 }
 
+// Список записей поменялся — перерисовываем то, что видно (главная, профиль), чтобы нигде не остался старый отзыв
+function refreshAfterWorkoutChange() {
+  try { renderEntryState(); } catch (e) { /* главная ещё не готова */ }
+  try { if (!$('profileScreen').classList.contains('hidden')) loadProfileScreen(); } catch (e) { /* ничего */ }
+}
+$('editFbRefresh').addEventListener('click', async () => {
+  if (!currentEditWorkout) return;
+  const btn = $('editFbRefresh');
+  btn.disabled = true;
+  $('editFeedbackText').textContent = 'Fom заново смотрит тренировку…';
+  try {
+    const { ai_feedback } = await api(`/api/workouts/${currentEditWorkout.id}/feedback`, { method: 'POST', timeout: 60000 });
+    currentEditWorkout.ai_feedback = ai_feedback;
+    renderEditFeedback(currentEditWorkout, true);
+    $('editStatusMsg').textContent = 'Fom обновил отзыв ✓';
+    try { await loadMyWorkouts(); refreshAfterWorkoutChange(); } catch (e) { console.error(e); }
+  } catch (err) {
+    $('editFeedbackText').textContent = currentEditWorkout.ai_feedback || '';
+    $('editStatusMsg').textContent = err.data?.error || 'Не получилось — попробуй ещё раз.';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // Отзыв Fom на экране редактирования — после изменений он обновляется
 function renderEditFeedback(w, fresh = false) {
   const box = $('editFeedback');
@@ -2421,12 +2452,15 @@ $('editSaveBtn').addEventListener('click', async () => {
       timeout: 60000,
     });
     currentEditWorkout = { ...currentEditWorkout, ...result.workout, date: normDate(result.workout.date) };
-    const updatedFb = result.workout.ai_feedback && result.workout.ai_feedback !== oldFeedback;
-    statusEl.textContent = updatedFb ? 'Сохранено ✓ Fom обновил отзыв' : 'Сохранено ✓';
+    const st = result.feedback_status;
+    const updatedFb = st === 'updated' || (!st && result.workout.ai_feedback && result.workout.ai_feedback !== oldFeedback);
+    statusEl.textContent = updatedFb ? 'Сохранено ✓ Fom обновил отзыв'
+      : st === 'failed' ? 'Сохранено ✓ Fom не успел обновить отзыв — нажми «Обновить отзыв»'
+      : 'Сохранено ✓';
     renderEditFeedback(currentEditWorkout, updatedFb);
     haptic('success');
     renderEditSocial(currentEditWorkout);
-    try { await loadMyWorkouts(); } catch (e) { console.error(e); }
+    try { await loadMyWorkouts(); refreshAfterWorkoutChange(); } catch (e) { console.error(e); }
   } catch (err) {
     console.error(err);
     statusEl.textContent = 'Ошибка сохранения. Попробуй ещё раз.';
@@ -3340,7 +3374,7 @@ document.addEventListener('input', (e) => {
 });
 
 // Поддержка — чат с автором в Telegram
-const SUPPORT_USERNAME = 'MAKSIMSHELIKH';
+const SUPPORT_USERNAME = 'w_m9ik';
 $('supportBtn').addEventListener('click', () => {
   const url = `https://t.me/${SUPPORT_USERNAME}`;
   if (tg?.openTelegramLink) tg.openTelegramLink(url);
@@ -5663,6 +5697,15 @@ let healthTab = 'food';
 let foodDate = null;
 let foodData = null;
 
+// Файл как есть → data URL (для PDF с анализами)
+function fileToDataUrl(file, type) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).replace(/^data:[^;]*;/, `data:${type};`));
+    r.onerror = () => reject(new Error('Не получилось прочитать файл'));
+    r.readAsDataURL(file);
+  });
+}
 // Фото → сжатый JPEG (data URL): большая сторона не больше maxSide
 function fileToJpeg(file, maxSide, quality) {
   return new Promise((resolve, reject) => {
@@ -5867,7 +5910,7 @@ async function loadBlood() {
     box.innerHTML = `<div class="empty-hint">${esc(err.data?.error || 'Не удалось загрузить.')}</div>`;
     return;
   }
-  box.innerHTML = bloodTests.length ? '' : '<div class="empty-hint">Анализов пока нет. Сфоткай бланк из лаборатории — Fom сам перенесёт показатели.</div>';
+  box.innerHTML = bloodTests.length ? '' : '<div class="empty-hint">Анализов пока нет. Сфоткай бланк или загрузи PDF из лаборатории — Fom сам перенесёт показатели.</div>';
   bloodTests.forEach((t) => {
     const row = document.createElement('button');
     row.type = 'button';
@@ -5927,7 +5970,10 @@ $('bloodFile').addEventListener('change', async (e) => {
   if (!file) return;
   $('bloodStatus').textContent = 'Fom читает бланк… это может занять до минуты';
   try {
-    const image = await fileToJpeg(file, 1800, 0.85);
+    // PDF из лаборатории отправляем как есть, картинку — сжимаем
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+    if (isPdf && file.size > 6 * 1024 * 1024) throw new Error('PDF больше 6 МБ — сфоткай бланк или сохрани страницу с анализом отдельно');
+    const image = isPdf ? await fileToDataUrl(file, 'application/pdf') : await fileToJpeg(file, 1800, 0.85);
     const p = await api('/api/health/blood/scan', { method: 'POST', body: JSON.stringify({ image }), timeout: 90000 });
     if (!p.markers?.length) { $('bloodStatus').textContent = 'Не нашёл показателей на фото — попробуй ровнее или внеси вручную.'; return; }
     if (p.date) $('bloodDate').value = p.date;
