@@ -2199,6 +2199,7 @@ async function sendChatMessage() {
   chatHistory.push({ role: 'user', content: message });
   renderChatMessages();
   input.value = '';
+  growChatInput();
 
   const loadingBubble = document.createElement('div');
   loadingBubble.className = 'chat-bubble assistant typing';
@@ -2219,6 +2220,7 @@ async function sendChatMessage() {
     if (err.data?.left === 0) {
       chatHistory.pop(); // сообщение не ушло — вернём текст в поле
       input.value = message;
+      growChatInput();
       renderChatLimit(0);
       chatHistory.push({ role: 'assistant', content: err.data.error });
     } else {
@@ -2251,8 +2253,22 @@ $('chatSendBtn').addEventListener('click', sendChatMessage);
 // Кнопка отправки не забирает фокус у поля: клавиатура остаётся открытой, экран не прыгает
 // и нажатие не «теряется» (как в мессенджерах)
 $('chatSendBtn').addEventListener('mousedown', (e) => e.preventDefault());
+// Поле растёт вниз по мере текста (до ~5 строк, дальше прокрутка) — как в мессенджерах.
+// На компьютере Enter отправляет, Shift+Enter — новая строка; на телефоне Enter — новая строка, отправка — кнопкой.
+function growChatInput() {
+  const el = $('chatInput');
+  el.style.height = 'auto';
+  const full = el.scrollHeight + (el.offsetHeight - el.clientHeight); // + рамка
+  el.style.height = `${Math.min(full, 132)}px`;
+  el.classList.toggle('scrolling', full > 132);
+}
+const CHAT_ENTER_SENDS = window.matchMedia ? window.matchMedia('(hover: hover) and (pointer: fine)').matches : false;
+$('chatInput').addEventListener('input', growChatInput);
 $('chatInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') sendChatMessage();
+  if (e.key === 'Enter' && !e.shiftKey && CHAT_ENTER_SENDS && !e.isComposing) {
+    e.preventDefault();
+    sendChatMessage();
+  }
 });
 
 // ---------- Кнопка «+» внизу — новая запись ----------
@@ -3256,11 +3272,11 @@ function keepCaretVisible(el) {
   if (over > 0) window.scrollBy(0, over);
 }
 document.addEventListener('input', (e) => {
-  if (e.target.tagName !== 'TEXTAREA') return;
+  if (e.target.tagName !== 'TEXTAREA' || e.target.id === 'chatInput') return;
   autoGrow(e.target);
   keepCaretVisible(e.target);
 });
-document.addEventListener('focusin', (e) => { if (e.target.tagName === 'TEXTAREA') autoGrow(e.target); });
+document.addEventListener('focusin', (e) => { if (e.target.tagName === 'TEXTAREA' && e.target.id !== 'chatInput') autoGrow(e.target); });
 
 // Запрещаем увеличивать страницу двумя пальцами (в обрезке фото щипок работает сам по себе)
 document.addEventListener('gesturestart', (e) => e.preventDefault());
