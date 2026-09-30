@@ -2177,3 +2177,8 @@ html[data-theme="light"] .coach-flag.camp { color: #6a3fd6; }
 .supp-add { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
 html[data-theme="light"] .blood-row .blood-off, html[data-theme="light"] .bv-row.low .bv-val b, html[data-theme="light"] .bv-row.high .bv-val b,
 html[data-theme="light"] .bv-row.low .bv-val em, html[data-theme="light"] .bv-row.high .bv-val em { color: #b8570a; }
+.blood-scan-hint { font-size: 12px; line-height: 1.4; margin: 0 2px 8px; text-align: center; }
+.cal-summary.cal-hidden-note { color: var(--text); font-weight: 600; }
+.fb-refresh { margin-left: auto; border: 1px solid var(--border); background: var(--input); color: var(--text); border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.fb-refresh:disabled { opacity: 0.5; }
+#editFeedback .ai-box-title { display: flex; align-items: center; gap: 8px; }
