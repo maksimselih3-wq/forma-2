@@ -97,7 +97,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=63" />
+<link rel="stylesheet" href="style.css?v=66" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -1100,7 +1100,8 @@
   <div id="bloodSheet" class="sheet-backdrop hidden">
     <div class="sheet blood-sheet">
       <div class="sheet-title">🩸 Анализ крови</div>
-      <label class="primary-btn blood-scan-btn">📷 Сфоткать бланк — Fom заполнит сам<input type="file" id="bloodFile" accept="image/*" hidden /></label>
+      <label class="primary-btn blood-scan-btn">📄 Загрузить фото или PDF бланка<input type="file" id="bloodFile" accept="image/*,application/pdf,.pdf" hidden /></label>
+      <div class="muted blood-scan-hint">Можно сфоткать бланк, выбрать скрин из галереи или загрузить PDF, который прислала лаборатория.</div>
       <div class="status-msg" id="bloodStatus"></div>
       <div class="blood-meta">
         <label class="hr-field"><span>Дата сдачи</span><input type="date" id="bloodDate" /></label>
@@ -1326,7 +1327,7 @@
       <button id="editDeleteBtn" class="ghost-btn danger" type="button"><i data-ico="trash"></i> Удалить</button>
     </div>
     <div id="editStatusMsg" class="status-msg"></div>
-    <div class="ai-box hidden" id="editFeedback"><div class="ai-box-title"><span class="fom-badge">F</span> Fom</div><div class="fb" id="editFeedbackText"></div></div>
+    <div class="ai-box hidden" id="editFeedback"><div class="ai-box-title"><span class="fom-badge">F</span> Fom <button type="button" class="fb-refresh" id="editFbRefresh">↻ Обновить отзыв</button></div><div class="fb" id="editFeedbackText"></div></div>
 
     <!-- Реакции и комментарии друзей к этой записи -->
     <section class="card hidden" id="editSocialCard">
@@ -1378,6 +1379,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=63"></script>
+  <script src="app.js?v=66"></script>
 </body>
 </html>
