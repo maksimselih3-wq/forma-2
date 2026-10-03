@@ -3428,6 +3428,17 @@ $('tourNext').addEventListener('click', () => {
 $('tourSkip').addEventListener('click', closeTour);
 $('tourAgainBtn').addEventListener('click', openTour);
 
+// Удалить все мои данные (два подтверждения: действие необратимо)
+$('deleteAccountBtn').addEventListener('click', async () => {
+  if (!(await confirmAsk({ icon: 'trash', title: 'Удалить все данные?', text: 'Исчезнут все записи, анализы, друзья, группы и пробежки. Вернуть их будет нельзя.', ok: 'Продолжить', danger: true }))) return;
+  if (!(await confirmAsk({ icon: 'trash', title: 'Точно удалить?', text: 'Это последнее подтверждение.', ok: 'Удалить навсегда', danger: true }))) return;
+  try {
+    await api('/api/auth/me', { method: 'DELETE', body: JSON.stringify({ confirm: true }) });
+    await alertMsg('Готово: все твои данные удалены.');
+    try { tg?.close(); } catch (e) { /* не страшно */ }
+  } catch (err) { alertMsg(err.data?.error || 'Не получилось удалить. Попробуй ещё раз.'); }
+});
+
 // =====================================================================
 //  ВЕЧЕРНЕЕ НАПОМИНАНИЕ (настройка в профиле)
 // =====================================================================
@@ -5732,8 +5743,12 @@ function renderRun(scrollChat) {
   $('runReportBtn').classList.toggle('hidden', !!run.mine);
 
   const box = $('runMessages');
+  const canChat = !!(run.mine || run.joined); // чат открыт только тем, кто идёт
+  $('runInput').closest('.run-input-row').classList.toggle('hidden', !canChat);
   if (!messages.length) {
-    box.innerHTML = '<div class="muted center run-chat-empty">Здесь можно договориться: где встречаемся, какой темп, кто опаздывает.</div>';
+    box.innerHTML = canChat
+      ? '<div class="muted center run-chat-empty">Здесь можно договориться: где встречаемся, какой темп, кто опаздывает.</div>'
+      : '<div class="muted center run-chat-empty">Чат открыт тем, кто идёт на пробежку. Нажми «Иду», чтобы присоединиться.</div>';
   } else {
     box.innerHTML = messages.map((m) => `
       <div class="run-msg ${m.mine ? 'mine' : ''}">
