@@ -1022,6 +1022,9 @@ async function init() {
     // start_param — если приложение открыли по ссылке-приглашению
     const { user } = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ start_param: tg?.initDataUnsafe?.start_param || '' }) });
     currentUser = user;
+    // первое открытие (или политика ещё не принята): без согласия дальше не пускаем
+    if (!user.consent_at) { hideSplash(); await askConsent(); user.consent_at = new Date().toISOString(); }
+    refreshHomeButton();
     $('shareCalendarToggle').checked = user.share_calendar !== false;
     $('showRecordsToggle').checked = user.show_records !== false;
     $('reminderToggle').checked = user.remind_enabled !== false;
@@ -3427,6 +3430,34 @@ $('tourNext').addEventListener('click', () => {
 });
 $('tourSkip').addEventListener('click', closeTour);
 $('tourAgainBtn').addEventListener('click', openTour);
+
+// ---------- Согласие и политика конфиденциальности ----------
+function showPolicy() { $('policy').classList.remove('hidden'); $('policyBody').scrollTop = 0; }
+$('policyBack').addEventListener('click', () => $('policy').classList.add('hidden'));
+$('policyBtn').addEventListener('click', showPolicy);
+$('consentPolicyLink').addEventListener('click', showPolicy);
+function askConsent() {
+  return new Promise((resolve) => {
+    const box = $('consent'), cb = $('consentCheck'), btn = $('consentOk');
+    box.classList.remove('hidden');
+    cb.checked = false; btn.disabled = true;
+    cb.onchange = () => { btn.disabled = !cb.checked; };
+    btn.onclick = async () => {
+      btn.disabled = true;
+      try { await api('/api/auth/consent', { method: 'POST' }); box.classList.add('hidden'); resolve(); }
+      catch (err) { btn.disabled = !cb.checked; alertMsg('Не получилось сохранить согласие. Проверь интернет и попробуй ещё раз.'); }
+    };
+  });
+}
+
+// ---------- Иконка на главном экране телефона ----------
+function refreshHomeButton() {
+  try { tg?.checkHomeScreenStatus?.((status) => { if (status === 'added') $('addHomeBtn').closest('.card').classList.add('hidden'); }); } catch (e) { /* не страшно */ }
+}
+$('addHomeBtn').addEventListener('click', () => {
+  if (tg?.addToHomeScreen && tg.isVersionAtLeast?.('8.0')) { try { tg.addToHomeScreen(); haptic(); return; } catch (e) { /* ниже подсказка */ } }
+  alertMsg('Обнови Telegram до последней версии — и здесь появится системное окно. Пока можно открыть меню ⋯ в правом верхнем углу приложения и выбрать «Добавить на главный экран».');
+});
 
 // Удалить все мои данные (два подтверждения: действие необратимо)
 $('deleteAccountBtn').addEventListener('click', async () => {
