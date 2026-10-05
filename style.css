@@ -2220,3 +2220,6 @@ html[data-theme="light"] .bv-row.low .bv-val em, html[data-theme="light"] .bv-ro
 .gifts-ico { background: rgba(155, 107, 255, 0.14); }
 .ach-count { font-weight: 600; font-size: 13px; margin-left: 4px; }
 #giftsScreen .gift-card { margin-top: 4px; }
+
+.gift-more { margin-top: 6px; }
+.gift-more summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
