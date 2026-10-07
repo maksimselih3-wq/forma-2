@@ -3666,6 +3666,23 @@ function textMeters(text) {
   }
   return m;
 }
+// Самое большое расстояние в тексте («12 км, с вставками, 4 раза по 1 км…» → 12 км): так читаем заметки,
+// где пишут общий километраж и сразу разбивку — складывать их нельзя (двойной счёт). Формула та же, что на сервере (ai.js).
+function textMaxMeters(text) {
+  const t = String(text || '').replace(/(\d)[\s\u00a0](\d{3})(?!\d)/g, '$1$2');
+  const re = /(^|[^\d:.,])(?:(\d{1,2})\s*(?:[x×х*]|по)\s*)?(\d+(?:[.,]\d+)?)\s*(км|km|м|m)(?![a-zа-яё])(?!\s*\/\s*[чсh])/gi;
+  let best = 0;
+  for (const x of t.matchAll(re)) {
+    const val = Number(x[3].replace(',', '.'));
+    const unit = x[4].toLowerCase();
+    const mult = x[2] && Number(x[2]) > 0 && Number(x[2]) <= 50 ? Number(x[2]) : 1;
+    let m = 0;
+    if (unit === 'км' || unit === 'km') { if (val > 0 && val < 100) m = val * 1000 * mult; }
+    else if (val >= 20 && val <= 30000) m = val * mult;
+    if (m > best) best = m;
+  }
+  return best;
+}
 // Повторы: «10», «3×4» (серии × повторы)
 function repsCount(r) {
   const s = String(r ?? '').trim();
@@ -3681,6 +3698,8 @@ function volumeKm(w) {
   m += textMeters([w.warmup, w.cooldown].filter(Boolean).join('\n'));
   // старт: дистанция из дисциплины («5000 м», «10 км»)
   if (w.competition && w.competition.discipline) m += textMeters(w.competition.discipline);
+  // километраж только в заметках («12 км, с вставками…») — берём его; и в полях, и в заметках — большее (без двойного счёта)
+  m = Math.max(m, textMaxMeters(w.notes));
   return m / 1000;
 }
 
