@@ -523,6 +523,10 @@ const FORM_TEMPLATE = `
     <div class="card-label">Заметки</div>
     <textarea data-f="notes" rows="2" placeholder="Как прошло, что заметил..."></textarea>
     <div class="vis-block">
+      <div class="vis-label">Общий объём за тренировку, км</div>
+      <input type="text" inputmode="decimal" data-f="totalKm" maxlength="6" placeholder="Необязательно — иначе посчитаю по записи">
+    </div>
+    <div class="vis-block">
       <div class="vis-label">Кто видит запись</div>
       <div class="segmented seg-3 vis-seg" data-f="visSeg">
         <button type="button" class="seg-btn" data-vis="private">${ico('lock')} Только я</button>
@@ -756,7 +760,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
 
   // --- повторить прошлую тренировку ---
   f('repeatBtn').addEventListener('click', () => openRepeatSheet((w) => {
-    setData({ ...w, notes: '', competition: null, visibility: vis, visible_to: visTo, start_time: null, end_time: null });
+    setData({ ...w, notes: '', total_km: null, competition: null, visibility: vis, visible_to: visTo, start_time: null, end_time: null });
     setType('training');
     f('smartStatus').textContent = '';
   }));
@@ -922,6 +926,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       f('warmup').value = w.warmup || '';
       f('cooldown').value = w.cooldown || '';
       f('notes').value = w.notes || '';
+      f('totalKm').value = w.total_km ? String(Number(w.total_km)).replace('.', ',') : '';
       setVisibility(w.visibility, w.visible_to);
       startTime = w.start_time || null; endTime = w.end_time || null; paintTimes();
       setPlace(w);
@@ -964,6 +969,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
         feeling: Number(f('feeling').value),
         rpe: Number(f('rpe').value),
         notes: f('notes').value,
+        total_km: f('totalKm').value,
         visibility: vis,
         visible_to: vis === 'custom' ? visTo : [],
         start_time: startTime,
@@ -3693,6 +3699,9 @@ function repsCount(r) {
 }
 function volumeKm(w) {
   if (!w || w.type !== 'training') return 0;
+  // общий объём, который человек вписал сам, главнее любого подсчёта (формула та же, что на сервере, ai.js)
+  const manual = Number(w.total_km);
+  if (manual > 0) return manual;
   let m = 0;
   (Array.isArray(w.sets) ? w.sets : []).forEach((s) => { m += (Number(s.distance_m) || 0) * repsCount(s.reps); });
   m += textMeters([w.warmup, w.cooldown].filter(Boolean).join('\n'));
