@@ -1225,7 +1225,7 @@ function renderEntryState() {
     const pb = w.competition && isPersonalBest(w);
     const title = w.type === 'rest' ? 'День отдыха' : w.competition ? 'Старт' : list.length > 1 ? `Тренировка ${w.session || 1}` : 'Тренировка';
     block.innerHTML = `
-      <div class="done-block-title">${ico(entryKindIco(w))}${esc(title)}${w.source && String(w.source).includes('strava') ? '<span class="strava-tag">Strava</span>' : ''}${pb ? '<span class="pb-badge">Личный рекорд!</span>' : ''}</div>
+      <div class="done-block-title">${ico(entryKindIco(w))}${esc(title)}${w.source === 'strava' ? '<span class="strava-tag">Strava</span>' : ''}${pb ? '<span class="pb-badge">Личный рекорд!</span>' : ''}</div>
       <div class="done-summary"></div>
       ${w.ai_feedback ? '<div class="ai-box"><div class="ai-box-title"><span class="fom-badge">F</span> Fom</div><div class="fb"></div></div>' : ''}
       <div class="btn-row">
