@@ -286,10 +286,19 @@ function showScreen(targetId) {
 function parseDistance(v) {
   if (v == null || v === '') return null;
   if (typeof v === 'number') return v > 0 ? Math.round(v) : null;
-  const t = String(v).toLowerCase().replace(',', '.').replace(/\s+/g, '');
+  const t = String(v).toLowerCase().replace(',', '.').replace(/\s+/g, '')
+    .replace(/километр\w*|килом\w*|kilometers?|kilometres?|kms?\b/g, 'км')
+    .replace(/метр\w*|meters?|metres?/g, 'м');
   const n = parseFloat(t);
   if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.round(/км|km|k$/.test(t) ? n * 1000 : n);
+  return Math.round(/км|k$/.test(t) ? n * 1000 : n);
+}
+// Общий объём в км: «10», «10,5», «10 км» → «10.5»; мусор → пусто
+function cleanKm(v) {
+  const t = String(v == null ? '' : v).toLowerCase().replace(',', '.').replace(/\s+/g, '');
+  const n = parseFloat(t);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  return String(/(?:^|\d)м$|метр|\bm$/.test(t) && !/км|km/.test(t) ? n / 1000 : n);
 }
 // Для поля ввода: 10000 → «10 км», 1500 → «1,5 км», 400 → «400»
 function distInput(v) {
@@ -524,7 +533,7 @@ const FORM_TEMPLATE = `
     <textarea data-f="notes" rows="2" placeholder="Как прошло, что заметил..."></textarea>
     <div class="vis-block">
       <div class="vis-label">Общий объём за тренировку, км</div>
-      <input type="text" inputmode="decimal" data-f="totalKm" maxlength="6" placeholder="Необязательно — иначе посчитаю по записи">
+      <input type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" data-f="totalKm" maxlength="14" placeholder="Необязательно — иначе посчитаю по записи">
     </div>
     <div class="vis-block">
       <div class="vis-label">Кто видит запись</div>
@@ -774,7 +783,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       const row = document.createElement('div');
       row.className = 'set-row';
       row.innerHTML = `
-        <input type="text" inputmode="decimal" placeholder="м / км / 1'" value="${esc(distInput(s.distance_m))}" data-k="distance_m" />
+        <input type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="м / км / 1'" value="${esc(distInput(s.distance_m))}" data-k="distance_m" />
         <input type="number" inputmode="numeric" placeholder="Кол-во" value="${esc(s.reps)}" data-k="reps" />
         <input type="text" placeholder="Время" value="${esc(s.time_or_pace)}" data-k="time_or_pace" />
         <input type="text" placeholder="Отдых" value="${esc(s.rest_between)}" data-k="rest_between" />
@@ -969,7 +978,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
         feeling: Number(f('feeling').value),
         rpe: Number(f('rpe').value),
         notes: f('notes').value,
-        total_km: f('totalKm').value,
+        total_km: cleanKm(f('totalKm').value),
         visibility: vis,
         visible_to: vis === 'custom' ? visTo : [],
         start_time: startTime,
