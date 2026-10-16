@@ -1225,7 +1225,7 @@ function renderEntryState() {
     const pb = w.competition && isPersonalBest(w);
     const title = w.type === 'rest' ? 'День отдыха' : w.competition ? 'Старт' : list.length > 1 ? `Тренировка ${w.session || 1}` : 'Тренировка';
     block.innerHTML = `
-      <div class="done-block-title">${ico(entryKindIco(w))}${esc(title)}${pb ? '<span class="pb-badge">Личный рекорд!</span>' : ''}</div>
+      <div class="done-block-title">${ico(entryKindIco(w))}${esc(title)}${w.source && String(w.source).includes('strava') ? '<span class="strava-tag">Strava</span>' : ''}${pb ? '<span class="pb-badge">Личный рекорд!</span>' : ''}</div>
       <div class="done-summary"></div>
       ${w.ai_feedback ? '<div class="ai-box"><div class="ai-box-title"><span class="fom-badge">F</span> Fom</div><div class="fb"></div></div>' : ''}
       <div class="btn-row">
@@ -2167,7 +2167,7 @@ $('shareCalendarToggle').addEventListener('change', async (e) => {
   }
 });
 // ---------- Экран «Настройки» ----------
-$('settingsBtn').addEventListener('click', () => { haptic(); paintThemeSeg(); showScreen('settingsScreen'); });
+$('settingsBtn').addEventListener('click', () => { haptic(); paintThemeSeg(); showScreen('settingsScreen'); loadStrava(); });
 $('settingsBackBtn').addEventListener('click', () => showScreen('profileScreen'));
 for (const [id, key] of [['digestToggle', 'digest'], ['partnersNotifyToggle', 'partners']]) {
   $(id).addEventListener('change', async (e) => {
@@ -3488,6 +3488,75 @@ $('deleteAccountBtn').addEventListener('click', async () => {
     await alertMsg('Готово: все твои данные удалены.');
     try { tg?.close(); } catch (e) { /* не страшно */ }
   } catch (err) { alertMsg(err.data?.error || 'Не получилось удалить. Попробуй ещё раз.'); }
+});
+
+// =====================================================================
+//  STRAVA: подключение, ручное обновление, отключение
+// =====================================================================
+let stravaState = null;
+let stravaWatch = null;
+function paintStrava() {
+  const s = stravaState;
+  $('stravaCard').classList.toggle('hidden', !s || !s.configured);
+  if (!s) return;
+  $('stravaConnectBtn').classList.toggle('hidden', s.connected);
+  $('stravaSyncBtn').classList.toggle('hidden', !s.connected);
+  $('stravaDisconnectBtn').classList.toggle('hidden', !s.connected);
+  $('stravaHint').textContent = s.connected
+    ? 'Strava подключена. Новые тренировки сами попадают в дневник (видны только тебе) — останется их дополнить. Уже сделанные записи не меняются.'
+    : 'Подключи Strava — тренировки с часов сами появятся в дневнике. Останется дополнить: самочувствие, заметки, отрезки.';
+}
+async function loadStrava() {
+  try { stravaState = await api('/api/strava/status'); paintStrava(); } catch (e) { /* не страшно */ }
+}
+// После перехода в Strava человек возвращается в приложение — проверяем статус, пока не подключится
+function watchStravaConnect() {
+  clearInterval(stravaWatch);
+  let n = 0;
+  stravaWatch = setInterval(async () => {
+    n++;
+    await loadStrava();
+    if (stravaState?.connected || n > 60) {
+      clearInterval(stravaWatch);
+      if (stravaState?.connected) { haptic('success'); loadMyWorkouts().then(() => { try { renderEntryState(); } catch (e) {} }).catch(() => {}); }
+    }
+  }, 3000);
+}
+$('stravaConnectBtn').addEventListener('click', async () => {
+  haptic();
+  try {
+    const { url } = await api('/api/strava/connect', { method: 'POST' });
+    if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
+    watchStravaConnect();
+  } catch (err) { alertMsg(err.data?.error || 'Не получилось открыть Strava. Попробуй ещё раз.'); }
+});
+$('stravaSyncBtn').addEventListener('click', async () => {
+  haptic();
+  const btn = $('stravaSyncBtn');
+  btn.disabled = true;
+  try {
+    const r = await api('/api/strava/sync', { method: 'POST', timeout: 60000 });
+    await loadMyWorkouts();
+    try { renderEntryState(); } catch (e) { /* не страшно */ }
+    haptic('success');
+    alertMsg(r.created || r.linked ? `Готово: добавлено тренировок — ${(r.created || 0) + (r.linked || 0)}.` : 'Новых тренировок в Strava нет.');
+  } catch (err) { alertMsg(err.data?.error || 'Не получилось обновить. Попробуй чуть позже.'); }
+  finally { btn.disabled = false; }
+});
+$('stravaDisconnectBtn').addEventListener('click', async () => {
+  if (!(await confirmAsk({ icon: 'info', title: 'Отключить Strava?', text: 'Новые тренировки перестанут приходить. Записи, которые уже в дневнике, останутся.', ok: 'Отключить', danger: true }))) return;
+  try {
+    await api('/api/strava/disconnect', { method: 'POST' });
+    await loadStrava();
+    haptic('success');
+  } catch (err) { alertMsg(err.data?.error || 'Не получилось отключить. Попробуй ещё раз.'); }
+});
+// вернулся в приложение (например, из Strava) — обновим статус и записи
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !currentUser) return;
+  if (!$('settingsScreen').classList.contains('hidden')) loadStrava();
+  // форму записи не трогаем: человек может быть посреди заполнения — календарь и статистика обновятся
+  loadMyWorkouts().catch(() => {});
 });
 
 // =====================================================================
