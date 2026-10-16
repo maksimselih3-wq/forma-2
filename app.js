@@ -2230,7 +2230,7 @@ async function loadInsight() {
   } catch (err) {
     console.error('Failed to load insight', err);
     loadingEl.classList.add('hidden');
-    emptyEl.textContent = 'Не удалось получить разбор. Попробуй ещё раз.';
+    emptyEl.textContent = err.data?.ai_down ? err.data.error : 'Не удалось получить разбор. Попробуй ещё раз.';
     emptyEl.classList.remove('hidden');
   }
 }
@@ -2305,7 +2305,10 @@ async function sendChatMessage() {
       renderChatLimit(0);
       chatHistory.push({ role: 'assistant', content: err.data.error });
     } else {
-      chatHistory.push({ role: 'assistant', content: 'Ошибка связи с сервером. Попробуй ещё раз.' });
+      chatHistory.pop(); // сообщение не ушло — вернём текст в поле
+      input.value = message;
+      growChatInput();
+      chatHistory.push({ role: 'assistant', content: err.data?.ai_down ? err.data.error : 'Ошибка связи с сервером. Попробуй ещё раз.' });
     }
   }
   renderChatMessages();
