@@ -3337,6 +3337,10 @@ function updateKeyboardState() {
     setTimeout(() => { window.scrollTo(0, 0); $('chatMessages').scrollTop = $('chatMessages').scrollHeight; }, 60);
   }
 }
+// «Готово» в шапке чата и тап по переписке сворачивают клавиатуру — иначе выйти можно было только свайпом
+$('chatKbHide').addEventListener('click', () => { document.activeElement?.blur?.(); setTimeout(updateKeyboardState, 60); });
+$('chatKbHide').addEventListener('mousedown', (e) => e.preventDefault());
+$('chatMessages').addEventListener('click', () => { if (document.activeElement?.id === 'chatInput') document.activeElement.blur(); });
 document.addEventListener('focusin', updateKeyboardState);
 document.addEventListener('focusout', () => setTimeout(updateKeyboardState, 60));
 
@@ -3741,7 +3745,7 @@ const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн'
 // Метры из текста: «кросс 12 км», «3000 м», «3 000м», «ускорения 5×100 м», «6 по 400 м»
 // (темп «3:40/км», «4:00 км» и минуты «мин» не считаются)
 function textMeters(text) {
-  const t = String(text || '').replace(/(\d)[\s ](\d{3})(?!\d)/g, '$1$2');
+  const t = String(text || '').replace(/(\d)[\s ](\d{3})(?!\d)/g, '$1$2');
   // перед числом не должно быть цифры, «:» или запятой (иначе это темп «3:40 км»). Проверяем через первую группу —
   // «заглядывание назад» (?<!…) не работает на iPhone со старой iOS, и из-за него приложение не запускалось
   const re = /(^|[^\d:.,])(?:(\d{1,2})\s*(?:[x×х*]|по)\s*)?(\d+(?:[.,]\d+)?)\s*(км|km|м|m)(?![a-zа-яё])(?!\s*\/\s*[чсh])/gi;
