@@ -1359,6 +1359,10 @@ body.kb-open .bottom-nav { opacity: 0; pointer-events: none; transform: translat
 body.kb-open { padding-bottom: 24px; }
 body.kb-open .swipe-back { display: none; }
 body.chat-open.kb-open .topbar { display: none; }
+/* «Готово» в шапке чата: единственный видимый способ свернуть клавиатуру, пока нижняя панель спрятана */
+.chat-kb-hide { display: none; margin-left: auto; align-self: center; padding: 8px 14px; border: 0; border-radius: 999px;
+  background: var(--lime, #B4F53C); color: #0A0C11; font: 600 14px var(--font-body, inherit); cursor: pointer; }
+body.chat-open.kb-open .chat-kb-hide { display: block; }
 body.chat-open.kb-open .chat-section {
   height: calc(var(--app-h, 100vh) - env(safe-area-inset-top, 0px) - 12px);
   padding-top: 8px;
