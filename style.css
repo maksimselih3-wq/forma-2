@@ -2262,3 +2262,6 @@ html[data-theme="light"] .bv-row.low .bv-val em, html[data-theme="light"] .bv-ro
 .login-install li { margin: 4px 0; }
 .login-share { display: inline-block; padding: 0 6px; border-radius: 6px; border: 1px solid var(--border-strong); font-size: 13px; }
 body.login-open .bottom-nav, body.login-open .topbar { display: none; }
+
+.login-alt { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.login-alt a { color: var(--lime-text, #b4f53c); text-decoration: underline; }
