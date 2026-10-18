@@ -1,30 +1,1474 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Forma — политика конфиденциальности</title>
-<meta name="robots" content="index,follow">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Forma</title>
+<meta name="theme-color" content="#0a0c11" />
+<!-- Установка на главный экран телефона (Safari / Chrome) -->
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<link rel="icon" type="image/png" href="icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<meta name="apple-mobile-web-app-title" content="Forma" />
+<!-- Заставка: стили прямо здесь, чтобы она появилась мгновенно, ещё до загрузки остального -->
+<script>
+  // Страховка от «вечной заставки»: если через 25 секунд приложение так и не запустилось
+  // (нет связи, очень старый телефон, ошибка) — показываем понятный текст и кнопку «Обновить»
+  window.__bootErr = '';
+  window.addEventListener('error', function (e) { if (!window.__bootErr) window.__bootErr = (e.message || 'ошибка') + (e.lineno ? ' @' + e.lineno : ''); });
+  setTimeout(function () {
+    var sp = document.getElementById('splash');
+    if (!sp || sp.classList.contains('hide')) return;
+    var box = document.createElement('div');
+    box.style.cssText = 'position:absolute;left:24px;right:24px;bottom:12%;text-align:center;font:500 15px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:#9aa1ae';
+    box.innerHTML = 'Не получается загрузить Forma.<br>Проверь интернет' + (/github\.io$/.test(location.hostname) ? ' — в России без VPN может не открываться' : '') + '.' +
+      '<br><button type="button" style="margin-top:14px;padding:12px 22px;border:none;border-radius:14px;background:#b4f53c;color:#0b0d10;font-weight:800;font-size:15px" onclick="location.reload()">Обновить</button>' +
+      (window.__bootErr ? '<div style="margin-top:10px;font-size:11px;opacity:.7">' + String(window.__bootErr).replace(/</g, '&lt;').slice(0, 160) + '</div>' : '');
+    sp.appendChild(box);
+  }, 25000);
+</script>
+<script>
+  // тема ещё до отрисовки: тёмная / светлая / как в Telegram (по цвету фона из параметров Telegram)
+  (function () {
+    var pref = 'dark';
+    try { pref = localStorage.getItem('forma_theme') || 'dark'; } catch (e) {}
+    var light = pref === 'light';
+    if (pref === 'auto') {
+      try {
+        var m = /tgWebAppThemeParams=([^&]+)/.exec(location.hash);
+        var bg = m ? JSON.parse(decodeURIComponent(m[1])).bg_color : null;
+        if (bg) {
+          var n = parseInt(bg.slice(1), 16);
+          light = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 150;
+        }
+      } catch (e) {}
+    }
+    document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
+  })();
+</script>
 <style>
-  :root { --bg:#0A0C11; --text:#F3F5F8; --muted:#8B93A7; --lime:#B4F53C; }
-  @media (prefers-color-scheme: light) { :root { --bg:#F5F6F8; --text:#13161C; --muted:#5B6376; --lime:#4A8A00; } }
-  html,body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; line-height:1.6; }
-  main { max-width:720px; margin:0 auto; padding:32px 20px 64px; }
-  .eyebrow { color:var(--lime); font-weight:700; letter-spacing:.12em; text-transform:uppercase; font-size:13px; }
-  h1 { font-size:28px; margin:8px 0 6px; }
-  h3 { font-size:18px; margin:28px 0 6px; }
-  p { margin:0 0 10px; color:var(--text); }
-  .muted { color:var(--muted); font-size:14px; }
-  a { color:var(--lime); }
+  html, body { background: #0a0c11; }
+  html[data-theme="light"], html[data-theme="light"] body, html[data-theme="light"] #splash { background: #f3f4ef; }
+  html[data-theme="light"] #splash path { stroke: #151820; }
+  #splash {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    background: #0a0c11;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  #splash.hide { opacity: 0; transform: scale(1.04); pointer-events: none; }
+  #splash svg { width: min(64vw, 300px); height: auto; overflow: visible; }
+  #splash path {
+    fill: none; stroke: #f3f5f8; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: var(--len); stroke-dashoffset: var(--len);
+    animation: splash-draw var(--dur) cubic-bezier(0.45, 0, 0.35, 1) var(--delay) forwards;
+  }
+  /* мягкий ореол за точкой — как свечение у точки в шапке */
+  #splash circle.halo {
+    fill: #b4f53c;
+    opacity: 0;
+    filter: blur(6px);
+    transform-box: fill-box; transform-origin: center;
+    animation: splash-halo-in 0.5s ease-out 1.1s forwards, splash-halo 1.6s ease-in-out 1.6s infinite;
+  }
+  @keyframes splash-halo-in { from { opacity: 0; transform: scale(0.4); } to { opacity: 0.3; transform: scale(0.85); } }
+  @keyframes splash-halo { 0%, 100% { opacity: 0.3; transform: scale(0.85); } 50% { opacity: 0.4; transform: scale(0.95); } }
+  #splash circle.dot {
+    fill: #b4f53c;
+    transform-box: fill-box; transform-origin: center;
+    transform: scale(0);
+    /* свечение как у точки в шапке приложения */
+    filter: drop-shadow(0 0 3px rgba(180, 245, 60, 0.8)) drop-shadow(0 0 8px rgba(180, 245, 60, 0.4));
+    animation: splash-dot 0.38s cubic-bezier(0.3, 1.7, 0.5, 1) 1.05s forwards, splash-glow 1.6s ease-in-out 1.45s infinite;
+  }
+  @keyframes splash-draw { to { stroke-dashoffset: 0; } }
+  @keyframes splash-dot { to { transform: scale(1); } }
+  @keyframes splash-glow {
+    0%, 100% { filter: drop-shadow(0 0 3px rgba(180, 245, 60, 0.8)) drop-shadow(0 0 8px rgba(180, 245, 60, 0.4)); }
+    50% { filter: drop-shadow(0 0 4px rgba(180, 245, 60, 0.9)) drop-shadow(0 0 10px rgba(180, 245, 60, 0.5)); }
+  }
 </style>
+<!-- Шрифты и скрипт Telegram: на своём домене берём их через наш сервер (в России внешние адреса часто недоступны),
+     на GitHub Pages — как раньше, из интернета -->
+<script>
+  (function () {
+    var self = !/github\.io$/.test(location.hostname) && location.protocol !== 'file:';
+    var fonts = self ? '/api/asset/fonts.css' : 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap';
+    document.write('<link rel="stylesheet" href="' + fonts + '" />');
+    document.write('<script src="' + (self ? '/api/asset/tg.js' : 'https://telegram.org/js/telegram-web-app.js') + '"><\/script>');
+  })();
+</script>
+<script>
+  // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
+  if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
+</script>
+<link rel="stylesheet" href="style.css?v=74" />
 </head>
 <body>
-<main>
-  <div class="eyebrow">Forma</div>
-  <h1>Политика конфиденциальности</h1>
-  <p class="muted">Тренировочный дневник в Telegram · обновлено 16.10.2026 · связь: <a href="https://t.me/w_m9ik">t.me/w_m9ik</a></p>
-  <h3>Кто мы</h3>
-      <p>Forma — тренировочный дневник в Telegram. Его делает независимый разработчик (далее — «мы»). Связаться с нами можно кнопкой «Поддержка» в настройках приложения или в Telegram: <a href="https://t.me/w_m9ik">t.me/w_m9ik</a>.</p>
+  <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="gLime" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dcff72"/><stop offset="1" stop-color="#5fd43a"/></linearGradient>
+      <linearGradient id="gFire" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a3c"/><stop offset=".5" stop-color="#ff9a2e"/><stop offset="1" stop-color="#ffd84d"/></linearGradient>
+      <linearGradient id="gPurple" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c3a2ff"/><stop offset="1" stop-color="#6b5bff"/></linearGradient>
+      <linearGradient id="gSpark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d6ff6a"/><stop offset="1" stop-color="#9b6bff"/></linearGradient>
+      <linearGradient id="gHeart" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a9a"/><stop offset="1" stop-color="#ff3d5a"/></linearGradient>
+      <linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe98a"/><stop offset="1" stop-color="#ffae1f"/></linearGradient>
+    </defs>
+  </svg>
+
+
+  <!-- ЗАСТАВКА: «Forma» пишется от руки, в конце загорается зелёная точка -->
+  <!-- Вход вне Telegram: показывается, только если приложение открыто не в Telegram и входа ещё не было -->
+  <section id="loginScreen" class="login-screen hidden">
+    <div class="login-card">
+      <img class="login-logo" src="icons/icon-192.png" alt="Forma" width="96" height="96" />
+      <h1 class="login-title">Forma</h1>
+      <p class="login-sub">Дневник тренировок с помощником Fom</p>
+      <div id="loginInstall" class="login-install hidden">
+        <b>Сначала установи Forma на главный экран</b>
+        <ol>
+          <li>Нажми «Поделиться» <span class="login-share" aria-hidden="true">⬆︎</span> внизу Safari.</li>
+          <li>Выбери «На экран «Домой»» и нажми «Добавить».</li>
+          <li>Открой иконку Forma на главном экране — и войди уже в ней.</li>
+        </ol>
+        <div class="muted">Так вход сохранится, и приложение будет открываться на весь экран.</div>
+      </div>
+      <button type="button" id="loginTgBtn" class="primary-btn login-btn" disabled>Войти через Telegram</button>
+      <button type="button" id="loginRetryBtn" class="ghost-btn wide hidden">Повторить</button>
+      <div id="loginStatus" class="login-status" role="status"></div>
+      <div class="muted login-note">Откроется бот Forma в Telegram: нажми «Старт» и подтверди вход. Аккаунт и дневник те же, что в Telegram.</div>
+    </div>
+  </section>
+  <div id="splash" aria-hidden="true">
+    <svg viewBox="0 0 240 110">
+      <path d="M22 38 C20 26, 40 20, 60 24 S 95 22, 104 18" />
+      <path d="M62 24 C60 45, 54 70, 44 88 C40 95, 30 96, 28 88" />
+      <path d="M46 58 C56 55, 66 55, 76 56" />
+      <path d="M92 64 C84 64, 80 76, 86 80 C92 84, 100 76, 98 68 C97 64, 94 63, 92 64 C100 66, 104 66, 108 64 C110 60, 113 60, 114 64 C116 70, 115 78, 116 82 C118 72, 124 64, 132 66 C133 72, 132 78, 133 82 C135 70, 145 62, 148 70 C149 74, 149 78, 150 82 C152 70, 162 62, 165 70 C166 75, 166 79, 168 82 C172 84, 176 80, 180 74 C182 66, 192 62, 196 68 C188 62, 178 70, 180 78 C182 84, 192 82, 196 70 C195 76, 196 82, 202 82 C206 82, 208 78, 210 76" />
+      <circle class="halo" cx="222" cy="80" r="11" />
+      <circle class="dot" cx="222" cy="80" r="5" />
+    </svg>
+  </div>
+  <script>
+    // Буквы «пишутся» по очереди: F (три штриха), затем «orma» одним росчерком — всего около секунды
+    (function () {
+      var timing = [[0, 0.2], [0.18, 0.22], [0.38, 0.1], [0.46, 0.55]];
+      document.querySelectorAll('#splash path').forEach(function (p, i) {
+        p.style.setProperty('--len', p.getTotalLength() + 1);
+        p.style.setProperty('--delay', timing[i][0] + 's');
+        p.style.setProperty('--dur', timing[i][1] + 's');
+      });
+      window.__splashStart = Date.now();
+    })();
+  </script>
+
+  <!-- ШАПКА: логотип Forma, серия и аватар -->
+  <header class="topbar">
+    <div class="logo">Forma<span class="logo-dot"></span></div>
+    <div class="topbar-right">
+      <div class="streak-pill" title="Серия дней подряд"><i data-ico="flame"></i><span id="streakCurrent">0</span></div>
+      <button id="profileBtn" class="avatar-btn" type="button" title="Мой профиль">
+        <img id="avatarImg" src="" alt="" class="hidden" />
+        <span id="avatarFallback">👤</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================== ГЛАВНАЯ: НОВАЯ ЗАПИСЬ ===================== -->
+  <main id="mainScreen" class="screen">
+    <div class="stats-row stats-compact">
+      <div class="stat">
+        <div class="stat-icon" data-ico="flame"></div>
+        <div class="stat-num accent" id="statStreak">0</div>
+        <div class="stat-label">дней подряд</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon" data-ico="week"></div>
+        <div class="stat-num" id="statWeek">0</div>
+        <div class="stat-label">тренировок за неделю</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon" data-ico="calendar"></div>
+        <div class="stat-num" id="statMonth">0</div>
+        <div class="stat-label">тренировок за месяц</div>
+      </div>
+    </div>
+
+
+
+
+
+    <section class="card card-hero">
+      <div class="eyebrow">Дневник</div>
+      <h2 class="title" id="entryTitle">Запись за сегодня</h2>
+      <!-- Выбор даты: быстрые кнопки + календарь -->
+      <div class="date-picker-row">
+        <button type="button" class="chip" data-shift="0">Сегодня</button>
+        <button type="button" class="chip" data-shift="1">Вчера</button>
+        <label class="date-input-wrap">
+          <i data-ico="calendar"></i><input type="date" id="entryDate" />
+        </label>
+      </div>
+    </section>
+
+    <!-- Карточка «запись уже есть / сохранена» — показывается вместо формы -->
+    <section id="entryDone" class="card done-card hidden">
+      <div class="done-title" id="doneTitle">Запись сохранена</div>
+      <!-- сюда рисуются все записи дня: основная и вторая тренировка -->
+      <div id="doneList"></div>
+      <button type="button" id="doneAddBtn" class="add-second-btn hidden">➕ Добавить вторую тренировку</button>
+      <div class="muted done-hint">Новые записи — только за сегодня и вчера. Прошлые можно открыть и поправить в календаре профиля.</div>
+    </section>
+
+    <!-- Форма новой записи (поля рисуются из app.js) -->
+    <div id="entryForm">
+      <div id="mainFormFields"></div>
+      <button id="saveBtn" class="primary-btn" type="button">Сохранить запись <span class="plus-ico">+</span></button>
+      <div id="statusMsg" class="status-msg"></div>
+      <button type="button" id="entryBackBtn" class="ghost-btn wide hidden">← Назад к записи дня</button>
+    </div>
+
+    <!-- Утренняя отметка: сон, пульс покоя, самочувствие -->
+    <section class="card morning-card hidden" id="morningCard">
+      <div class="gift-head">
+        <div class="card-label">☀️ Доброе утро! Как ты?</div>
+        <button type="button" class="morning-close" id="morningClose" aria-label="Скрыть на сегодня">✕</button>
+      </div>
+      <div class="morning-form" id="morningForm">
+        <div class="morning-q">Сон</div>
+        <div class="morning-chips" id="mSleep">
+          <button type="button" class="chip" data-v="5">≤5 ч</button><button type="button" class="chip" data-v="6">6 ч</button>
+          <button type="button" class="chip" data-v="7">7 ч</button><button type="button" class="chip" data-v="8">8 ч</button>
+          <button type="button" class="chip" data-v="9">9+ ч</button>
+        </div>
+        <div class="morning-q">Самочувствие</div>
+        <div class="morning-chips mood" id="mMood">
+          <button type="button" class="chip" data-v="1">😫</button><button type="button" class="chip" data-v="2">😕</button>
+          <button type="button" class="chip" data-v="3">😐</button><button type="button" class="chip" data-v="4">🙂</button>
+          <button type="button" class="chip" data-v="5">🤩</button>
+        </div>
+        <div class="morning-row">
+          <label class="hr-field"><span>Пульс в покое <i class="optional">необяз.</i></span><input type="number" inputmode="numeric" id="mHr" placeholder="—" /></label>
+          <button type="button" class="primary-btn morning-save" id="morningSave">Готово</button>
+        </div>
+      </div>
+      <div class="morning-done hidden" id="morningDone"></div>
+    </section>
+
+    <!-- Отсчёт до ближайшего старта -->
+    <button type="button" class="card countdown-card hidden" id="countdownCard"></button>
+
+    <!-- Челлендж недели -->
+    <section class="card challenge-card hidden" id="challengeCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="target"></i>Челлендж недели</div>
+        <span class="muted challenge-left" id="challengeLeft"></span>
+      </div>
+      <div id="challengeRows"></div>
+    </section>
+  </main>
+
+  <!-- ===================== ПРОФИЛЬ + КАЛЕНДАРЬ ===================== -->
+  <section id="profileScreen" class="screen hidden">
+    <div class="profile-hero" id="profileHero">
+      <div class="profile-hero-shade"></div>
+      <!-- смена фото — маленькая круглая кнопка в углу -->
+      <button type="button" class="photo-btn settings-btn" id="settingsBtn" aria-label="Настройки" title="Настройки"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 8.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.5-2-3.4-2.3.9a7.4 7.4 0 0 0-2.6-1.5L14.1 2.5h-4.2l-.4 2.5a7.4 7.4 0 0 0-2.6 1.5l-2.3-.9-2 3.4 2 1.5a7.6 7.6 0 0 0 0 3l-2 1.5 2 3.4 2.3-.9c.8.7 1.6 1.2 2.6 1.5l.4 2.5h4.2l.4-2.5c1-.3 1.8-.8 2.6-1.5l2.3.9 2-3.4-2-1.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+      <button type="button" class="photo-btn" id="photoBtn" aria-label="Сменить фото" title="Сменить фото">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.6l1.2-1.7c.3-.4.7-.6 1.2-.6h3c.5 0 .9.2 1.2.6L15.9 6h1.6A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
+      <div class="profile-hero-bottom">
+        <!-- дисциплина — строкой над именем, нажми, чтобы изменить -->
+        <button type="button" class="hero-sport empty" id="profileSport">＋ Укажи дисциплину</button>
+        <div class="profile-name" id="profileName">Спортсмен</div>
+        <div class="profile-tags">
+          <span class="tag" id="profileUsername"></span>
+          <span class="tag tag-pioneer hidden" id="profilePioneer"></span>
+          <span class="tag tag-soft hidden" id="profileRecord"></span>
+          <button type="button" class="tag tag-soft tag-btn hidden" id="profileFriends"></button>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" class="hidden" />
+
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-icon" data-ico="flame"></div>
+        <div class="stat-num accent" id="profileStreak">0</div>
+        <div class="stat-label">дней подряд</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon" data-ico="calendar"></div>
+        <div class="stat-num" id="profileMonth">0</div>
+        <div class="stat-label">тренировок за 30 дней</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon" data-ico="runner"></div>
+        <div class="stat-num" id="profileTotal">0</div>
+        <div class="stat-label">всего тренировок</div>
+      </div>
+    </div>
+
+
+
+    <section class="card">
+      <div class="eyebrow">Календарь</div>
+      <div class="cal-header">
+        <button type="button" id="calPrev" class="round-btn" aria-label="Предыдущий месяц">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span id="calTitle" class="cal-title"></span>
+        <button type="button" id="calNext" class="round-btn" aria-label="Следующий месяц">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="cal-weekdays">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+      </div>
+      <div id="calGrid" class="cal-grid"></div>
+      <div class="cal-legend">
+        <span><i class="dot dot-training"></i> тренировка</span>
+        <span><i class="dot dot-rest"></i> отдых</span>
+      </div>
+      <div id="calSummary" class="muted cal-summary"></div>
+      <div class="muted cal-help">Нажми на отмеченный день — откроешь запись. Новые записи — только за сегодня и вчера.</div>
+    </section>
+
+    <!-- Цели на месяц: Fom видит их и следит за прогрессом -->
+    <section class="card goals-card" id="goalsCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="target"></i>Цели на <span id="goalsMonth">месяц</span></div>
+        <button type="button" class="gift-rules-btn" id="goalAddBtn">＋ Цель</button>
+      </div>
+      <div id="goalsList"></div>
+    </section>
+
+    <!-- Личные рекорды: лучший результат в каждой дисциплине по стартам -->
+    <section class="card records-card" id="recordsCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="trophy"></i>Личные рекорды</div>
+        <button type="button" class="gift-rules-btn" id="recordAddBtn">＋ Добавить</button>
+      </div>
+      <div id="recordsList"></div>
+    </section>
+
+
+    <!-- Календарь стартов -->
+    <section class="card starts-card" id="startsCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="calendar"></i>Календарь стартов</div>
+        <button type="button" class="gift-rules-btn" id="startAddBtn">＋ Добавить</button>
+      </div>
+      <div id="startsList"></div>
+    </section>
+
+    <!-- Разделы: здоровье и розыгрыши — чтобы не загромождать профиль -->
+    <div class="menu-group">
+    <button type="button" class="card health-entry" id="healthEntry">
+      <span class="health-entry-ico">❤️</span>
+      <span class="health-entry-main">
+        <span class="health-entry-title">Здоровье</span>
+        <span class="health-entry-sub" id="healthEntrySub">Питание по фото · анализы крови · БАДы</span>
+      </span>
+      <span class="history-arrow">›</span>
+    </button>
+    <button type="button" class="card health-entry" id="giftsEntry">
+      <span class="health-entry-ico gifts-ico">🎁</span>
+      <span class="health-entry-main">
+        <span class="health-entry-title">Розыгрыши</span>
+        <span class="health-entry-sub" id="giftsEntrySub">Подарки за честную серию дней</span>
+      </span>
+      <span class="history-arrow">›</span>
+    </button>
+    </div>
+
+    <!-- Достижения -->
+    <section class="card achievements-card" id="achievementsCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="sparkle"></i>Достижения <span class="muted ach-count" id="achievementsCount"></span></div>
+        <button type="button" class="gift-rules-btn" id="achToggle">Все</button>
+      </div>
+      <div class="ach-grid" id="achievementsGrid"></div>
+    </section>
+
+    <!-- Личная анкета: видна только тебе и Fom -->
+    <section class="card athlete-card" id="athleteCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="lock"></i>Анкета для Fom</div>
+        <button type="button" class="gift-rules-btn" id="athleteEditBtn">Заполнить</button>
+      </div>
+      <div class="athlete-summary" id="athleteSummary">Рост, вес, возраст, стаж и цели — чтобы Fom понимал, с кем имеет дело.</div>
+      <div class="muted athlete-note">Видно только тебе и Fom. Друзья это не видят.</div>
+    </section>
+
+
+
+
+  </section>
+
+  <!-- Меню «Фото» (выезжает снизу) -->
+  <div id="photoSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title">Фото профиля</div>
+      <button type="button" class="sheet-btn" id="photoPickBtn">Выбрать новое фото</button>
+      <button type="button" class="sheet-btn" id="photoResetBtn">Вернуть фото из Telegram</button>
+      <button type="button" class="sheet-btn muted-btn" id="photoCancelBtn">Отмена</button>
+    </div>
+  </div>
+
+  <!-- Анкета спортсмена -->
+  <div id="athleteSheet" class="sheet-backdrop hidden">
+    <div class="sheet athlete-sheet">
+      <div class="sheet-title"><i data-ico="lock"></i> Анкета для Fom</div>
+      <div class="muted athlete-note center">Всё необязательно. Видно только тебе и Fom.</div>
+
+      <div class="card-label af-label">Пол</div>
+      <div class="segmented af-sex" id="afSex">
+        <button type="button" class="seg-btn" data-sex="m">Мужской</button>
+        <button type="button" class="seg-btn" data-sex="f">Женский</button>
+      </div>
+
+      <div class="af-grid">
+        <label class="hr-field"><span>Год рождения</span><input type="number" inputmode="numeric" id="afBirth" placeholder="2004" /></label>
+        <label class="hr-field"><span>Рост, см</span><input type="number" inputmode="numeric" id="afHeight" placeholder="180" /></label>
+        <label class="hr-field"><span>Вес, кг</span><input type="text" inputmode="decimal" id="afWeight" placeholder="72" /></label>
+        <label class="hr-field"><span>Пульс в покое</span><input type="number" inputmode="numeric" id="afRestHr" placeholder="55" /></label>
+        <label class="hr-field"><span>Стаж, лет</span><input type="number" inputmode="numeric" id="afExp" placeholder="5" /></label>
+      </div>
+
+      <div class="card-label af-label">Уровень</div>
+      <div class="discipline-chips" id="afLevel">
+        <button type="button" class="chip" data-level="beginner">Новичок</button>
+        <button type="button" class="chip" data-level="amateur">Любитель</button>
+        <button type="button" class="chip" data-level="ranked">Разрядник</button>
+        <button type="button" class="chip" data-level="kms">КМС</button>
+        <button type="button" class="chip" data-level="ms">МС и выше</button>
+      </div>
+
+      <div class="card-label af-label">Личные рекорды</div>
+      <textarea id="afRecords" rows="2" maxlength="300" placeholder="Например: 800 м — 1:58, 1500 м — 4:05"></textarea>
+      <div class="card-label af-label">Цель на сезон</div>
+      <textarea id="afGoal" rows="2" maxlength="300" placeholder="Например: выбежать 800 м из 1:55"></textarea>
+      <div class="card-label af-label">Травмы и ограничения</div>
+      <textarea id="afInjuries" rows="2" maxlength="300" placeholder="Например: побаливает ахилл на левой ноге"></textarea>
+
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="afCancelBtn">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="afSaveBtn">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Добавить старт в календарь -->
+  <div id="startSheet" class="sheet-backdrop hidden">
+    <div class="sheet start-sheet">
+      <div class="sheet-title">🏁 Новый старт</div>
+      <input type="text" id="stName" maxlength="80" placeholder="Название: например, Первенство города" />
+      <label class="hr-field st-date"><span>Дата</span><input type="date" id="stDate" /></label>
+      <div class="card-label comp-sub">Дисциплина <span class="optional">необязательно</span></div>
+      <div class="comp-chips" id="stChips"></div>
+      <input type="text" id="stDisc" maxlength="40" placeholder="Или напиши свою" />
+      <input type="text" id="stGoal" maxlength="40" placeholder="Цель (необязательно): например, 1:55" class="st-goal" />
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="stCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="stSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Новая цель на месяц -->
+  <div id="goalSheet" class="sheet-backdrop hidden">
+    <div class="sheet run-sheet">
+      <div class="sheet-title">🎯 Цель на месяц</div>
+      <div class="goal-kinds" id="goalKinds">
+        <button type="button" class="rn-day" data-kind="volume"><b>Объём</b><span>км за месяц</span></button>
+        <button type="button" class="rn-day" data-kind="count"><b>Тренировки</b><span>сколько раз</span></button>
+        <button type="button" class="rn-day" data-kind="pb"><b>Рекорд</b><span>результат</span></button>
+        <button type="button" class="rn-day" data-kind="weight"><b>Вес</b><span>похудеть / масса</span></button>
+        <button type="button" class="rn-day" data-kind="custom"><b>Своя</b><span>любая цель</span></button>
+      </div>
+      <div class="rn-block goal-f" data-for="volume count">
+        <div class="rn-label" id="gNumLabel">Сколько</div>
+        <input type="number" id="gNum" inputmode="decimal" placeholder="Например, 250" />
+      </div>
+      <div class="rn-block goal-f" data-for="pb">
+        <div class="rn-label">Дисциплина</div>
+        <div class="comp-chips" id="gDiscChips"></div>
+        <input type="text" id="gDisc" maxlength="40" placeholder="Или напиши свою" />
+        <div class="rn-label" style="margin-top:10px">Цель — результат</div>
+        <input type="text" id="gTarget" maxlength="20" placeholder="Например, 1:52,0 или 7,20 м" />
+      </div>
+      <div class="rn-block goal-f" data-for="weight">
+        <div class="rn-row">
+          <label class="hr-field"><span>Сейчас, кг</span><input type="number" id="gWeightNow" inputmode="decimal" placeholder="70" /></label>
+          <label class="hr-field"><span>Цель, кг</span><input type="number" id="gWeightTarget" inputmode="decimal" placeholder="73" /></label>
+        </div>
+        <div class="muted run-safety">Fom будет смотреть, как идут тренировки и вес. Питание — бережно, без жёстких диет; вопросы здоровья обсуди с врачом.</div>
+      </div>
+      <div class="rn-block goal-f" data-for="custom">
+        <div class="rn-label">Твоя цель</div>
+        <input type="text" id="gTitle" maxlength="80" placeholder="Например, каждый день растяжка 10 минут" />
+      </div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="gCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="gSave">Поставить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Обновить вес (для цели по весу) -->
+  <div id="weightSheet" class="sheet-backdrop hidden">
+    <div class="sheet start-sheet">
+      <div class="sheet-title">⚖️ Вес сегодня</div>
+      <input type="number" id="wKg" inputmode="decimal" placeholder="Например, 71,5" />
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="wCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="wSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Личный рекорд вручную -->
+  <div id="recordSheet" class="sheet-backdrop hidden">
+    <div class="sheet start-sheet">
+      <div class="sheet-title">🏆 Личный рекорд</div>
+      <div class="muted center rec-hint">Внеси лучший результат — друзья и Fom увидят его сразу, без записи старта.</div>
+      <div class="card-label comp-sub">Дисциплина</div>
+      <div class="comp-chips" id="rcChips"></div>
+      <input type="text" id="rcDisc" maxlength="40" placeholder="Или напиши свою" />
+      <input type="text" id="rcResult" maxlength="20" placeholder="Результат: например, 4:05,1 или 6,45 м" class="st-goal" />
+      <label class="hr-field st-date"><span>Когда <span class="optional">необязательно</span></span><input type="date" id="rcDate" /></label>
+      <input type="text" id="rcNote" maxlength="60" placeholder="Где (необязательно): например, Кубок города" class="st-goal" />
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="rcCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="rcSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Поделиться: карточка для сторис -->
+  <div id="shareSheet" class="sheet-backdrop hidden">
+    <div class="sheet share-sheet">
+      <div class="sheet-title">Поделиться тренировкой</div>
+      <div class="share-preview"><img id="sharePreview" alt="Карточка тренировки" /></div>
+      <div class="status-msg" id="shareStatus"></div>
+      <button type="button" class="primary-btn share-main" id="shareStoryBtn">В сторис Telegram</button>
+      <button type="button" class="sheet-btn" id="shareSaveBtn">Сохранить картинку</button>
+      <button type="button" class="sheet-btn" id="shareTextBtn">Отправить текстом</button>
+      <button type="button" class="sheet-btn muted-btn" id="shareCancelBtn">Отмена</button>
+    </div>
+  </div>
+
+  <!-- Как выгрузить файл с часов -->
+  <div id="watchSheet" class="sheet-backdrop hidden">
+    <div class="sheet watch-sheet">
+      <div class="sheet-title">⌚ Тренировка с часов Garmin</div>
+      <ol class="watch-steps">
+        <li>Открой <b>connect.garmin.com</b> в браузере — в приложении Garmin Connect кнопки экспорта нет. На айфоне в Safari: «аА» → «Запрос настольного веб-сайта».</li>
+        <li>«Активности» → нужная тренировка.</li>
+        <li>Шестерёнка ⚙ справа сверху → <b>«Экспорт оригинала»</b>. Скачается файл <b>.zip</b> — распаковывать не нужно.</li>
+        <li>Вернись сюда, нажми <b>«Загрузить с часов»</b> и выбери этот файл (на айфоне: «Файлы» → «Загрузки»).</li>
+      </ol>
+      <div class="muted watch-note">Fom сам разложит круги: разминка, отрезки с временем, отдых, заминка и пульс. Останется добавить самочувствие и RPE. Файлы .GPX и .TCX (Strava, Coros, Polar) тоже подходят.</div>
+      <button type="button" class="sheet-btn muted-btn" id="watchHelpClose">Понятно</button>
+    </div>
+  </div>
+
+  <!-- Повторить прошлую тренировку -->
+  <div id="repeatSheet" class="sheet-backdrop hidden">
+    <div class="sheet repeat-sheet">
+      <div class="sheet-title">Повторить тренировку</div>
+      <div class="muted center repeat-hint">Поля заполнятся как в выбранной тренировке — останется поправить цифры.</div>
+      <div id="repeatList"></div>
+      <button type="button" class="sheet-btn muted-btn" id="repeatCancelBtn">Отмена</button>
+    </div>
+  </div>
+
+  <!-- Город для поиска пробежек -->
+  <div id="citySheet" class="sheet-backdrop hidden">
+    <div class="sheet start-sheet">
+      <div class="sheet-title">📍 Твой город</div>
+      <input type="text" id="cityInput" maxlength="40" placeholder="Например, Москва" />
+      <div class="comp-chips city-chips" id="cityChips"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="cityCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="citySave">Готово</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Позвать на пробежку -->
+  <div id="runSheet" class="sheet-backdrop hidden">
+    <div class="sheet run-sheet">
+      <div class="sheet-title">🏃 Позвать на пробежку</div>
+
+      <div class="rn-block">
+        <div class="rn-label">Когда</div>
+        <div class="rn-days" id="rnDayChips">
+          <button type="button" class="rn-day" data-day="0"><b>Сегодня</b><span></span></button>
+          <button type="button" class="rn-day" data-day="1"><b>Завтра</b><span></span></button>
+          <button type="button" class="rn-day" data-day="2"><b id="rnDay2">Послезавтра</b><span></span></button>
+          <label class="rn-day rn-day-other" id="rnOtherDay"><b>Другой</b><span id="rnOtherLabel">день</span><input type="date" id="rnDate" /></label>
+        </div>
+        <div class="rn-times" id="rnTimeChips">
+          <button type="button" class="rn-time" data-time="07:00">07:00</button>
+          <button type="button" class="rn-time" data-time="08:00">08:00</button>
+          <button type="button" class="rn-time" data-time="10:00">10:00</button>
+          <button type="button" class="rn-time" data-time="19:00">19:00</button>
+          <button type="button" class="rn-time rn-time-own" id="rnTimeOwn"><span id="rnTimeLabel">Другое</span></button><input type="hidden" id="rnTime" value="07:00" />
+        </div>
+      </div>
+
+      <div class="rn-block">
+        <div class="rn-label">Где встречаемся</div>
+        <input type="text" id="rnPlace" maxlength="80" placeholder="Например, вход в парк Горького" />
+      </div>
+
+      <div class="rn-block">
+        <div class="rn-label">Что бежим <span class="optional">необязательно</span></div>
+        <input type="text" id="rnDesc" maxlength="200" placeholder="Например, 10 км по 4:30, спокойно" />
+      </div>
+
+      <div class="rn-block">
+        <div class="rn-label">Сколько человек максимум</div>
+        <div class="rn-max" id="rnMaxChips">
+          <button type="button" class="rn-time" data-max="">Любое</button>
+          <button type="button" class="rn-time" data-max="2">2</button>
+          <button type="button" class="rn-time" data-max="4">4</button>
+          <button type="button" class="rn-time" data-max="6">6</button>
+          <button type="button" class="rn-time" data-max="10">10</button>
+        </div>
+      </div>
+
+      <div class="muted run-safety">Пробежку увидят бегуны города <b id="rnCity"></b>. Встречайтесь в людных местах.</div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="rnCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="rnSave">Позвать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Своё время для пробежки: часы и минуты (системный выбор времени на Mac не открывается) -->
+  <div id="timeSheet" class="sheet-backdrop hidden">
+    <div class="sheet run-sheet">
+      <div class="sheet-title">🕒 <span id="tpTitle">Время</span> <b class="tp-value" id="tpValue">07:00</b></div>
+      <div class="rn-label">Часы</div>
+      <div class="tp-grid tp-hours" id="tpHours"></div>
+      <div class="rn-label">Минуты</div>
+      <div class="tp-grid tp-mins" id="tpMins"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="tpCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="tpSave">Готово</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Тренировка друга за выбранный день (из его календаря) -->
+  <div id="daySheet" class="sheet-backdrop hidden">
+    <div class="sheet day-sheet">
+      <div class="sheet-title" id="dayTitle"></div>
+      <div id="dayList"></div>
+      <button type="button" class="sheet-btn muted-btn" id="dayClose">Закрыть</button>
+    </div>
+  </div>
+
+  <!-- Кому показать тренировку -->
+  <div id="friendPickSheet" class="sheet-backdrop hidden">
+    <div class="sheet friend-pick-sheet">
+      <div class="sheet-title">Кому показать тренировку</div>
+      <div class="muted center friend-pick-hint">Запись увидят только отмеченные друзья.</div>
+      <div id="friendPickList"></div>
+      <button type="button" class="sheet-btn primary-sheet-btn" id="friendPickSave">Готово</button>
+      <button type="button" class="sheet-btn muted-btn" id="friendPickCancel">Отмена</button>
+    </div>
+  </div>
+
+  <!-- Правила розыгрышей и последние победители -->
+  <div id="giftSheet" class="sheet-backdrop hidden">
+    <div class="sheet gift-sheet">
+      <div class="sheet-title"><i data-ico="gift"></i> Розыгрыши Forma</div>
+      <div class="gift-rules">
+        <p><b><i data-ico="flame"></i> Каждую неделю</b> — прикольные подарки. Участвуют все, у кого честная серия <b>от 7 дней</b>. Итоги в воскресенье в 20:00 (МСК).</p>
+        <p><b><i data-ico="diamond"></i> Каждый месяц</b> — подарки покруче. Нужна честная серия <b>от 30 дней</b>. Итоги в последний день месяца в 20:00 (МСК).</p>
+        <p><b>Честная серия</b> — дни подряд, где запись сделана в тот же день или не позже следующего. Дни, заполненные задним числом, в розыгрыше не считаются.</p>
+        <p><b>Билеты:</b> чем длиннее серия, тем больше шансов. В неделе — 1 билет за каждые 7 дней (до 5), в месяце — 1 билет за каждые 30 дней (до 3).</p>
+        <p><b>Бонус за друзей:</b> когда приглашённый тобой друг сделает 3 записи, ты получаешь +1 билет в недельный розыгрыш (до 3 таких билетов). Бонус работает, только если у тебя уже есть серия от 7 дней.</p>
+        <p>Победители выбираются случайно, бот напишет им в Telegram, а подарок придёт прямо туда.</p>
+        <details class="gift-more">
+          <summary>Полные условия</summary>
+          <p>Участие бесплатное, ничего покупать и платить не нужно. Розыгрыш не является азартной игрой: исход зависит только от случайного выбора среди участников с честной серией.</p>
+          <p>Организатор — разработчик Forma. Организатор и его аккаунты в розыгрыше не участвуют.</p>
+          <p>Один человек — один аккаунт. Фальшивые записи, накрутка серии, лишние аккаунты и обход правил ведут к исключению из розыгрыша.</p>
+          <p>Призы — подарки (цифровые или простые вещи), на деньги не обмениваются. Если приз требует доставки, организатор попросит адрес только у победителя и использует его лишь для отправки.</p>
+          <p>Имя и @username победителей показываются в приложении в разделе «Розыгрыши». Если не хочешь, чтобы тебя показывали, напиши в «Поддержку» до розыгрыша.</p>
+          <p>Организатор вправе изменять условия, число призов и сроки: новые условия будут видны здесь до начала следующего розыгрыша.</p>
+        </details>
+      </div>
+      <div id="giftWinners"></div>
+      <button type="button" class="sheet-btn muted-btn" id="giftCloseBtn">Понятно</button>
+    </div>
+  </div>
+
+  <!-- Выбор дисциплины (Forma — для лёгкой атлетики) -->
+  <div id="sportSheet" class="sheet-backdrop hidden">
+    <div class="sheet sport-sheet">
+      <div class="sheet-title">🏃 Твоя дисциплина</div>
+      <div class="muted center sport-note">Лёгкая атлетика — выбери направление или напиши точнее.</div>
+      <div id="disciplineBlock">
+        <div class="discipline-chips" id="disciplineChips"></div>
+        <input type="text" id="disciplineInput" maxlength="40" placeholder="Или напиши свою: например, 800 м, 400 м с/б" autocomplete="off" />
+      </div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="sportCancelBtn">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="sportSaveBtn">Сохранить</button>
+      </div>
+      <button type="button" class="sheet-btn muted-btn hidden" id="sportClearBtn">Убрать дисциплину</button>
+    </div>
+  </div>
+
+  <!-- Обрезка фото: двигай пальцем, увеличивай ползунком или двумя пальцами -->
+  <div id="cropSheet" class="sheet-backdrop crop-backdrop hidden">
+    <div class="sheet crop-sheet">
+      <div class="sheet-title">Выбери, что будет на фото</div>
+      <div class="crop-view" id="cropView">
+        <img id="cropImg" alt="" draggable="false" />
+        <div class="crop-guide"></div>
+      </div>
+      <div class="crop-zoom-row">
+        <span>−</span>
+        <input type="range" id="cropZoom" class="crop-zoom" min="1" max="4" step="0.01" value="1" />
+        <span>+</span>
+      </div>
+      <div class="muted crop-hint">Двигай фото пальцем, увеличивай ползунком или двумя пальцами.</div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="cropCancelBtn">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="cropSaveBtn">Готово</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Компактная шапка профиля: появляется, когда листаешь профиль вниз -->
+  <div class="mini-head" id="miniHead" aria-hidden="true">
+    <div class="mini-main">
+      <div class="mini-name" id="miniName"></div>
+      <div class="mini-stats" id="miniStats"></div>
+    </div>
+    <span class="mini-ava" id="miniAva"></span>
+  </div>
+
+  <!-- Стрелка, которая выезжает слева при жесте «назад» -->
+  <div class="swipe-back" id="swipeBack" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+
+  <!-- ===================== ДРУЗЬЯ: ЛЕНТА + СПИСОК ===================== -->
+  <!-- Пробежка: подробности, участники и чат -->
+  <section id="runScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="runBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="group-head-main">
+        <div class="eyebrow" id="runCityLabel">Пробежка</div>
+        <h2 class="title small" id="runWhen"></h2>
+      </div>
+    </div>
+    <section class="card run-info" id="runInfo"></section>
+    <div class="run-actions" id="runActions"></div>
+    <h3 class="section-title">Чат пробежки</h3>
+    <div id="runMessages" class="chat-messages run-messages"></div>
+    <div class="chat-input-row run-input-row">
+      <input type="text" id="runInput" placeholder="Напиши участникам…" maxlength="500" autocomplete="off" />
+      <button id="runSendBtn" class="send-btn" type="button" title="Отправить" aria-label="Отправить"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21.85 12.5a.55.55 0 0 0 0-1L3.4 3.6a.5.5 0 0 0-.7.6L5 11l9 1-9 1-2.3 6.8a.5.5 0 0 0 .7.6Z"/></svg></button>
+    </div>
+    <div class="muted run-safety">Встречайтесь в людных местах и не делитесь лишними личными данными.</div>
+    <button type="button" class="link-btn run-report" id="runReportBtn">Пожаловаться</button>
+  </section>
+
+  <!-- Настройки: тема, уведомления, приватность -->
+  <!-- ===================== РОЗЫГРЫШИ ===================== -->
+  <section id="giftsScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="giftsBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="group-head-main">
+        <div class="eyebrow">За честную серию</div>
+        <h2 class="title small">Розыгрыши</h2>
+      </div>
+    </div>
+    <!-- Розыгрыши подарков за честную серию -->
+    <section class="card gift-card hidden" id="giftCard">
+      <div class="gift-head">
+        <div class="card-label"><i data-ico="gift"></i>Розыгрыши</div>
+        <button type="button" class="gift-rules-btn" id="giftRulesBtn">Правила</button>
+      </div>
+      <div class="muted gift-sub" id="giftStreak"></div>
+      <div id="giftRows"></div>
+    </section>
+    <div class="muted empty-hint hidden" id="giftsEmpty">Сейчас розыгрышей нет — загляни позже.</div>
+  </section>
+
+  <!-- ===================== ЗДОРОВЬЕ ===================== -->
+  <section id="healthScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="healthBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="group-head-main">
+        <div class="eyebrow">Видишь только ты</div>
+        <h2 class="title small">Здоровье</h2>
+      </div>
+    </div>
+    <div class="segmented seg-3" id="healthTabs">
+      <button type="button" class="seg-btn active" data-htab="food">Питание</button>
+      <button type="button" class="seg-btn" data-htab="blood">Анализы</button>
+      <button type="button" class="seg-btn" data-htab="supps">БАДы</button>
+    </div>
+
+    <!-- Питание -->
+    <div id="hFood">
+      <div class="food-daynav">
+        <button type="button" class="round-btn" id="foodPrev" aria-label="Предыдущий день"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="food-daylabel"><b id="foodDay">Сегодня</b><span class="muted" id="foodLoad"></span></div>
+        <button type="button" class="round-btn" id="foodNext" aria-label="Следующий день"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <div class="coach-tiles food-tiles" id="foodTiles"></div>
+      <div class="food-actions">
+        <label class="primary-btn food-photo-btn">📷 Сфоткать еду<input type="file" id="foodFile" accept="image/*" hidden /></label>
+        <button type="button" class="ghost-btn" id="foodTextBtn">✍️ Описать</button>
+      </div>
+      <div id="foodList"></div>
+      <section class="card mc-fom" id="foodFomCard">
+        <div class="mc-fom-head"><span class="fom-badge">F</span><b>Fom о питании за день</b></div>
+        <div class="mc-fom-text muted" id="foodFomText">Сфотографируй, что ешь за день, — Fom сравнит с нагрузкой и твоими целями: хватает ли энергии и белка.</div>
+        <button type="button" class="ghost-btn" id="foodFomBtn">Как я поел?</button>
+      </section>
+      <div class="muted health-note">Цифры — примерная оценка по фото, не точный подсчёт. Ориентиры белка и углеводов посчитаны на кг веса под нагрузку дня (вес берём из «Целей» или анкеты).</div>
+    </div>
+
+    <!-- Анализы -->
+    <div id="hBlood" class="hidden">
+      <button type="button" class="primary-btn" id="bloodAddBtn">＋ Добавить анализ</button>
+      <div id="bloodList"></div>
+      <div class="muted health-note">Fom свяжет показатели с нагрузкой перед сдачей и сравнит с прошлым анализом. Fom не врач: всё, что вне нормы, обсуди со спортивным врачом.</div>
+    </div>
+
+    <!-- БАДы -->
+    <div id="hSupps" class="hidden">
+      <section class="card rusada-card">
+        <div class="card-label">🛡️ Сначала — проверка РУСАДА</div>
+        <div class="rusada-text">Любой препарат и добавку перед приёмом проверь в официальном сервисе РУСАДА. Fom подскажет, о чём подумать, но <b>не может гарантировать</b>, что препарат разрешён. БАДы бывают загрязнены запрещёнными веществами — отвечает за это спортсмен. Решение о приёме — с врачом или тренером.</div>
+        <button type="button" class="ghost-btn" id="rusadaBtn">Проверить на list.rusada.ru ↗</button>
+      </section>
+      <section class="card">
+        <div class="card-label">💊 Что я принимаю</div>
+        <div id="suppList"></div>
+        <div class="supp-add">
+          <input type="text" id="suppName" maxlength="60" placeholder="Название: магний, витамин D…" />
+          <input type="text" id="suppDose" maxlength="60" placeholder="Как принимаю (необяз.)" />
+          <button type="button" class="ghost-btn crop-save" id="suppAddBtn">Добавить</button>
+        </div>
+        <div class="muted health-note">Fom видит этот список и учитывает его в ответах.</div>
+      </section>
+      <button type="button" class="ghost-btn wide" id="suppAskBtn">Спросить Fom о добавках</button>
+    </div>
+  </section>
+
+  <section id="settingsScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="settingsBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="group-head-main">
+        <div class="eyebrow">Forma</div>
+        <h2 class="title small">Настройки</h2>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="eyebrow">Оформление</div>
+      <div class="segmented seg-3 theme-seg" id="themeSeg">
+        <button type="button" class="seg-btn" data-theme-pick="dark">🌙 Тёмная</button>
+        <button type="button" class="seg-btn" data-theme-pick="light">☀️ Светлая</button>
+        <button type="button" class="seg-btn" data-theme-pick="auto">Как в Telegram</button>
+      </div>
+      <div class="muted privacy-hint">«Как в Telegram» — тема меняется вместе с оформлением Telegram.</div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Уведомления от бота</div>
+
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="reminderToggle" checked />
+        <span class="toggle"></span>
+        <span>Напоминать вечером, если день не записан</span>
+      </label>
+      <div class="muted privacy-hint">Бот напишет в 21:00 (МСК), только если за сегодня ещё нет записи.</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="digestToggle" checked />
+        <span class="toggle"></span>
+        <span>Итоги недели от Fom</span>
+      </label>
+      <div class="muted privacy-hint">По воскресеньям в 19:00 — короткий разбор недели.</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="partnersNotifyToggle" checked />
+        <span class="toggle"></span>
+        <span>Совместные пробежки</span>
+      </label>
+      <div class="muted privacy-hint">Когда кто-то идёт на твою пробежку или пишет в её чат.</div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Приватность</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="shareCalendarToggle" checked />
+        <span class="toggle"></span>
+        <span>Друзья видят весь мой календарь</span>
+      </label>
+      <div class="muted privacy-hint">Друзья видят подробно только тренировки, открытые им («Все друзья» или «Выбрать»). Остальные дни — просто отметкой в календаре. Выключи, и отметки закрытых дней пропадут.</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="showRecordsToggle" checked />
+        <span class="toggle"></span>
+        <span>Друзья видят мои личные рекорды</span>
+      </label>
+      <div class="muted privacy-hint">Лучший результат в каждой дисциплине — в твоём профиле у друзей.</div>
+      <button type="button" class="ghost-btn wide" id="previewProfileBtn"><i data-ico="eye"></i> Как меня видят друзья</button>
+    </section>
+
+    <section class="card hidden" id="stravaCard">
+      <div class="eyebrow">Strava</div>
+      <div class="muted privacy-hint" id="stravaHint">Подключи Strava — тренировки с часов сами появятся в дневнике. Останется дополнить: самочувствие, заметки, отрезки.</div>
+      <button type="button" class="ghost-btn wide strava-btn" id="stravaConnectBtn">Подключить Strava</button>
+      <button type="button" class="ghost-btn wide hidden" id="stravaSyncBtn"><i data-ico="sparkle"></i> Обновить сейчас</button>
+      <button type="button" class="ghost-btn danger wide hidden" id="stravaDisconnectBtn">Отключить Strava</button>
+      <div class="muted privacy-hint strava-powered">Powered by Strava</div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Дневник</div>
+      <button type="button" class="ghost-btn wide" id="tourAgainBtn"><i data-ico="sparkle"></i> Как пользоваться Forma</button>
+      <button type="button" class="ghost-btn wide" id="exportBtn"><i data-ico="share"></i> Выгрузить дневник (таблица)</button>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Приложение</div>
+      <button type="button" class="ghost-btn wide" id="addHomeBtn"><i data-ico="sparkle"></i> Добавить на главный экран</button>
+      <button type="button" class="ghost-btn wide hidden" id="logoutBtn"><i data-ico="lock"></i> Выйти из аккаунта</button>
+      <div class="muted privacy-hint">Иконка Forma появится на экране телефона и будет открываться как обычное приложение.</div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Данные</div>
+      <button type="button" class="ghost-btn danger wide" id="deleteAccountBtn"><i data-ico="trash"></i> Удалить мои данные</button>
+      <button type="button" class="ghost-btn wide" id="policyBtn"><i data-ico="eye"></i> Политика конфиденциальности</button>
+      <div class="muted privacy-hint">Стираются все записи, анализы, друзья и группы, вернуть их нельзя. Сначала можно выгрузить дневник таблицей.</div>
+    </section>
+
+    <!-- Поддержка -->
+    <section class="card support-card">
+      <div class="support-ico" data-ico="chat"></div>
+      <div class="support-main">
+        <div class="support-title">Поддержка</div>
+        <div class="muted">Нашёл ошибку или есть идея? Пиши — отвечу лично.</div>
+      </div>
+      <button type="button" class="gift-rules-btn" id="supportBtn">Написать</button>
+    </section>
+  </section>
+
+  <section id="friendsScreen" class="screen hidden">
+    <h2 class="page-title">Друзья</h2>
+
+    <div class="segmented seg-4" id="friendsTabs">
+      <button type="button" class="seg-btn active" data-tab="feed">Лента</button>
+      <button type="button" class="seg-btn" data-tab="runs">Пробежки</button>
+      <button type="button" class="seg-btn" data-tab="list">Друзья <span class="tab-badge hidden" id="requestsBadge"></span></button>
+      <button type="button" class="seg-btn" data-tab="groups">Группы</button>
+    </div>
+
+    <!-- Лента: что нового у меня + открытые тренировки друзей -->
+    <div id="feedTab">
+      <section class="card activity-card hidden" id="activityCard">
+        <div class="card-head">
+          <div class="card-label"><i data-ico="bell"></i>Активность</div>
+          <div class="card-hint">реакции и комментарии к твоим тренировкам</div>
+        </div>
+        <div id="activityList"></div>
+      </section>
+      <div id="feedList"></div>
+      <button type="button" class="ghost-btn wide hidden" id="feedMoreBtn">Показать ещё</button>
+      <div id="feedStatus" class="status-msg"></div>
+    </div>
+
+    <!-- Совместные пробежки: поиск напарников в своём городе -->
+    <div id="runsTab" class="hidden">
+      <section class="card runs-head">
+        <button type="button" class="runs-city" id="runsCityBtn">📍 <b id="runsCity">Выбери город</b> <span class="vis-edit">изменить</span></button>
+        <div class="muted runs-hint">Найди компанию на пробежку: позови сам или присоединяйся к другим бегунам своего города.</div>
+        <button type="button" class="primary-btn" id="runCreateBtn">＋ Позвать на пробежку</button>
+      </section>
+      <div id="runsList"></div>
+      <div id="runsStatus" class="status-msg"></div>
+    </div>
+
+    <!-- Группы и приглашения -->
+    <div id="groupsTab" class="hidden">
+      <section class="card invite-card">
+        <div class="card-label"><i data-ico="gift"></i>Пригласи друзей</div>
+        <div class="muted invite-text">Друг придёт по твоей ссылке — вы сразу станете друзьями. Когда он запишет 3 тренировки, тебе <b>+1 билет</b> в недельный розыгрыш (до +3).</div>
+        <div class="invite-stats" id="inviteStats"></div>
+        <div class="btn-row">
+          <button type="button" class="ghost-btn crop-save" id="inviteShareBtn">Пригласить</button>
+          <button type="button" class="ghost-btn" id="inviteCopyBtn">Копировать ссылку</button>
+        </div>
+      </section>
+
+      <h3 class="section-title">Мои группы</h3>
+      <div id="groupsList"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="groupCreateBtn">＋ Создать группу</button>
+        <button type="button" class="ghost-btn" id="groupJoinBtn">Вступить по коду</button>
+      </div>
+    </div>
+
+    <!-- Список друзей, заявки и поиск -->
+    <div id="listTab" class="hidden">
+      <section class="card">
+        <div class="eyebrow">Добавить друга</div>
+        <div class="add-friend-row">
+          <input type="text" id="friendUsernameInput" placeholder="username без @" autocomplete="off" />
+          <button id="sendRequestBtn" class="small-btn" type="button">Добавить</button>
+        </div>
+        <div id="friendRequestStatus" class="status-msg"></div>
+      </section>
+
+      <div id="incomingRequestsBlock" class="hidden">
+        <h3 class="section-title">Заявки в друзья</h3>
+        <div id="incomingRequestsList"></div>
+      </div>
+
+      <h3 class="section-title">Мои друзья</h3>
+      <div id="friendsList"></div>
+    </div>
+  </section>
+
+  <!-- Вкладка «Группы» живёт внутри экрана друзей (см. ниже) -->
+
+  <!-- ===================== ГРУППА ===================== -->
+  <section id="groupScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="groupBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="group-head-main">
+        <div class="eyebrow" id="groupKind">Группа</div>
+        <h2 class="title small" id="groupName"></h2>
+      </div>
+    </div>
+    <div class="group-actions">
+      <button type="button" class="primary-btn" id="groupInviteBtn">Пригласить в группу</button>
+    </div>
+    <div class="muted group-coach-note hidden" id="groupCoachNote"></div>
+    <section class="card group-task hidden" id="groupTask">
+      <div class="card-label">📋 Задание от тренера <span class="muted group-task-at" id="groupTaskAt"></span></div>
+      <div class="group-task-text" id="groupTaskText"></div>
+    </section>
+    <div class="segmented" id="groupTabs">
+      <button type="button" class="seg-btn hidden" data-gtab="coach">Кабинет</button>
+      <button type="button" class="seg-btn active" data-gtab="rating">Рейтинг</button>
+      <button type="button" class="seg-btn" data-gtab="feed">Лента</button>
+    </div>
+    <div id="groupCoach" class="hidden">
+      <div class="coach-tiles" id="coachTiles"></div>
+      <div class="coach-actions">
+        <button type="button" class="ghost-btn" id="coachDigestBtn">📊 Сводка недели</button>
+        <button type="button" class="ghost-btn" id="coachTaskBtn">📋 Задание команде</button>
+      </div>
+      <div class="segmented seg-3 coach-filter" id="coachFilter">
+        <button type="button" class="seg-btn active" data-cf="all">Все</button>
+        <button type="button" class="seg-btn" data-cf="need">Внимание</button>
+        <button type="button" class="seg-btn" data-cf="camp">На сборе</button>
+      </div>
+      <div id="coachList"></div>
+      <div class="muted rank-hint">Пометки считает программа по записям: объём к прошлой неделе (за те же дни), тяжёлые тренировки (RPE 8+) за 7 дней, самочувствие, сон из утренних отметок, дни без записей, высота.</div>
+    </div>
+    <div id="groupRating"></div>
+    <div id="groupFeed" class="hidden"></div>
+    <button type="button" class="ghost-btn danger wide" id="groupLeaveBtn">Выйти из группы</button>
+  </section>
+
+  <!-- ===================== ДНЕВНИК СПОРТСМЕНА (для тренера) ===================== -->
+  <section id="memberScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="memberBackBtn" class="round-btn" type="button" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div>
+        <div class="eyebrow">Дневник спортсмена</div>
+        <h2 class="title small" id="memberName"></h2>
+      </div>
+    </div>
+    <div id="memberCoach" class="hidden">
+      <div class="coach-tiles" id="mcTiles"></div>
+      <section class="card mc-week">
+        <div class="mc-week-head"><span class="card-label">Неделя по дням</span><span class="muted">км · цвет — RPE</span></div>
+        <div class="mc-bars" id="mcBars"></div>
+      </section>
+      <section class="card mc-fom">
+        <div class="mc-fom-head"><span class="fom-badge">F</span><b>Fom — для тренера</b></div>
+        <div class="mc-fom-text" id="mcFomText"></div>
+        <button type="button" class="ghost-btn" id="mcFomBtn">Спросить Fom</button>
+      </section>
+      <section class="card mc-msg">
+        <div class="card-label">💬 Написать спортсмену</div>
+        <textarea id="mcMsgText" rows="2" maxlength="1000" placeholder="Сообщение придёт от бота Forma"></textarea>
+        <button type="button" class="primary-btn" id="mcMsgSend">Отправить</button>
+        <div class="muted mc-msgs" id="mcMsgs"></div>
+      </section>
+    </div>
+    <section class="card member-well hidden" id="memberWell"></section>
+    <div id="memberWorkouts"></div>
+    <button type="button" class="ghost-btn danger wide" id="memberRemoveBtn">Убрать из группы</button>
+  </section>
+
+  <!-- Сводка недели от Fom (тренеру) -->
+  <div id="coachDigestSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title">📊 Сводка недели</div>
+      <div class="coach-digest-text" id="coachDigestText"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="coachDigestRefresh">Обновить</button>
+        <button type="button" class="ghost-btn crop-save" id="coachDigestClose">Закрыть</button>
+      </div>
+      <div class="muted gc-hint">Каждое воскресенье в 19:00 (МСК) сводка сама приходит тебе в бота.</div>
+    </div>
+  </div>
+
+  <!-- Задание команде -->
+  <div id="coachTaskSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title">📋 Задание команде</div>
+      <textarea id="coachTaskText" rows="5" maxlength="1500" placeholder="Например: завтра 18:00 манеж. Разминка 3 км + СБУ, 6×300 через 3', заминка 2 км."></textarea>
+      <div class="muted gc-hint">Придёт каждому спортсмену от бота и появится вверху экрана группы на 7 дней.</div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="coachTaskCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="coachTaskSend">Отправить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Еда: оценка по фото или описанию -->
+  <div id="mealSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title" id="mealTitleHead">🍽 Приём пищи</div>
+      <img id="mealPreview" class="meal-preview hidden" alt="" />
+      <div id="mealDescribe" class="hidden">
+        <textarea id="mealText" rows="3" maxlength="300" placeholder="Например: гречка 200 г, куриная грудка, огурец, чай с сахаром"></textarea>
+        <button type="button" class="ghost-btn wide" id="mealEstimateBtn">Оценить</button>
+      </div>
+      <div class="status-msg" id="mealStatus"></div>
+      <div id="mealFields" class="hidden">
+        <input type="text" id="mealName" maxlength="60" placeholder="Название" />
+        <div class="meal-nums">
+          <label class="hr-field"><span>ккал</span><input type="number" inputmode="numeric" id="mealKcal" min="0" max="10000" /></label>
+          <label class="hr-field"><span>Белки, г</span><input type="number" inputmode="numeric" id="mealP" min="0" max="1000" /></label>
+          <label class="hr-field"><span>Жиры, г</span><input type="number" inputmode="numeric" id="mealF" min="0" max="1000" /></label>
+          <label class="hr-field"><span>Углев., г</span><input type="number" inputmode="numeric" id="mealC" min="0" max="2000" /></label>
+        </div>
+        <div class="muted meal-items" id="mealItems"></div>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="mealCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="mealSave" disabled>Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Анализ крови: ввод / правка -->
+  <div id="bloodSheet" class="sheet-backdrop hidden">
+    <div class="sheet blood-sheet">
+      <div class="sheet-title">🩸 Анализ крови</div>
+      <label class="primary-btn blood-scan-btn">📄 Загрузить фото или PDF бланка<input type="file" id="bloodFile" accept="image/*,application/pdf,.pdf" hidden /></label>
+      <div class="muted blood-scan-hint">Можно сфоткать бланк, выбрать скрин из галереи или загрузить PDF, который прислала лаборатория.</div>
+      <div class="status-msg" id="bloodStatus"></div>
+      <div class="blood-meta">
+        <label class="hr-field"><span>Дата сдачи</span><input type="date" id="bloodDate" /></label>
+        <label class="hr-field"><span>Лаборатория</span><input type="text" id="bloodLab" maxlength="60" placeholder="необяз." /></label>
+      </div>
+      <div class="blood-head muted"><span>Показатель</span><span>Число</span><span>Ед.</span><span>Норма от–до</span><span></span></div>
+      <div id="bloodRows"></div>
+      <div class="comp-chips" id="bloodPresets"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="bloodCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="bloodSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Анализ крови: просмотр -->
+  <div id="bloodViewSheet" class="sheet-backdrop hidden">
+    <div class="sheet blood-sheet">
+      <div class="sheet-title" id="bvTitle">Анализ</div>
+      <div id="bvMarkers"></div>
+      <section class="card mc-fom">
+        <div class="mc-fom-head"><span class="fom-badge">F</span><b>Fom об анализе</b></div>
+        <div class="mc-fom-text" id="bvFom"></div>
+        <button type="button" class="ghost-btn" id="bvFomBtn">Обновить</button>
+      </section>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn danger" id="bvDelete">Удалить</button>
+        <button type="button" class="ghost-btn" id="bvEdit">Изменить</button>
+        <button type="button" class="ghost-btn crop-save" id="bvClose">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Создать группу -->
+  <div id="groupCreateSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title">👥 Новая группа</div>
+      <input type="text" id="gcName" maxlength="60" placeholder="Название: например, Группа Иванова" />
+      <div class="segmented gc-kind" id="gcKind">
+        <button type="button" class="seg-btn active" data-kind="team">Команда</button>
+        <button type="button" class="seg-btn" data-kind="coach">Я тренер</button>
+      </div>
+      <div class="muted gc-hint" id="gcHint"></div>
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="gcCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="gcSave">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Вступить по коду -->
+  <div id="groupJoinSheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title">Вступить в группу</div>
+      <input type="text" id="gjCode" maxlength="12" placeholder="Код группы, например: k7m2pq" autocomplete="off" autocapitalize="off" />
+      <div class="btn-row">
+        <button type="button" class="ghost-btn" id="gjCancel">Отмена</button>
+        <button type="button" class="ghost-btn crop-save" id="gjSave">Дальше</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== ПРОФИЛЬ ДРУГА ===================== -->
+  <section id="friendProfileScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="fpBackBtn" class="round-btn" type="button" title="Назад" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div>
+        <div class="eyebrow">Профиль</div>
+        <h2 class="title small" id="fpHeadName"></h2>
+      </div>
+    </div>
+
+    <div class="profile-hero no-photo" id="fpHero">
+      <div class="profile-hero-shade"></div>
+      <div class="profile-hero-bottom">
+        <div class="hero-sport" id="fpEyebrow">Спортсмен</div>
+        <div class="profile-name" id="fpName"></div>
+        <div class="profile-tags"><span class="tag" id="fpUsername"></span><span class="tag tag-pioneer hidden" id="fpPioneer"></span><span class="tag tag-soft hidden" id="fpRecord"></span><span class="tag tag-soft hidden" id="fpFriends"></span></div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-icon" data-ico="flame"></div>
+        <div class="stat-num accent" id="fpStreak">0</div>
+        <div class="stat-label">дней подряд</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon" data-ico="calendar"></div>
+        <div class="stat-num" id="fpMonth">0</div>
+        <div class="stat-label">тренировок за 30 дней</div>
+      </div>
+      <div class="stat">
+        <div class="stat-icon" data-ico="runner"></div>
+        <div class="stat-num" id="fpTotal">0</div>
+        <div class="stat-label">всего тренировок</div>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="eyebrow">Календарь</div>
+      <div class="cal-header">
+        <button type="button" id="fpCalPrev" class="round-btn" aria-label="Предыдущий месяц">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span id="fpCalTitle" class="cal-title"></span>
+        <button type="button" id="fpCalNext" class="round-btn" aria-label="Следующий месяц">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="cal-weekdays">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+      </div>
+      <div id="fpCalGrid" class="cal-grid"></div>
+      <div class="cal-legend">
+        <span><i class="dot dot-training"></i> тренировка</span>
+        <span><i class="dot dot-rest"></i> отдых</span>
+      </div>
+      <div id="fpCalSummary" class="muted cal-summary"></div>
+      <div id="fpCalHelp" class="muted cal-help">Нажми на отмеченный день — покажем тренировку. Закрытые дни видны без подробностей.</div>
+    </section>
+
+    <section class="card records-card hidden" id="fpRecordsCard">
+      <div class="card-label"><i data-ico="trophy"></i>Личные рекорды</div>
+      <div id="fpRecordsList"></div>
+    </section>
+
+    <h3 class="section-title">Открытые тренировки</h3>
+    <div id="fpWorkouts"></div>
+
+    <button type="button" class="ghost-btn danger wide" id="fpRemoveBtn">Удалить из друзей</button>
+    <div id="fpStatus" class="status-msg"></div>
+  </section>
+
+  <!-- ===================== РАЗБОР НАГРУЗКИ ===================== -->
+  <section id="insightsScreen" class="screen hidden">
+    <h2 class="page-title">Разбор нагрузки</h2>
+
+    <!-- Графики по неделям (считаются прямо в телефоне из дневника) -->
+    <section class="card charts-card" id="chartsCard">
+      <div class="charts-head">
+        <div class="eyebrow">Динамика · 8 недель</div>
+        <button type="button" class="gift-rules-btn" id="chartsTableBtn">Таблица</button>
+      </div>
+      <div class="chart-block">
+        <div class="chart-title">Беговой объём, км <span class="muted">· примерно</span></div>
+        <div class="chart" id="chartKm"></div>
+      </div>
+      <div class="chart-block">
+        <div class="chart-title">Тренировок в неделю</div>
+        <div class="chart" id="chartCount"></div>
+      </div>
+      <div class="chart-block">
+        <div class="chart-title">Самочувствие и нагрузка, среднее за неделю</div>
+        <div class="chart-legend">
+          <span><i class="key key-feel"></i>Самочувствие</span>
+          <span><i class="key key-rpe"></i>Нагрузка (RPE)</span>
+        </div>
+        <div class="chart" id="chartFeel"></div>
+      </div>
+      <div class="chart-table hidden" id="chartTable"></div>
+      <div class="chart-tip hidden" id="chartTip"></div>
+    </section>
+
+    <div class="segmented">
+      <button type="button" class="seg-btn active" data-period="week">За неделю</button>
+      <button type="button" class="seg-btn" data-period="month">За месяц</button>
+    </div>
+
+    <button id="refreshInsightBtn" class="primary-btn" type="button">Получить разбор от Fom</button>
+
+    <div id="insightLoading" class="status-msg hidden">Fom анализирует тренировки...</div>
+    <div id="insightEmpty" class="empty-hint hidden">Пока недостаточно записей за этот период.</div>
+    <div id="insightBox" class="card ai-box-big hidden">
+      <div class="ai-box-title"><span class="fom-badge">F</span> Разбор от Fom</div>
+      <div id="insightText"></div>
+    </div>
+  </section>
+
+  <!-- ===================== ЧАТ С FOM ===================== -->
+  <section id="chatScreen" class="screen hidden chat-section">
+    <div class="chat-head">
+      <span class="fom-badge big">F</span>
+      <div>
+        <div class="chat-head-name">Fom</div>
+        <div class="muted">Помощник · знает твой дневник</div>
+      </div>
+      <button type="button" id="chatKbHide" class="chat-kb-hide" aria-label="Свернуть клавиатуру">Готово</button>
+    </div>
+    <div id="chatMessages" class="chat-messages"></div>
+    <div class="chat-limit hidden" id="chatLimit"></div>
+    <div class="chat-input-row">
+      <textarea id="chatInput" rows="1" placeholder="Сообщение для Fom..." autocomplete="off" enterkeyhint="enter"></textarea>
+      <!-- Круглая кнопка отправки со «самолётиком», как в Telegram -->
+      <button id="chatSendBtn" class="send-btn" type="button" title="Отправить" aria-label="Отправить">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M3.4 20.4 21.85 12.5a.55.55 0 0 0 0-1L3.4 3.6a.5.5 0 0 0-.7.6L5 11l9 1-9 1-2.3 6.8a.5.5 0 0 0 .7.6Z"/>
+        </svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ===================== РЕДАКТИРОВАНИЕ ЗАПИСИ ===================== -->
+  <section id="editScreen" class="screen hidden">
+    <div class="screen-head">
+      <button id="editBackBtn" class="round-btn" type="button" title="Назад" aria-label="Назад">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div>
+        <div class="eyebrow">Редактирование</div>
+        <h2 class="title small">Запись за <span id="editDateLabel"></span></h2>
+      </div>
+    </div>
+    <!-- переключатель, если за день две тренировки -->
+    <div class="segmented hidden" id="editSessionSwitch"></div>
+
+    <div id="editFormFields"></div>
+
+    <button id="editSaveBtn" class="primary-btn" type="button">Сохранить изменения</button>
+    <div class="btn-row">
+      <button id="editShareBtn" class="ghost-btn" type="button"><i data-ico="share"></i> Поделиться</button>
+      <button id="editDeleteBtn" class="ghost-btn danger" type="button"><i data-ico="trash"></i> Удалить</button>
+    </div>
+    <div id="editStatusMsg" class="status-msg"></div>
+    <div class="ai-box hidden" id="editFeedback"><div class="ai-box-title"><span class="fom-badge">F</span> Fom <button type="button" class="fb-refresh" id="editFbRefresh">↻ Обновить отзыв</button></div><div class="fb" id="editFeedbackText"></div></div>
+
+    <!-- Реакции и комментарии друзей к этой записи -->
+    <section class="card hidden" id="editSocialCard">
+      <div class="card-label"><i data-ico="chat"></i>Друзья о тренировке</div>
+      <div id="editSocial"></div>
+    </section>
+  </section>
+
+  <!-- Наше окно-сообщение (вместо системного alert/confirm) -->
+  <div id="dialog" class="dlg-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="dlg">
+      <div class="dlg-icon hidden" id="dlgIcon"></div>
+      <div class="dlg-title hidden" id="dlgTitle"></div>
+      <div class="dlg-text" id="dlgText"></div>
+      <div class="dlg-btns" id="dlgBtns"></div>
+    </div>
+  </div>
+
+
+  <!-- Согласие при первом входе -->
+  <div id="consent" class="tour consent hidden">
+    <div class="consent-body">
+      <div class="eyebrow">Перед стартом</div>
+      <h2 class="title">Твои данные</h2>
+      <p>Forma хранит твой дневник: тренировки, самочувствие и, если захочешь, анализы, питание, вес и травмы. Это личные данные о здоровье, поэтому важно, чтобы ты знал, что с ними происходит.</p>
+      <ul class="consent-list">
+        <li>Данные видишь ты. Друзья видят только то, что ты сам открыл.</li>
+        <li>Текст записей и фото анализов и еды обрабатывает ИИ (Anthropic), чтобы Fom мог отвечать.</li>
+        <li>Все данные можно удалить в любой момент: «Настройки → Удалить мои данные».</li>
+      </ul>
+      <button type="button" class="link-btn" id="consentPolicyLink">Прочитать политику конфиденциальности</button>
+      <label class="toggle-row privacy-row consent-check">
+        <input type="checkbox" id="consentCheck" />
+        <span class="toggle"></span>
+        <span>Я прочитал(а) политику и согласен(на) на обработку моих данных</span>
+      </label>
+    </div>
+    <button type="button" class="primary-btn tour-next" id="consentOk" disabled>Продолжить</button>
+  </div>
+
+  <!-- Политика конфиденциальности -->
+  <div id="policy" class="tour consent policy hidden">
+    <button type="button" class="tour-skip" id="policyBack">Закрыть</button>
+    <div class="consent-body" id="policyBody">
+      <div class="eyebrow">Forma</div>
+      <h2 class="title">Политика конфиденциальности</h2>
+      <h3>Кто мы</h3>
+      <p>Forma — тренировочный дневник в Telegram. Его делает независимый разработчик (далее — «мы»). Связаться с нами можно кнопкой «Поддержка» в настройках приложения.</p>
       <h3>Какие данные мы храним</h3>
       <p>Данные из Telegram: числовой идентификатор, имя, фамилия, username и фото профиля. Всё, что ты вносишь сам: тренировки, самочувствие, пульс, сон, цели, рекорды, старты. По желанию — анализы крови, питание, вес, травмы и добавки. Сообщения в чатах с Fom, в группах и в чатах пробежек, город и место пробежки.</p>
       <h3>Зачем</h3>
@@ -45,6 +1489,42 @@
       <p>Приложение не предназначено для детей. Если тебе нет 18 лет, пользуйся им только с согласия родителей.</p>
       <h3>Изменения</h3>
       <p>Если политика изменится, мы покажем это окно снова.</p>
-</main>
+    </div>
+  </div>
+
+  <!-- Знакомство с приложением (показывается один раз новичку) -->
+  <div id="tour" class="tour hidden">
+    <button type="button" class="tour-skip" id="tourSkip">Пропустить</button>
+    <div class="tour-track" id="tourTrack"></div>
+    <div class="tour-dots" id="tourDots"></div>
+    <button type="button" class="primary-btn tour-next" id="tourNext">Дальше</button>
+  </div>
+
+  <!-- ===================== НИЖНЯЯ ПАНЕЛЬ (всегда на месте) ===================== -->
+  <nav class="bottom-nav">
+    <span class="nav-indicator" id="navIndicator" aria-hidden="true"></span>
+    <button type="button" class="nav-btn" data-screen="chatScreen" id="chatBtn">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6c-.5.4-1.3.1-1.3-.6V16A2.5 2.5 0 0 1 4 13.5v-8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.5 9.5h7M8.5 12.5h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Fom</span>
+    </button>
+    <button type="button" class="nav-btn" data-screen="insightsScreen" id="insightsBtn">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path d="M5 20V11M12 20V4M19 20v-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <span>Разбор</span>
+    </button>
+    <button type="button" class="nav-plus" data-screen="mainScreen" id="homeBtn" aria-label="Новая запись">
+      <svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+    </button>
+    <button type="button" class="nav-btn" data-screen="friendsScreen" id="friendsBtn">
+      <svg viewBox="0 0 24 24" width="24" height="24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16.5" cy="9" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 14c2.4 0 4 1.5 4.5 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Друзья</span>
+      <i class="nav-badge hidden" id="friendsBadge"></i>
+    </button>
+    <button type="button" class="nav-btn" data-screen="profileScreen" id="profileNavBtn">
+      <svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="8.5" r="3.8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c.9-3.8 3.9-6 7.5-6s6.6 2.2 7.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Профиль</span>
+    </button>
+  </nav>
+
+  <script src="app.js?v=79"></script>
 </body>
 </html>
