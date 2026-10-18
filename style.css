@@ -2235,3 +2235,30 @@ html[data-theme="light"] .bv-row.low .bv-val em, html[data-theme="light"] .bv-ro
   display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px;
   background: rgba(252, 76, 2, 0.16); color: #FC4C02; font-size: 11px; font-weight: 800; letter-spacing: 0.02em;
 }
+
+/* =====================================================================
+   Вход вне Telegram
+   ===================================================================== */
+.login-screen {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  background: radial-gradient(120% 80% at 50% 0%, rgba(180, 245, 60, 0.10), transparent 60%), var(--bg, #0A0C11);
+  overflow-y: auto;
+}
+.login-card { width: 100%; max-width: 380px; text-align: center; display: flex; flex-direction: column; gap: 14px; align-items: stretch; }
+.login-logo { align-self: center; border-radius: 22px; box-shadow: 0 0 28px rgba(180, 245, 60, 0.25); }
+.login-title { margin: 4px 0 0; font-family: var(--font-head); font-size: 30px; font-weight: 700; }
+.login-sub { margin: -6px 0 6px; color: var(--muted); font-size: 14px; }
+.login-btn { width: 100%; }
+.login-status { min-height: 18px; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.login-status.error { color: #ff6b6b; }
+.login-note { font-size: 12px; line-height: 1.45; }
+.login-install {
+  text-align: left; padding: 14px 16px; border-radius: 16px; font-size: 14px; line-height: 1.45;
+  border: 1px solid var(--border); background: linear-gradient(180deg, var(--card-top), var(--card-bottom));
+}
+.login-install ol { margin: 8px 0; padding-left: 20px; }
+.login-install li { margin: 4px 0; }
+.login-share { display: inline-block; padding: 0 6px; border-radius: 6px; border: 1px solid var(--border-strong); font-size: 13px; }
+body.login-open .bottom-nav, body.login-open .topbar { display: none; }
