@@ -7,6 +7,18 @@ const API_BASE = SELF_HOSTED ? '' : 'https://forma-production-9c7a.up.railway.ap
 
 const tg = window.Telegram?.WebApp;
 
+// Вход вне Telegram (сайт на главном экране телефона): вместо подписи Telegram — личный ключ сессии
+const SESSION_KEY = 'forma_session';
+function getSession() { try { return localStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; } }
+function setSession(v) { try { if (v) localStorage.setItem(SESSION_KEY, v); else localStorage.removeItem(SESSION_KEY); } catch (e) { /* нет хранилища */ } }
+function authHeaders() {
+  if (tg?.initData) return { 'X-Telegram-Init-Data': tg.initData };
+  const s = getSession();
+  return s ? { 'X-Forma-Session': s } : {};
+}
+function authParam() { return tg?.initData || getSession() || ''; }
+const OUTSIDE_TELEGRAM = !tg?.initData;
+
 // Автообновление: Telegram иногда держит старую версию страницы в кэше.
 // При запуске смотрим свежий index.html — если там версия новее, один раз перезагружаемся на неё.
 (function checkFreshVersion() {
@@ -231,7 +243,7 @@ async function api(path, options = {}) {
     signal: ctrl ? ctrl.signal : undefined,
     headers: {
       'Content-Type': 'application/json',
-      'X-Telegram-Init-Data': tg?.initData || '',
+      ...authHeaders(),
       'X-Client-Date': localDateStr(), // сервер узнаёт, какое «сегодня» у пользователя
       ...(options.headers || {}),
     },
@@ -242,6 +254,10 @@ async function api(path, options = {}) {
     throw err;
   } finally {
     if (timer) clearTimeout(timer);
+  }
+  if (res.status === 401 && OUTSIDE_TELEGRAM && getSession() && !path.startsWith('/api/webauth')) {
+    setSession(''); // ключ устарел или отозван — входим заново
+    try { showLogin('Сессия закончилась — войди ещё раз.'); } catch (e) { /* экран входа ещё не готов */ }
   }
   if (!res.ok) {
     let data = null;
@@ -1033,6 +1049,8 @@ setTimeout(hideSplash, 4000); // запасной вариант, если се�
 async function init() {
   setEntryDate(localDateStr());
   showScreen('mainScreen');
+  // открыли вне Telegram и ещё не входили — сначала вход
+  if (OUTSIDE_TELEGRAM && !getSession()) { hideSplash(); showLogin(); return; }
   try {
     // start_param — если приложение открыли по ссылке-приглашению
     const { user } = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ start_param: tg?.initDataUnsafe?.start_param || '' }) });
@@ -1579,7 +1597,7 @@ function avatarSrc(u) {
   if (!u) return '';
   if (currentUser && u.id === currentUser.id) return getAvatarUrl();
   if (!u.avatar_v) return '';
-  return `${API_BASE}/api/friends/avatar/${u.id}?v=${u.avatar_v}&auth=${encodeURIComponent(tg?.initData || '')}`;
+  return `${API_BASE}/api/friends/avatar/${u.id}?v=${u.avatar_v}&auth=${encodeURIComponent(authParam())}`;
 }
 
 // Кружок с фото; если фото нет или не загрузилось — первая буква имени
@@ -3476,6 +3494,7 @@ function askConsent() {
 
 // ---------- Иконка на главном экране телефона ----------
 function refreshHomeButton() {
+  if (OUTSIDE_TELEGRAM) { $('addHomeBtn').closest('.card').classList.add('hidden'); return; } // вне Telegram кнопка «на главный экран» не нужна
   try { tg?.checkHomeScreenStatus?.((status) => { if (status === 'added') $('addHomeBtn').closest('.card').classList.add('hidden'); }); } catch (e) { /* не страшно */ }
 }
 $('addHomeBtn').addEventListener('click', () => {
@@ -3491,6 +3510,7 @@ $('deleteAccountBtn').addEventListener('click', async () => {
     await api('/api/auth/me', { method: 'DELETE', body: JSON.stringify({ confirm: true }) });
     await alertMsg('Готово: все твои данные удалены.');
     try { tg?.close(); } catch (e) { /* не страшно */ }
+    if (OUTSIDE_TELEGRAM) { setSession(''); location.reload(); }
   } catch (err) { alertMsg(err.data?.error || 'Не получилось удалить. Попробуй ещё раз.'); }
 });
 
@@ -4540,7 +4560,7 @@ async function uploadStoryImage() {
   if (shareState.url) return shareState.url;
   const res = await fetch(API_BASE + '/api/bot/story', {
     method: 'POST',
-    headers: { 'Content-Type': 'image/jpeg', 'X-Telegram-Init-Data': tg?.initData || '' },
+    headers: { 'Content-Type': 'image/jpeg', ...authHeaders() },
     body: shareState.blob,
   });
   if (!res.ok) throw new Error('upload failed');
@@ -5120,7 +5140,7 @@ $('exportBtn').addEventListener('click', async () => {
     if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
     if (tg?.downloadFile && tg.isVersionAtLeast?.('8.0')) {
       const res = await fetch(API_BASE + '/api/bot/export', {
-        method: 'POST', headers: { 'Content-Type': 'text/csv', 'X-Telegram-Init-Data': tg?.initData || '' }, body: blob,
+        method: 'POST', headers: { 'Content-Type': 'text/csv', ...authHeaders() }, body: blob,
       });
       if (!res.ok) throw new Error('upload failed');
       tg.downloadFile({ url: (await res.json()).url, file_name: name });
@@ -5943,6 +5963,114 @@ function pendingJoinCode() {
 }
 
 hydrateIcons();
+
+
+// =====================================================================
+//  ВХОД ВНЕ TELEGRAM + УСТАНОВКА НА ГЛАВНЫЙ ЭКРАН
+// =====================================================================
+const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const IS_STANDALONE = !!(window.navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
+const LOGIN_CODE_KEY = 'forma_login_code';
+let loginLink = '';
+let loginPoll = null;
+let loginBusy = false;
+
+function loginStatus(text, kind) {
+  const el = $('loginStatus');
+  el.textContent = text || '';
+  el.classList.toggle('error', kind === 'error');
+}
+
+function stopLoginPoll() { if (loginPoll) { clearInterval(loginPoll); loginPoll = null; } }
+
+// Готовим код входа заранее: ссылку на бота нужно открывать сразу по нажатию, иначе Safari блокирует переход
+async function prepareLogin(force) {
+  if (loginBusy) return;
+  loginBusy = true;
+  $('loginTgBtn').disabled = true;
+  try {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(LOGIN_CODE_KEY) || 'null'); } catch (e) { /* нет хранилища */ }
+    if (!force && saved?.code && saved?.link && Date.now() - saved.at < 9 * 60 * 1000) {
+      loginLink = saved.link;
+      loginCode = saved.code;
+    } else {
+      const r = await api('/api/webauth/start', { method: 'POST' });
+      loginLink = r.link;
+      loginCode = r.code;
+      try { localStorage.setItem(LOGIN_CODE_KEY, JSON.stringify({ code: r.code, link: r.link, at: Date.now() })); } catch (e) { /* ничего */ }
+    }
+    $('loginTgBtn').disabled = false;
+    startLoginPoll();
+  } catch (err) {
+    loginStatus(err.network ? 'Нет связи с сервером. Проверь интернет и нажми «Повторить».' : (err.data?.error || 'Не получилось начать вход. Попробуй ещё раз.'), 'error');
+    $('loginRetryBtn').classList.remove('hidden');
+  } finally {
+    loginBusy = false;
+  }
+}
+let loginCode = '';
+
+function startLoginPoll() {
+  stopLoginPoll();
+  loginPoll = setInterval(checkLogin, 2000);
+}
+
+async function checkLogin() {
+  if (!loginCode || document.hidden) return;
+  try {
+    const r = await api(`/api/webauth/poll?code=${encodeURIComponent(loginCode)}`);
+    if (r.status === 'ok' && r.session) {
+      stopLoginPoll();
+      setSession(r.session);
+      try { localStorage.removeItem(LOGIN_CODE_KEY); } catch (e) { /* ничего */ }
+      $('loginScreen').classList.add('hidden');
+      document.body.classList.remove('login-open');
+      init();
+    } else if (r.status === 'denied' || r.status === 'expired') {
+      stopLoginPoll();
+      try { localStorage.removeItem(LOGIN_CODE_KEY); } catch (e) { /* ничего */ }
+      loginStatus(r.status === 'denied' ? 'Вход отклонён в Telegram.' : 'Время ссылки вышло. Нажми кнопку ещё раз.', 'error');
+      prepareLogin(true);
+    }
+  } catch (e) { /* связь моргнула — спросим снова через 2 секунды */ }
+}
+
+function showLogin(msg) {
+  hideSplash();
+  document.body.classList.add('login-open');
+  $('loginScreen').classList.remove('hidden');
+  $('loginRetryBtn').classList.add('hidden');
+  // iPhone: у сайта в Safari и у иконки на главном экране разное хранилище — входить нужно уже в установленном
+  const needInstall = IS_IOS && !IS_STANDALONE;
+  $('loginInstall').classList.toggle('hidden', !needInstall);
+  $('loginTgBtn').classList.toggle('hidden', needInstall);
+  loginStatus(msg || '');
+  if (!needInstall) prepareLogin(false);
+}
+
+$('loginTgBtn').addEventListener('click', () => {
+  if (!loginLink) return;
+  loginStatus('Открываю Telegram… Нажми «Старт» у бота и подтверди вход, потом вернись сюда.');
+  window.location.href = loginLink;
+});
+$('loginRetryBtn').addEventListener('click', () => { $('loginRetryBtn').classList.add('hidden'); loginStatus(''); prepareLogin(true); });
+// вернулись в приложение из Telegram — сразу спрашиваем, подтвердил ли вход
+document.addEventListener('visibilitychange', () => { if (!document.hidden && loginPoll) checkLogin(); });
+
+// Выйти на этом устройстве (только вне Telegram)
+if (OUTSIDE_TELEGRAM) {
+  $('logoutBtn').classList.remove('hidden');
+  $('logoutBtn').addEventListener('click', async () => {
+    if (!(await confirmAsk({ icon: 'lock', title: 'Выйти из аккаунта?', text: 'Данные останутся, чтобы вернуться, войди через Telegram ещё раз.', ok: 'Выйти' }))) return;
+    try { await api('/api/webauth/logout', { method: 'POST' }); } catch (e) { /* всё равно выходим */ }
+    setSession('');
+    location.reload();
+  });
+  // Установка на главный экран: ярлык и работа в полный экран, как у обычного приложения
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
 
 init();
 
