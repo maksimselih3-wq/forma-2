@@ -2,7 +2,9 @@
 //  - на GitHub Pages (или открыт файлом) — ходим напрямую на сервер Railway;
 //  - на своём домене (российский сервер) — всё через тот же адрес: сервер сам перешлёт /api на Railway.
 //    Так приложение открывается в России без VPN и прокси.
-const SELF_HOSTED = !/github\.io$/.test(location.hostname) && location.protocol !== 'file:';
+// Нативное приложение (Capacitor: Google Play / App Store): страницы лежат внутри приложения, сервер — всегда Railway
+const NATIVE = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+const SELF_HOSTED = !/github\.io$/.test(location.hostname) && location.protocol !== 'file:' && !NATIVE;
 const API_BASE = SELF_HOSTED ? '' : 'https://forma-production-9c7a.up.railway.app';
 
 const tg = window.Telegram?.WebApp;
@@ -6124,7 +6126,7 @@ function showLogin(msg) {
   $('loginRetryBtn').classList.add('hidden');
   $('loginAlt').classList.add('hidden');
   // iPhone: у сайта в Safari и у иконки на главном экране разное хранилище — входить нужно уже в установленном
-  const needInstall = IS_IOS && !IS_STANDALONE;
+  const needInstall = IS_IOS && !IS_STANDALONE && !NATIVE; // в приложении из магазина ставить на экран не нужно
   $('loginInstall').classList.toggle('hidden', !needInstall);
   $('loginTgBtn').classList.toggle('hidden', needInstall);
   loginStatus(msg || '');
@@ -6158,9 +6160,41 @@ if (OUTSIDE_TELEGRAM) {
     location.reload();
   });
   // Установка на главный экран: ярлык и работа в полный экран, как у обычного приложения
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && !NATIVE) navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
+
+
+// =====================================================================
+//  НАТИВНОЕ ПРИЛОЖЕНИЕ (Google Play / App Store)
+// =====================================================================
+if (NATIVE) {
+  const P = window.Capacitor.Plugins || {};
+  document.documentElement.classList.add('native');
+  // белая системная полоса над клавиатурой iPhone («стрелки и галочка») — в приложении её можно скрыть
+  try { P.Keyboard?.setAccessoryBarVisible?.({ isVisible: false }); } catch (e) { /* нет плагина */ }
+  // тёмный экран: светлый текст в строке состояния
+  try { P.StatusBar?.setStyle?.({ style: 'DARK' }); P.StatusBar?.setBackgroundColor?.({ color: '#0A0C11' }); } catch (e) { /* iOS не умеет цвет */ }
+  // внешние ссылки: Telegram открываем самим Telegram, остальное — во встроенном браузере
+  const openInPage = window.open.bind(window);
+  window.open = (url, target, features) => {
+    const u = String(url || '');
+    const t = /^https?:\/\/t\.me\/([A-Za-z0-9_]+)/.exec(u);
+    if (t) { location.href = `tg://resolve?domain=${t[1]}`; return null; }
+    if (/^https?:/.test(u) && P.Browser?.open) { P.Browser.open({ url: u }); return null; }
+    return openInPage(url, target, features);
+  };
+  // кнопка «Назад» на Android: так же, как жест «назад» в приложении; на главной — выход
+  try {
+    P.App?.addListener?.('backButton', () => {
+      const overlay = dialogOpen() || [...document.querySelectorAll('[id$="Sheet"]')].some((el) => !el.classList.contains('hidden'));
+      const onHome = document.querySelector('.screen:not(.hidden)')?.id === 'mainScreen';
+      if (onHome && !overlay) { P.App.exitApp?.(); return; }
+      goBack();
+    });
+  } catch (e) { /* нет плагина */ }
+  try { P.SplashScreen?.hide?.(); } catch (e) { /* автоскрытие */ }
+}
 
 init();
 
