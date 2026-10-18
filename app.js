@@ -6041,6 +6041,7 @@ function showLogin(msg) {
   document.body.classList.add('login-open');
   $('loginScreen').classList.remove('hidden');
   $('loginRetryBtn').classList.add('hidden');
+  $('loginAlt').classList.add('hidden');
   // iPhone: у сайта в Safari и у иконки на главном экране разное хранилище — входить нужно уже в установленном
   const needInstall = IS_IOS && !IS_STANDALONE;
   $('loginInstall').classList.toggle('hidden', !needInstall);
@@ -6049,10 +6050,18 @@ function showLogin(msg) {
   if (!needInstall) prepareLogin(false);
 }
 
+// Прямая ссылка на бота (tg://): из установленного приложения iPhone обычная ссылка t.me открывает Telegram,
+// но не доводит до бота. Обычную ссылку оставляем запасной — под кнопкой.
+function tgDeepLink(link) {
+  const m = /t\.me\/([A-Za-z0-9_]+)\?start=([A-Za-z0-9_]+)/.exec(link || '');
+  return m ? `tg://resolve?domain=${m[1]}&start=${m[2]}` : link;
+}
 $('loginTgBtn').addEventListener('click', () => {
   if (!loginLink) return;
   loginStatus('Открываю Telegram… Нажми «Старт» у бота и подтверди вход, потом вернись сюда.');
-  window.location.href = loginLink;
+  $('loginAltLink').href = loginLink;
+  $('loginAlt').classList.remove('hidden');
+  window.location.href = tgDeepLink(loginLink);
 });
 $('loginRetryBtn').addEventListener('click', () => { $('loginRetryBtn').classList.add('hidden'); loginStatus(''); prepareLogin(true); });
 // вернулись в приложение из Telegram — сразу спрашиваем, подтвердил ли вход
