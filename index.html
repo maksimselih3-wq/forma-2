@@ -95,15 +95,18 @@
      на GitHub Pages — как раньше, из интернета -->
 <script>
   (function () {
-    var self = !/github\.io$/.test(location.hostname) && location.protocol !== 'file:';
-    var fonts = self ? '/api/asset/fonts.css' : 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap';
+    var native = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+    window.__native = native;
+    var self = !/github\.io$/.test(location.hostname) && location.protocol !== 'file:' && !native;
+    // в приложении из магазина шрифты лежат внутри (fonts.css), скрипт Telegram не нужен
+    var fonts = native ? 'fonts.css' : self ? '/api/asset/fonts.css' : 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap';
     document.write('<link rel="stylesheet" href="' + fonts + '" />');
-    document.write('<script src="' + (self ? '/api/asset/tg.js' : 'https://telegram.org/js/telegram-web-app.js') + '"><\/script>');
+    if (!native) document.write('<script src="' + (self ? '/api/asset/tg.js' : 'https://telegram.org/js/telegram-web-app.js') + '"><\/script>');
   })();
 </script>
 <script>
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
-  if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
+  if (!window.Telegram && !window.__native) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
 <link rel="stylesheet" href="style.css?v=76" />
 </head>
@@ -1526,6 +1529,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=81"></script>
+  <script src="app.js?v=82"></script>
 </body>
 </html>
