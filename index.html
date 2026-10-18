@@ -105,7 +105,7 @@
   // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
   if (!window.Telegram) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
-<link rel="stylesheet" href="style.css?v=74" />
+<link rel="stylesheet" href="style.css?v=75" />
 </head>
 <body>
   <!-- Общие градиенты для наших иконок (сами иконки вставляет app.js) -->
@@ -140,6 +140,7 @@
       <button type="button" id="loginTgBtn" class="primary-btn login-btn" disabled>Войти через Telegram</button>
       <button type="button" id="loginRetryBtn" class="ghost-btn wide hidden">Повторить</button>
       <div id="loginStatus" class="login-status" role="status"></div>
+      <div id="loginAlt" class="login-alt hidden">Telegram не открылся на боте? <a id="loginAltLink" href="#" target="_blank" rel="noopener">Открыть по обычной ссылке</a></div>
       <div class="muted login-note">Откроется бот Forma в Telegram: нажми «Старт» и подтверди вход. Аккаунт и дневник те же, что в Telegram.</div>
     </div>
   </section>
@@ -1525,6 +1526,6 @@
     </button>
   </nav>
 
-  <script src="app.js?v=79"></script>
+  <script src="app.js?v=80"></script>
 </body>
 </html>
