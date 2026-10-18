@@ -18,6 +18,7 @@ function authHeaders() {
 }
 function authParam() { return tg?.initData || getSession() || ''; }
 const OUTSIDE_TELEGRAM = !tg?.initData;
+if (OUTSIDE_TELEGRAM) document.documentElement.classList.add('web-app');
 
 // Автообновление: Telegram иногда держит старую версию страницы в кэше.
 // При запуске смотрим свежий index.html — если там версия новее, один раз перезагружаемся на неё.
@@ -3366,8 +3367,11 @@ document.addEventListener('focusout', () => setTimeout(updateKeyboardState, 60))
 function updateAppHeight() {
   const h = window.visualViewport?.height || window.innerHeight;
   document.documentElement.style.setProperty('--app-h', `${Math.round(h)}px`);
+  // насколько iOS сдвинул видимую область вверх из-за клавиатуры: чат привязываем к ней
+  document.documentElement.style.setProperty('--app-top', `${Math.max(0, Math.round(window.visualViewport?.offsetTop || 0))}px`);
 }
 window.visualViewport?.addEventListener('resize', updateAppHeight);
+window.visualViewport?.addEventListener('scroll', updateAppHeight);
 window.addEventListener('resize', updateAppHeight);
 try { tg?.onEvent?.('viewportChanged', updateAppHeight); } catch (e) {}
 updateAppHeight();
@@ -4256,16 +4260,93 @@ $('watchSheet').addEventListener('click', (e) => { if (e.target === $('watchShee
 // Светящаяся полоска переезжает под активную вкладку, а экран въезжает с той стороны, куда идёшь.
 const NAV_ORDER = ['chatScreen', 'insightsScreen', 'mainScreen', 'friendsScreen', 'profileScreen'];
 let navPrevIndex = NAV_ORDER.indexOf('mainScreen');
+function placeNavIndicator(btn) {
+  const ind = $('navIndicator');
+  const nav = btn.parentElement;
+  const nr = nav.getBoundingClientRect();
+  const r = btn.getBoundingClientRect();
+  const w = Math.max(40, r.width - 8);
+  ind.style.width = `${w}px`;
+  ind.style.transform = `translateX(${r.left - nr.left - nav.clientLeft + (r.width - w) / 2}px)`;
+}
 function moveNavIndicator(targetId) {
   const ind = $('navIndicator');
   const key = NAV_PARENT[targetId] || targetId;
   const btn = document.querySelector(`.bottom-nav [data-screen="${key}"]`);
   if (!ind || !btn || btn.classList.contains('nav-plus')) { if (ind) ind.classList.add('off'); return; }
-  const nav = btn.parentElement.getBoundingClientRect();
-  const r = btn.getBoundingClientRect();
   ind.classList.remove('off');
-  ind.style.transform = `translateX(${r.left - nav.left + r.width / 2 - 14}px)`;
+  placeNavIndicator(btn);
 }
+
+// Нижнюю панель можно вести пальцем: бегунок едет за пальцем, иконка под ним подсвечивается,
+// отпустил — открылась та вкладка, над которой остановился. Обычные нажатия работают как раньше.
+(function navDrag() {
+  const nav = document.querySelector('.bottom-nav');
+  const ind = $('navIndicator');
+  if (!nav || !ind) return;
+  const items = () => [...nav.querySelectorAll('[data-screen]')];
+  let pid = null, startX = 0, dragging = false, hot = null, blockClickUntil = 0;
+
+  const nearest = (x) => {
+    let best = null, bd = Infinity;
+    for (const b of items()) {
+      const r = b.getBoundingClientRect();
+      const d = Math.abs(x - (r.left + r.width / 2));
+      if (d < bd) { bd = d; best = b; }
+    }
+    return best;
+  };
+  const tick = () => {
+    try { if (tg?.HapticFeedback?.selectionChanged) tg.HapticFeedback.selectionChanged(); else if (navigator.vibrate) navigator.vibrate(8); } catch (e) { /* без вибрации */ }
+  };
+  const follow = (x) => {
+    const nr = nav.getBoundingClientRect();
+    const first = items().find((b) => !b.classList.contains('nav-plus')) || nav;
+    const w = Math.max(40, first.getBoundingClientRect().width - 8);
+    const left = Math.min(Math.max(x - nr.left - nav.clientLeft - w / 2, 2), nr.width - nav.clientLeft * 2 - w - 2);
+    ind.style.width = `${w}px`;
+    ind.style.transform = `translateX(${left}px)`;
+    const b = nearest(x);
+    if (b !== hot) {
+      items().forEach((el) => el.classList.toggle('hot', el === b));
+      hot = b;
+      ind.classList.toggle('off', !!b && b.classList.contains('nav-plus')); // над «+» бегунок прячется, светится сама кнопка
+      tick();
+    }
+  };
+  const finish = (commit) => {
+    const target = hot;
+    nav.classList.remove('dragging');
+    items().forEach((el) => el.classList.remove('hot'));
+    dragging = false; hot = null; pid = null;
+    const current = document.querySelector('.screen:not(.hidden)')?.id;
+    if (commit && target && target.dataset.screen !== (NAV_PARENT[current] || current)) {
+      target.click();                       // те же действия, что и при обычном нажатии
+    } else {
+      moveNavIndicator(current);            // остался на месте — бегунок возвращается
+    }
+    blockClickUntil = Date.now() + 400;
+  };
+
+  nav.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pid = e.pointerId; startX = e.clientX; dragging = false;
+  });
+  nav.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== pid) return;
+    if (!dragging) {
+      if (Math.abs(e.clientX - startX) < 8) return;
+      dragging = true;
+      nav.classList.add('dragging');
+      try { nav.setPointerCapture(pid); } catch (err) { /* не страшно */ }
+    }
+    follow(e.clientX);
+  });
+  nav.addEventListener('pointerup', (e) => { if (e.pointerId === pid && dragging) finish(true); else if (e.pointerId === pid) pid = null; });
+  nav.addEventListener('pointercancel', (e) => { if (e.pointerId === pid && dragging) finish(false); });
+  // «хвост» нажатия после перетаскивания не должен открывать вкладку второй раз
+  nav.addEventListener('click', (e) => { if (Date.now() < blockClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
+})();
 function animateScreenIn(targetId) {
   const idx = NAV_ORDER.indexOf(NAV_PARENT[targetId] || targetId);
   const el = $(targetId);
