@@ -2353,13 +2353,13 @@ html.scrolled-top #statusFade { visibility: visible; }
 #bottomFade {
   display: block;
   bottom: 0;
-  height: calc(var(--nav-bottom) + 68px + 46px);
+  height: calc(var(--nav-bottom) + 68px + 16px);
   z-index: 39;                      /* ниже самой панели (40) */
 }
 body.has-bottom-fade #bottomFade { visibility: visible; }
 #bottomFade::before {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(0deg, rgba(var(--fade-rgb), 0.5) 0%, rgba(var(--fade-rgb), 0.28) 55%, rgba(var(--fade-rgb), 0) 100%);
+  background: linear-gradient(0deg, rgba(var(--fade-rgb), 0.32) 0%, rgba(var(--fade-rgb), 0.14) 55%, rgba(var(--fade-rgb), 0) 100%);
 }
 
 /* где нижняя панель скрыта или у экрана свой фон — дымка не нужна */
@@ -2382,9 +2382,11 @@ html.scrolled-top .topbar .avatar-btn { transform: scale(0.8); }
 html.scrolled-top .segmented.stuck-item { transform: scale(0.9); transform-origin: top center; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); }
 html.scrolled-top .screen-head.stuck-item { transform: scale(0.92); transform-origin: left center; }
 /* профиль: когда сверху появляется компактная карточка с именем, обычная шапка прячется */
-body.mini-on .topbar { opacity: 0; pointer-events: none; }
-.topbar { transition: opacity 0.2s ease; }
-.mini-head { z-index: 47; }
+body.mini-on .topbar-right { opacity: 0; transform: scale(0.6); transform-origin: right center; pointer-events: none; }
+.topbar-right { transition: opacity 0.2s ease, transform 0.25s ease; }
+body.mini-screen .topbar .logo { font-size: 26px; transition: none; will-change: transform, opacity; }
+body.mini-screen .topbar .logo-dot { margin-bottom: 7px; }
+.mini-head { z-index: 47; transform-origin: right center; will-change: transform, opacity; }
 .bottom-nav { z-index: 48; }
 #bottomFade { z-index: 47; }
 
