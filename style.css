@@ -2313,19 +2313,17 @@ html.web-app, html.web-app body { overscroll-behavior-y: none; }
    Края экрана: контент уходит под время/«остров» сверху и под нижнюю панель снизу, плавно размываясь.
    Верх включается там, где у экрана есть вырез (установленное приложение и приложение из магазина);
    в Telegram и в обычном браузере выреза нет. Нижняя дымка работает везде.
-   Размытие нарастает к краю экрана: три слоя с разной силой и маской.
+   Размытие «ступенчатое»: полоса из тонких слоёв, у края — сильное, дальше слабее (слои создаёт app.js).
+   Масок и прозрачности на самих слоях нет — на iPhone размытие с маской после остановки прокрутки пропадало.
    ===================================================================== */
 #statusFade, #bottomFade {
   display: none;
+  visibility: hidden;
   position: fixed;
   left: 0; right: 0;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  transform: translateZ(0);   /* держим слой на видеокарте: на iOS размытие иначе пропадает после остановки прокрутки */
-  -webkit-transform: translateZ(0);
 }
-#statusFade i, #bottomFade i { position: absolute; inset: 0; display: block; transform: translateZ(0); }
+#statusFade i, #bottomFade i { position: absolute; left: 0; right: 0; display: block; }
 
 /* ---- верх ---- */
 html.has-top-inset #statusFade {
@@ -2333,16 +2331,14 @@ html.has-top-inset #statusFade {
   top: 0;
   height: calc(var(--top-inset, 0px) + 30px);
   z-index: 50;
+}
+/* видна, только когда страница прокручена: в самом верху под «островом» ничего не нужно */
+html.has-top-inset.scrolled-top #statusFade { visibility: visible; }
+/* лёгкое затемнение: делает время и значки читаемыми поверх размытого */
+#statusFade::before {
+  content: ''; position: absolute; inset: 0;
   background: linear-gradient(180deg, rgba(10, 12, 17, 0.55) 0%, rgba(10, 12, 17, 0.3) 55%, rgba(10, 12, 17, 0) 100%);
 }
-/* полоса видна, только когда страница прокручена: в самом верху под «островом» ничего не нужно */
-html.has-top-inset.scrolled-top #statusFade { opacity: 1; }
-#statusFade i:nth-child(1) { backdrop-filter: blur(4px);  -webkit-backdrop-filter: blur(4px);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 50%, transparent 100%); mask-image: linear-gradient(180deg, #000 0%, #000 50%, transparent 100%); }
-#statusFade i:nth-child(2) { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 35%, transparent 80%); mask-image: linear-gradient(180deg, #000 0%, #000 35%, transparent 80%); }
-#statusFade i:nth-child(3) { backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 var(--top-inset, 0px), transparent 70%); mask-image: linear-gradient(180deg, #000 0%, #000 var(--top-inset, 0px), transparent 70%); }
 
 /* ---- низ: под плавающей нижней панелью ---- */
 #bottomFade {
@@ -2350,15 +2346,12 @@ html.has-top-inset.scrolled-top #statusFade { opacity: 1; }
   bottom: 0;
   height: calc(var(--nav-bottom) + 68px + 46px);
   z-index: 39;                      /* ниже самой панели (40) */
+}
+body.has-bottom-fade #bottomFade { visibility: visible; }
+#bottomFade::before {
+  content: ''; position: absolute; inset: 0;
   background: linear-gradient(0deg, rgba(10, 12, 17, 0.5) 0%, rgba(10, 12, 17, 0.28) 55%, rgba(10, 12, 17, 0) 100%);
 }
-body.has-bottom-fade #bottomFade { opacity: 1; }
-#bottomFade i:nth-child(1) { backdrop-filter: blur(4px);  -webkit-backdrop-filter: blur(4px);
-  -webkit-mask-image: linear-gradient(0deg, #000 0%, #000 50%, transparent 100%); mask-image: linear-gradient(0deg, #000 0%, #000 50%, transparent 100%); }
-#bottomFade i:nth-child(2) { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  -webkit-mask-image: linear-gradient(0deg, #000 0%, #000 35%, transparent 80%); mask-image: linear-gradient(0deg, #000 0%, #000 35%, transparent 80%); }
-#bottomFade i:nth-child(3) { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  -webkit-mask-image: linear-gradient(0deg, #000 0%, #000 var(--nav-bottom), transparent 65%); mask-image: linear-gradient(0deg, #000 0%, #000 var(--nav-bottom), transparent 65%); }
 
 /* где нижняя панель скрыта или у экрана свой фон — дымка не нужна */
 body.login-open #bottomFade, body.kb-open #bottomFade { display: none; }
