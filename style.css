@@ -2460,3 +2460,8 @@ body[data-screen="insightsScreen"] { overflow: hidden; overscroll-behavior: none
 .chart-period-row .gift-rules-btn { padding: 5px 12px; font-size: 13px; }
 .chart-chips { width: 100%; }
 .chart-chips .chip { flex: 0 1 auto; padding: 7px 10px; }
+
+/* Окно «Поделиться»: страница под ним не прокручивается, жесты уходят в окно */
+html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: none; }
+#shareSheet { overscroll-behavior: contain; }
+#shareSheet .sheet { will-change: transform; overscroll-behavior: contain; }
