@@ -6198,6 +6198,22 @@ if (NATIVE) {
   try { P.SplashScreen?.hide?.(); } catch (e) { /* автоскрытие */ }
 }
 
+// ---------- Верхний вырез экрана (iPhone): включаем плавное размытие под временем и «островом» ----------
+function updateTopInset() {
+  try {
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px)';
+    document.body.appendChild(probe);
+    const px = Math.round(parseFloat(getComputedStyle(probe).paddingTop) || 0);
+    probe.remove();
+    document.documentElement.style.setProperty('--top-inset', px + 'px');
+    document.documentElement.classList.toggle('has-top-inset', px > 0);
+  } catch (e) { /* без размытия верха — не страшно */ }
+}
+updateTopInset();
+window.addEventListener('resize', updateTopInset);
+window.addEventListener('orientationchange', () => setTimeout(updateTopInset, 300));
+
 // ---------- Push-уведомления (только в приложении из магазина) ----------
 let pushToken = '';
 function pushPlugin() { return NATIVE ? (window.Capacitor.Plugins || {}).PushNotifications : null; }
