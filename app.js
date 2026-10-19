@@ -4740,61 +4740,99 @@ function closeShareSheet() {
   const sh = $('shareSheet');
   sh.classList.add('hidden');
   const el = sh.querySelector('.sheet');
-  if (el) { el.style.transition = ''; el.style.transform = ''; }
-  sh.style.background = '';
+  if (el) { el.style.transform = ''; el.style.transformOrigin = ''; }
+  sh.style.removeProperty('--dim');
   document.documentElement.classList.remove('sheet-open');
 }
 
-// Тянем карточку вниз пальцем — она уезжает и закрывается; отпустили рано — возвращается на место.
+// Окно «Поделиться» ведёт себя как жидкое: следует за пальцем с лёгкой «резинкой», чуть сужается и растягивается,
+// фон темнеет и светлеет плавно, а после отпускания окно пружинит — либо уезжает вниз, либо мягко возвращается.
 // Пока окно открыто, страница под ним не двигается.
 (function initShareSwipe() {
   const back = $('shareSheet');
   const sheet = back.querySelector('.sheet');
-  let y0 = 0, dy = 0, t0 = 0, drag = false, tracking = false;
+  let y0 = 0, t0 = 0, drag = false, tracking = false;
+  let x = 0, v = 0, target = 0, raf = 0, last = 0, closing = false;
+  let samples = []; // последние положения пальца — по ним считаем скорость смаха
+
+  const H = () => sheet.offsetHeight + 40;
+  function paint() {
+    const k = Math.min(1, Math.max(0, x / H()));
+    // чуть сужается и «вытягивается» по ходу движения, как капля
+    const sx = 1 - Math.min(0.06, x / 4500);
+    const sy = 1 + Math.min(0.05, Math.abs(v) / 40000);
+    sheet.style.transform = `translate3d(0, ${x.toFixed(1)}px, 0) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
+    sheet.style.transformOrigin = '50% 100%';
+    back.style.setProperty('--dim', (1 - Math.pow(k, 0.85)).toFixed(3));
+  }
+  function loop(ts) {
+    const dt = Math.min(0.032, (ts - last) / 1000 || 0.016); last = ts;
+    // пружина: чем дальше от цели — тем сильнее тянет, трение гасит колебания
+    const stiff = closing ? 300 : 240, damp = closing ? 30 : 22;
+    const a = -stiff * (x - target) - damp * v;
+    v += a * dt; x += v * dt;
+    paint();
+    const done = Math.abs(x - target) < (closing ? 3 : 0.4) && Math.abs(v) < (closing ? 40 : 6);
+    if (done || (closing && x >= target - 2)) {
+      raf = 0;
+      if (closing) { closing = false; reset(); closeShareSheet(); }
+      else { x = 0; v = 0; paint(); sheet.style.transform = ''; back.style.removeProperty('--dim'); }
+      return;
+    }
+    raf = requestAnimationFrame(loop);
+  }
+  function spring(to, vel) {
+    target = to; v = vel; closing = to > 0; last = performance.now();
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
+  }
+  function reset() { x = 0; v = 0; sheet.style.transform = ''; sheet.style.transformOrigin = ''; back.style.removeProperty('--dim'); }
+
+  // открытие: окно выплывает снизу, фон проявляется
   new MutationObserver(() => {
-    document.documentElement.classList.toggle('sheet-open', !back.classList.contains('hidden'));
+    const open = !back.classList.contains('hidden');
+    document.documentElement.classList.toggle('sheet-open', open);
+    if (open) {
+      cancelAnimationFrame(raf); closing = false;
+      x = H(); v = 0; paint();
+      spring(0, 0);
+    }
   }).observe(back, { attributes: true, attributeFilter: ['class'] });
 
   back.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
-    y0 = e.touches[0].clientY; dy = 0; t0 = Date.now(); drag = false;
-    // внутри окна начинаем тянуть только если оно прокручено до верха
+    cancelAnimationFrame(raf); raf = 0; closing = false;
+    y0 = e.touches[0].clientY; t0 = Date.now(); drag = false; samples = [];
     tracking = !sheet.contains(e.target) || sheet.scrollTop <= 0;
-    sheet.style.transition = 'none';
+    if (tracking) { x = Math.max(0, x); }
   }, { passive: true });
 
   back.addEventListener('touchmove', (e) => {
-    // страница под окном не должна ехать ни при каком движении пальца
     const scrollableInside = sheet.contains(e.target) && sheet.scrollHeight > sheet.clientHeight + 1;
-    const d0 = e.touches[0].clientY - y0;
-    // содержимое окна само прокручивается, только если оно длиннее экрана и палец идёт не вниз с самого верха
-    if (e.cancelable && !(scrollableInside && !drag && (sheet.scrollTop > 0 || d0 < 0))) e.preventDefault();
-    if (!tracking) return;
     const d = e.touches[0].clientY - y0;
+    if (e.cancelable && !(scrollableInside && !drag && (sheet.scrollTop > 0 || d < 0))) e.preventDefault();
+    if (!tracking) return;
     if (d <= 0 && !drag) return;
     drag = true;
-    dy = Math.max(0, d);
-    sheet.style.transform = `translateY(${dy}px)`;
-    back.style.background = `rgba(0,0,0,${0.55 * Math.max(0, 1 - dy / 500)})`;
+    // вверх — сопротивление «резинки», вниз — за пальцем
+    x = d >= 0 ? d : -Math.sqrt(-d) * 2.2;
+    samples.push([performance.now(), x]); if (samples.length > 6) samples.shift();
+    v = 0; paint();
   }, { passive: false });
 
   const end = () => {
-    if (!tracking && !drag) return;
+    if (!tracking) return;
     tracking = false;
     if (!drag) return;
     drag = false;
-    const fast = dy / Math.max(1, Date.now() - t0) > 0.5; // быстрый смах
-    if (dy > 90 || fast) {
-      sheet.style.transition = 'transform .28s cubic-bezier(.3,.7,.2,1)';
-      sheet.style.transform = 'translateY(110vh)';
-      back.style.transition = 'background .28s';
-      back.style.background = 'rgba(0,0,0,0)';
-      setTimeout(() => { back.style.transition = ''; closeShareSheet(); }, 260);
-    } else {
-      sheet.style.transition = 'transform .3s cubic-bezier(.2,.9,.3,1.2)';
-      sheet.style.transform = '';
-      back.style.background = '';
+    let vel = 0;
+    if (samples.length > 1) {
+      const [ta, xa] = samples[0], [tb, xb] = samples[samples.length - 1];
+      vel = (xb - xa) / Math.max(0.016, (tb - ta) / 1000); // пикселей в секунду
     }
+    // учитываем и расстояние, и скорость смаха
+    const willGo = x + vel * 0.18 > Math.min(160, H() * 0.3);
+    if (willGo) spring(H() + 60, Math.max(vel, 500));
+    else spring(0, vel);
   };
   back.addEventListener('touchend', end);
   back.addEventListener('touchcancel', end);
@@ -6430,8 +6468,8 @@ function buildFade(id, fromBottom, { layers, minBlur, maxBlur }) {
     fadeLayers.push(el);
   }
 }
-buildFade('statusFade', false, { layers: 14, minBlur: 0.9, maxBlur: 4.6 });
-buildFade('bottomFade', true,  { layers: 5,  minBlur: 0.7, maxBlur: 2.0 });
+buildFade('statusFade', false, { layers: 18, minBlur: 0.5, maxBlur: 3.0 });
+buildFade('bottomFade', true,  { layers: 8,  minBlur: 0.4, maxBlur: 1.2 });
 let fadeFlip = false;
 function paintFade() {
   // 0.01px разницы — незаметно глазу, но заставляет iOS заново нарисовать размытие
