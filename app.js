@@ -2781,20 +2781,41 @@ function miniHeadSource() {
 }
 
 let miniHeadKey = '';
+// Логотип Forma при прокрутке профиля уезжает в центр и «прячется» в остров iPhone
+function setLogoP(e) {
+  const logo = document.querySelector('.topbar .logo');
+  if (!logo) return;
+  if (e <= 0.001) { logo.style.transform = ''; logo.style.opacity = ''; return; }
+  const root = document.documentElement;
+  const inset = parseFloat(getComputedStyle(root).getPropertyValue('--top-inset')) || 0;
+  const tb = document.querySelector('.topbar');
+  const tbH = tb ? tb.offsetHeight : 56;
+  const dx = window.innerWidth / 2 - (logo.offsetLeft + logo.offsetWidth / 2);
+  const dy = -(inset / 2 + tbH / 2); // центр острова — примерно посередине выреза
+  logo.style.transform = `translate(${(dx * e).toFixed(1)}px, ${(dy * e).toFixed(1)}px) scale(${(1 - 0.7 * e).toFixed(3)})`;
+  logo.style.opacity = String(Math.max(0, 1 - e * 1.3).toFixed(3));
+}
 function updateMiniHead() {
   const head = $('miniHead');
   const src = miniHeadSource();
   if (!src) {
     head.style.opacity = 0;
     head.classList.remove('shown');
-    document.body.classList.remove('mini-on');
+    document.body.classList.remove('mini-on', 'mini-screen');
+    setLogoP(0);
     return;
   }
   const rect = src.hero.getBoundingClientRect();
   // 0 — фото целиком на экране, 1 — фото уехало наверх
   const p = Math.min(1, Math.max(0, (150 - rect.bottom) / 110));
-  head.style.opacity = p;
-  head.style.transform = `translateY(${(1 - p) * -14}px)`;
+  const smooth = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); }; // плавное начало и конец
+  const eLogo = smooth(p / 0.7);          // логотип уезжает первым
+  const e = smooth((p - 0.3) / 0.7);      // плашка появляется чуть позже, когда логотип уже почти скрылся
+  document.body.classList.add('mini-screen');
+  head.style.opacity = Math.min(1, e * 1.2);
+  // плашка «вырастает» из кружка с аватаркой справа
+  head.style.transform = `translateY(${(1 - e) * -8}px) scale(${0.35 + 0.65 * e})`;
+  setLogoP(eLogo);
   head.classList.toggle('shown', p > 0.5);
   document.body.classList.toggle('mini-on', p > 0.5);
   $('miniAva').style.transform = `scale(${0.5 + p * 0.5})`;
@@ -6253,25 +6274,26 @@ function syncStack() {
   } catch (e) { /* без липкой стопки страница работает как раньше */ }
 }
 window.addEventListener('resize', syncStack);
-// Ступенчатое размытие: тонкие слои, у края экрана — сильнее, к середине — слабее
-const FADE_STEPS = [20, 15, 11, 8, 5.5, 4, 2.8, 1.8, 1.1, 0.6]; // сила размытия в пикселях, от края
+// Ступенчатое размытие: много тонких слоёв с плавной кривой силы; соседние слои сильно перекрываются,
+// поэтому границ между ними не видно. От края экрана (сильнее) к середине (слабее).
 const fadeLayers = [];
-function buildFade(id, fromBottom) {
+function buildFade(id, fromBottom, { steps, maxBlur, overlap }) {
   const box = document.getElementById(id);
   if (!box) return;
-  const h = 100 / FADE_STEPS.length;
-  FADE_STEPS.forEach((blur, k) => {
+  const h = 100 / steps;
+  for (let k = 0; k < steps; k++) {
+    const t = k / (steps - 1);                        // 0 — у края, 1 — дальше всего от него
+    const blur = Math.max(0.25, maxBlur * Math.pow(1 - t, 2.2)); // плавное затухание
     const el = document.createElement('i');
-    // каждый слой вдвое выше шага: соседние перекрываются, и границы между ними не видны
     el.style[fromBottom ? 'bottom' : 'top'] = (k * h) + '%';
-    el.style.height = (h * 2) + '%';
-    el.dataset.blur = blur;
+    el.style.height = (h * overlap) + '%';
+    el.dataset.blur = blur.toFixed(2);
     box.appendChild(el);
     fadeLayers.push(el);
-  });
+  }
 }
-buildFade('statusFade', false);
-buildFade('bottomFade', true);
+buildFade('statusFade', false, { steps: 18, maxBlur: 12, overlap: 3 });
+buildFade('bottomFade', true,  { steps: 8,  maxBlur: 5,  overlap: 3 });
 let fadeFlip = false;
 function paintFade() {
   // 0.01px разницы — незаметно глазу, но заставляет iOS заново нарисовать размытие
