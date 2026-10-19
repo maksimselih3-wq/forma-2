@@ -2260,11 +2260,11 @@ async function loadInsight() {
   }
 }
 
-$('insightsBtn').addEventListener('click', () => { showScreen('insightsScreen'); renderCharts(); });
+$('insightsBtn').addEventListener('click', () => { showScreen('insightsScreen'); showInsTab('charts'); });
 
-document.querySelectorAll('#insightsScreen .seg-btn').forEach((btn) => {
+document.querySelectorAll('#insightsScreen [data-period]').forEach((btn) => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('#insightsScreen .seg-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('#insightsScreen [data-period]').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
     selectedInsightPeriod = btn.dataset.period;
   });
@@ -3907,7 +3907,9 @@ function niceMax(v) {
 
 // Общая рамка графика: сетка, подписи осей, области нажатия по неделям
 function chartFrame(el, weeks, max, ticks, drawMarks, tipText) {
-  const W = Math.max(280, el.clientWidth || 320), H = 150;
+  const W = Math.max(280, el.clientWidth || 320);
+  // график занимает всё свободное место на экране (но не меньше 170 и не больше 340 пикселей)
+  const H = Math.max(170, Math.min(340, el.clientHeight || 190));
   const L = 30, R = 6, T = 18, B = 22;
   const band = (W - L - R) / weeks.length;
   const y = (v) => T + (H - T - B) * (1 - v / max);
@@ -3995,20 +3997,43 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.c-hit')) hideChartTip();
 }, true);
 
+// Какой график открыт и какая вкладка («Динамика» / «Разбор от Fom») на экране разбора
+let activeChart = 'km';
+function showActiveChart() {
+  document.querySelectorAll('#chartsCard .chart-block').forEach((b) => b.classList.toggle('hidden', b.dataset.chart !== activeChart));
+  document.querySelectorAll('#chartChips .chip').forEach((c) => c.classList.toggle('active', c.dataset.chart === activeChart));
+}
+document.querySelectorAll('#chartChips .chip').forEach((c) => c.addEventListener('click', () => {
+  activeChart = c.dataset.chart;
+  $('chartTable').classList.add('hidden'); $('chartsTableBtn').textContent = 'Таблица';
+  showActiveChart();
+  renderCharts();
+}));
+function showInsTab(tab) {
+  document.querySelectorAll('#insTabs .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.ins === tab));
+  $('insPaneCharts').classList.toggle('hidden', tab !== 'charts');
+  $('insPaneAi').classList.toggle('hidden', tab !== 'ai');
+  if (tab === 'charts') renderCharts();
+}
+document.querySelectorAll('#insTabs .seg-btn').forEach((b) => b.addEventListener('click', () => showInsTab(b.dataset.ins)));
+window.addEventListener('resize', () => { if (!$('insightsScreen').classList.contains('hidden')) renderCharts(); });
+
 function renderCharts() {
   if (!$('chartsCard')) return;
   const weeks = weekStats();
   const any = weeks.some((w) => w.count || w.feel != null);
   $('chartsCard').classList.toggle('empty', !any);
   if (!any) {
+    activeChart = 'km'; showActiveChart();
     ['chartKm', 'chartCount', 'chartFeel'].forEach((id) => { $(id).innerHTML = ''; });
     $('chartKm').innerHTML = '<div class="muted chart-empty">Графики появятся, когда в дневнике будут записи за последние недели.</div>';
     return;
   }
   hideChartTip();
-  barChart($('chartKm'), weeks, 'km', CHART_COLORS.km, 'км');
-  barChart($('chartCount'), weeks, 'count', CHART_COLORS.count, 'трен.');
-  lineChart($('chartFeel'), weeks);
+  // рисуем только открытый график: у скрытого нет размеров
+  if (activeChart === 'km') barChart($('chartKm'), weeks, 'km', CHART_COLORS.km, 'км');
+  if (activeChart === 'count') barChart($('chartCount'), weeks, 'count', CHART_COLORS.count, 'трен.');
+  if (activeChart === 'feel') lineChart($('chartFeel'), weeks);
   // та же информация таблицей
   $('chartTable').innerHTML = `<table><thead><tr><th>Неделя</th><th>км</th><th>трен.</th><th>самоч.</th><th>RPE</th></tr></thead><tbody>${
     weeks.slice().reverse().map((w) => `<tr><td>${esc(weekLabel(w))}</td><td>${fmtNum(w.km)}</td><td>${w.count}</td><td>${w.feel == null ? '—' : fmtNum(w.feel)}</td><td>${w.rpe == null ? '—' : fmtNum(w.rpe)}</td></tr>`).join('')
@@ -4017,7 +4042,12 @@ function renderCharts() {
 $('chartsTableBtn').addEventListener('click', () => {
   const t = $('chartTable');
   t.classList.toggle('hidden');
-  $('chartsTableBtn').textContent = t.classList.contains('hidden') ? 'Таблица' : 'Скрыть';
+  const open = !t.classList.contains('hidden');
+  $('chartsTableBtn').textContent = open ? 'График' : 'Таблица';
+  // таблица занимает место графика
+  document.querySelectorAll('#chartsCard .chart-block').forEach((b) => b.classList.toggle('hidden', open || b.dataset.chart !== activeChart));
+  document.querySelector('#chartsCard .chart-period-row .eyebrow')?.classList.toggle('hidden', open);
+  if (!open) renderCharts();
 });
 
 // =====================================================================
