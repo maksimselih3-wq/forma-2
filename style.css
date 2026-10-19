@@ -2308,3 +2308,40 @@ html.web-app body.chat-open.kb-open .chat-section {
 /* «стеклянная» панель под клавиатурой не нужна и на iOS мерцает белым — убираем целиком */
 html.web-app body.kb-open .bottom-nav { display: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 html.web-app, html.web-app body { overscroll-behavior-y: none; }
+
+/* =====================================================================
+   Верх экрана на iPhone: контент уходит под время, сеть и «остров» не обрезаясь, а плавно размываясь.
+   Работает там, где у экрана есть верхний вырез (установленное приложение и приложение из магазина);
+   в Telegram и в обычном браузере выреза нет — полоса не показывается.
+   ===================================================================== */
+#statusFade { display: none; }
+html.has-top-inset #statusFade {
+  display: block;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: calc(var(--top-inset, 0px) + 6px);
+  pointer-events: none;
+  z-index: 50;
+  background: linear-gradient(180deg, rgba(10, 12, 17, 0.9) 0%, rgba(10, 12, 17, 0.7) 70%, rgba(10, 12, 17, 0) 100%);
+}
+/* размытие нарастает к краю экрана: три слоя с разной силой */
+html.has-top-inset #statusFade::before,
+html.has-top-inset #statusFade::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+html.has-top-inset #statusFade::before {
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 55%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 55%, transparent 100%);
+}
+html.has-top-inset #statusFade::after {
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 calc(var(--top-inset, 0px) * 0.6), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 calc(var(--top-inset, 0px) * 0.6), transparent 100%);
+}
+/* когда открыт чат с клавиатурой или полноэкранное окно — свой фон, полоса не нужна */
+html.web-app body.chat-open.kb-open #statusFade { display: none; }
