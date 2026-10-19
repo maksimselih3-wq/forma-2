@@ -2422,3 +2422,41 @@ body.chat-open.kb-open .chat-section {
 html.web-app body.chat-open.kb-open .chat-section { padding-top: calc(env(safe-area-inset-top, 0px) + 8px); }
 body.chat-open .chat-input-row { padding-bottom: env(safe-area-inset-bottom, 0px); }
 body.chat-open.kb-open .chat-input-row { padding-bottom: 0; }
+
+/* =====================================================================
+   «Разбор» — один экран без прокрутки страницы (как чат)
+   ===================================================================== */
+body[data-screen="insightsScreen"] { overflow: hidden; overscroll-behavior: none; }
+.insights-one {
+  position: fixed;
+  left: 0; right: 0;
+  top: calc(var(--top-inset, 0px) + var(--topbar-h, 56px));
+  bottom: calc(var(--nav-space) - 12px + var(--nav-bottom));
+  padding: 4px 16px 8px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  z-index: 30;
+}
+.insights-one.hidden { display: none; }
+.insights-one > .segmented { flex: 0 0 auto; margin-bottom: 10px; }
+.ins-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ins-pane.hidden { display: none; }
+.insights-one .charts-card { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0; padding-bottom: 10px; }
+.insights-one .charts-head { gap: 8px; margin-bottom: 4px; }
+.chart-chips { display: flex; gap: 6px; flex-wrap: nowrap; min-width: 0; }
+.chart-chips .chip { padding: 7px 11px; font-size: 13px; white-space: nowrap; }
+.chart-period { margin: 6px 0 0; }
+.insights-one .chart-block { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 6px; }
+.insights-one .chart { flex: 1; min-height: 170px; }
+.insights-one .chart-table { flex: 1; min-height: 0; overflow-y: auto; margin-top: 8px; }
+.insights-one .charts-card.empty .chart-chips, .insights-one .charts-card.empty .chart-period-row { display: none; }
+/* вкладка с разбором: результат занимает остаток экрана и листается внутри */
+#insPaneAi .primary-btn { flex: 0 0 auto; margin-bottom: 10px; }
+#insPaneAi .segmented { flex: 0 0 auto; }
+#insPaneAi #insightBox { flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 0; -webkit-overflow-scrolling: touch; }
+#insPaneAi .status-msg, #insPaneAi .empty-hint { flex: 0 0 auto; }
+.chart-period-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.chart-period-row .eyebrow { margin: 0; }
+.chart-period-row .gift-rules-btn { padding: 5px 12px; font-size: 13px; }
+.chart-chips { width: 100%; }
+.chart-chips .chip { flex: 0 1 auto; padding: 7px 10px; }
