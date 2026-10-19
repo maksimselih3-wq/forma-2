@@ -1063,6 +1063,7 @@ async function init() {
     // первое открытие (или политика ещё не принята): без согласия дальше не пускаем
     if (!user.consent_at) { hideSplash(); await askConsent(); user.consent_at = new Date().toISOString(); }
     refreshHomeButton();
+    setupPush();
     $('shareCalendarToggle').checked = user.share_calendar !== false;
     $('showRecordsToggle').checked = user.show_records !== false;
     $('reminderToggle').checked = user.remind_enabled !== false;
@@ -6155,6 +6156,7 @@ if (OUTSIDE_TELEGRAM) {
   $('logoutBtn').classList.remove('hidden');
   $('logoutBtn').addEventListener('click', async () => {
     if (!(await confirmAsk({ icon: 'lock', title: 'Выйти из аккаунта?', text: 'Данные останутся, чтобы вернуться, войди через Telegram ещё раз.', ok: 'Выйти' }))) return;
+    await dropPushToken();
     try { await api('/api/webauth/logout', { method: 'POST' }); } catch (e) { /* всё равно выходим */ }
     setSession('');
     location.reload();
@@ -6194,6 +6196,34 @@ if (NATIVE) {
     });
   } catch (e) { /* нет плагина */ }
   try { P.SplashScreen?.hide?.(); } catch (e) { /* автоскрытие */ }
+}
+
+// ---------- Push-уведомления (только в приложении из магазина) ----------
+let pushToken = '';
+function pushPlugin() { return NATIVE ? (window.Capacitor.Plugins || {}).PushNotifications : null; }
+async function sendPushToken() {
+  if (!pushToken || !currentUser) return;
+  try {
+    await api('/api/push/register', { method: 'POST', body: JSON.stringify({ token: pushToken, platform: window.Capacitor.getPlatform?.() || '' }) });
+  } catch (e) { /* попробуем при следующем запуске */ }
+}
+async function setupPush() {
+  const PN = pushPlugin();
+  if (!PN) return;
+  try {
+    if (!setupPush.bound) {
+      setupPush.bound = true;
+      PN.addListener('registration', (t) => { pushToken = t?.value || ''; sendPushToken(); });
+      PN.addListener('registrationError', () => { /* без уведомлений приложение работает как раньше */ });
+    }
+    let perm = await PN.checkPermissions();
+    if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') perm = await PN.requestPermissions();
+    if (perm.receive === 'granted') await PN.register();
+  } catch (e) { /* не страшно */ }
+}
+async function dropPushToken() {
+  if (!pushToken) return;
+  try { await api('/api/push/unregister', { method: 'POST', body: JSON.stringify({ token: pushToken }) }); } catch (e) { /* ладно */ }
 }
 
 init();
