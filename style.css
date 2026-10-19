@@ -2346,7 +2346,7 @@ html.scrolled-top #statusFade { visibility: visible; }
 /* лёгкое затемнение: время, значки и шапка остаются читаемыми поверх размытого */
 #statusFade::before {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(var(--fade-rgb), 0.7) 0%, rgba(var(--fade-rgb), 0.62) 22%, rgba(var(--fade-rgb), 0.42) 45%, rgba(var(--fade-rgb), 0.2) 68%, rgba(var(--fade-rgb), 0.06) 86%, rgba(var(--fade-rgb), 0) 100%);
+  background: linear-gradient(180deg, rgba(var(--fade-rgb), 0.55) 0%, rgba(var(--fade-rgb), 0.48) 20%, rgba(var(--fade-rgb), 0.34) 40%, rgba(var(--fade-rgb), 0.19) 58%, rgba(var(--fade-rgb), 0.08) 76%, rgba(var(--fade-rgb), 0.02) 90%, rgba(var(--fade-rgb), 0) 100%);
 }
 
 /* ---- низ: под плавающей нижней панелью ---- */
@@ -2359,7 +2359,7 @@ html.scrolled-top #statusFade { visibility: visible; }
 body.has-bottom-fade #bottomFade { visibility: visible; }
 #bottomFade::before {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(0deg, rgba(var(--fade-rgb), 0.32) 0%, rgba(var(--fade-rgb), 0.14) 55%, rgba(var(--fade-rgb), 0) 100%);
+  background: linear-gradient(0deg, rgba(var(--fade-rgb), 0.22) 0%, rgba(var(--fade-rgb), 0.12) 40%, rgba(var(--fade-rgb), 0.04) 75%, rgba(var(--fade-rgb), 0) 100%);
 }
 
 /* где нижняя панель скрыта или у экрана свой фон — дымка не нужна */
@@ -2465,3 +2465,7 @@ body[data-screen="insightsScreen"] { overflow: hidden; overscroll-behavior: none
 html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: none; }
 #shareSheet { overscroll-behavior: contain; }
 #shareSheet .sheet { will-change: transform; overscroll-behavior: contain; }
+
+/* Фон окна «Поделиться» темнеет по переменной --dim, без скачков при отпускании */
+#shareSheet { background: rgba(0, 0, 0, calc(0.55 * var(--dim, 1))); }
+html[data-theme="light"] #shareSheet { background: rgba(30, 34, 44, calc(0.35 * var(--dim, 1))); }
