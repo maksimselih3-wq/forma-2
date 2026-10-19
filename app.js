@@ -294,7 +294,8 @@ function showScreen(targetId) {
   try { moveNavIndicator(targetId); animateScreenIn(targetId); } catch (e) {}
   document.body.dataset.screen = targetId; // для стилей: например, в своём профиле прячем огонёк и аватарку в шапке
   window.scrollTo(0, 0);
-  setTimeout(() => { try { updateMiniHead(); } catch (e) {} }, 0);
+  setTimeout(() => { try { updateMiniHead(); } catch (e) {} try { syncStack(); } catch (e) {} }, 0);
+  setTimeout(() => { try { syncStack(); } catch (e) {} }, 400); // после анимации перехода и подгрузки данных
 }
 
 // =====================================================================
@@ -2786,6 +2787,7 @@ function updateMiniHead() {
   if (!src) {
     head.style.opacity = 0;
     head.classList.remove('shown');
+    document.body.classList.remove('mini-on');
     return;
   }
   const rect = src.hero.getBoundingClientRect();
@@ -2794,6 +2796,7 @@ function updateMiniHead() {
   head.style.opacity = p;
   head.style.transform = `translateY(${(1 - p) * -14}px)`;
   head.classList.toggle('shown', p > 0.5);
+  document.body.classList.toggle('mini-on', p > 0.5);
   $('miniAva').style.transform = `scale(${0.5 + p * 0.5})`;
 
   const key = src.name + src.stats + src.ava;
@@ -6216,12 +6219,40 @@ window.addEventListener('orientationchange', () => setTimeout(updateTopInset, 30
 // Дымка сверху видна, только когда страница прокручена (в самом верху под «островом» её быть не должно)
 function updateScrolledFlag() {
   const y = window.scrollY || document.documentElement.scrollTop || 0;
-  document.documentElement.classList.toggle('scrolled-top', y > 4);
+  const on = document.documentElement.classList.contains('scrolled-top');
+  // два порога (24 и 6 пикселей), чтобы шапка не дёргалась на границе
+  const next = on ? y > 6 : y > 24;
+  if (next !== on) document.documentElement.classList.toggle('scrolled-top', next);
 }
 window.addEventListener('scroll', updateScrolledFlag, { passive: true });
 updateScrolledFlag();
+setTimeout(syncStack, 0);
+setTimeout(syncStack, 1500); // когда приложение уже загрузило данные
 document.body.classList.add('has-bottom-fade');
 
+// Липкая стопка наверху: шапка → «назад» экрана → вкладки. Каждая ступень знает, где ей прилипнуть,
+// а размытие под ними доходит до нижнего края стопки.
+const STICKY_TAB_IDS = ['friendsTabs', 'healthTabs', 'groupTabs'];
+function syncStack() {
+  try {
+    const root = document.documentElement;
+    const inset = parseFloat(getComputedStyle(root).getPropertyValue('--top-inset')) || 0;
+    const tb = document.querySelector('.topbar');
+    let y = inset + (tb && getComputedStyle(tb).display !== 'none' ? tb.offsetHeight : 0);
+    const scr = document.querySelector('.screen:not(.hidden)');
+    if (scr) {
+      for (const el of scr.children) {
+        if (!(el.classList.contains('screen-head') || STICKY_TAB_IDS.includes(el.id))) continue;
+        if (el.classList.contains('hidden')) continue;
+        el.classList.add('stuck-item');
+        el.style.top = y + 'px';
+        y += el.offsetHeight + 6;
+      }
+    }
+    root.style.setProperty('--top-fade-h', (y + 16) + 'px');
+  } catch (e) { /* без липкой стопки страница работает как раньше */ }
+}
+window.addEventListener('resize', syncStack);
 // Ступенчатое размытие: тонкие слои, у края экрана — сильнее, к середине — слабее
 const FADE_STEPS = [20, 15, 11, 8, 5.5, 4, 2.8, 1.8, 1.1, 0.6]; // сила размытия в пикселях, от края
 const fadeLayers = [];
