@@ -2848,6 +2848,32 @@ function updateMiniHead() {
   }
 }
 window.addEventListener('scroll', updateMiniHead, { passive: true });
+
+// «Магнит»: если прокрутка остановилась посреди растягивания логотипа,
+// меньше половины пути — откатываем назад, половина и больше — докатываем до островка.
+(function initMiniSnap() {
+  let timer = null, touching = false;
+  const arm = () => { clearTimeout(timer); timer = setTimeout(snap, 140); };
+  function snap() {
+    if (touching) return;
+    const src = miniHeadSource();
+    if (!src) return;
+    const rect = src.hero.getBoundingClientRect();
+    const p = (180 - rect.bottom) / 200;
+    if (p <= 0.02 || p >= 0.98) return;
+    const toEnd = p >= 0.5;
+    const maxTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    let top = window.scrollY + (rect.bottom - 180) + (toEnd ? 200 : 0);
+    top = Math.min(maxTop, Math.max(0, top));
+    if (Math.abs(top - window.scrollY) < 1) return;
+    window.scrollTo({ top, behavior: 'smooth' });
+  }
+  window.addEventListener('scroll', arm, { passive: true });
+  window.addEventListener('touchstart', () => { touching = true; clearTimeout(timer); }, { passive: true });
+  const up = () => { touching = false; arm(); };
+  window.addEventListener('touchend', up, { passive: true });
+  window.addEventListener('touchcancel', up, { passive: true });
+})();
 $('miniHead').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
 // ---------- Жест «назад»: провести пальцем слева направо в любом месте экрана ----------
@@ -4710,7 +4736,69 @@ async function openShareSheet(w) {
     $('shareStatus').textContent = 'Не получилось нарисовать карточку — можно отправить текстом.';
   }
 }
-function closeShareSheet() { $('shareSheet').classList.add('hidden'); }
+function closeShareSheet() {
+  const sh = $('shareSheet');
+  sh.classList.add('hidden');
+  const el = sh.querySelector('.sheet');
+  if (el) { el.style.transition = ''; el.style.transform = ''; }
+  sh.style.background = '';
+  document.documentElement.classList.remove('sheet-open');
+}
+
+// Тянем карточку вниз пальцем — она уезжает и закрывается; отпустили рано — возвращается на место.
+// Пока окно открыто, страница под ним не двигается.
+(function initShareSwipe() {
+  const back = $('shareSheet');
+  const sheet = back.querySelector('.sheet');
+  let y0 = 0, dy = 0, t0 = 0, drag = false, tracking = false;
+  new MutationObserver(() => {
+    document.documentElement.classList.toggle('sheet-open', !back.classList.contains('hidden'));
+  }).observe(back, { attributes: true, attributeFilter: ['class'] });
+
+  back.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    y0 = e.touches[0].clientY; dy = 0; t0 = Date.now(); drag = false;
+    // внутри окна начинаем тянуть только если оно прокручено до верха
+    tracking = !sheet.contains(e.target) || sheet.scrollTop <= 0;
+    sheet.style.transition = 'none';
+  }, { passive: true });
+
+  back.addEventListener('touchmove', (e) => {
+    // страница под окном не должна ехать ни при каком движении пальца
+    const scrollableInside = sheet.contains(e.target) && sheet.scrollHeight > sheet.clientHeight + 1;
+    const d0 = e.touches[0].clientY - y0;
+    // содержимое окна само прокручивается, только если оно длиннее экрана и палец идёт не вниз с самого верха
+    if (e.cancelable && !(scrollableInside && !drag && (sheet.scrollTop > 0 || d0 < 0))) e.preventDefault();
+    if (!tracking) return;
+    const d = e.touches[0].clientY - y0;
+    if (d <= 0 && !drag) return;
+    drag = true;
+    dy = Math.max(0, d);
+    sheet.style.transform = `translateY(${dy}px)`;
+    back.style.background = `rgba(0,0,0,${0.55 * Math.max(0, 1 - dy / 500)})`;
+  }, { passive: false });
+
+  const end = () => {
+    if (!tracking && !drag) return;
+    tracking = false;
+    if (!drag) return;
+    drag = false;
+    const fast = dy / Math.max(1, Date.now() - t0) > 0.5; // быстрый смах
+    if (dy > 90 || fast) {
+      sheet.style.transition = 'transform .28s cubic-bezier(.3,.7,.2,1)';
+      sheet.style.transform = 'translateY(110vh)';
+      back.style.transition = 'background .28s';
+      back.style.background = 'rgba(0,0,0,0)';
+      setTimeout(() => { back.style.transition = ''; closeShareSheet(); }, 260);
+    } else {
+      sheet.style.transition = 'transform .3s cubic-bezier(.2,.9,.3,1.2)';
+      sheet.style.transform = '';
+      back.style.background = '';
+    }
+  };
+  back.addEventListener('touchend', end);
+  back.addEventListener('touchcancel', end);
+})();
 
 // Картинку кладём на сервер — Telegram берёт её по ссылке
 async function uploadStoryImage() {
