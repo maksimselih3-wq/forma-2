@@ -2781,43 +2781,62 @@ function miniHeadSource() {
 }
 
 let miniHeadKey = '';
-// Логотип Forma при прокрутке профиля уезжает в центр и «прячется» в остров iPhone
-function setLogoP(e) {
+// Логотип Forma при прокрутке профиля втягивается в остров iPhone: уезжает к центру, вытягивается и тает.
+// Значения не прыгают вслед за пальцем, а догоняют его с плавным замедлением (пружина) — движение «жидкое».
+const smooth01 = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+let miniTarget = 0, miniCur = 0, miniRaf = 0;
+function applyMini(p) {
+  const head = $('miniHead');
+  const eLogo = smooth01(p / 0.72);        // логотип уезжает первым
+  const e = smooth01((p - 0.38) / 0.62);   // плашка появляется, когда логотип уже почти скрылся
+  head.style.opacity = Math.min(1, e * 1.25).toFixed(3);
+  head.style.transform = `translateY(${((1 - e) * -10).toFixed(2)}px) scale(${(0.35 + 0.65 * e).toFixed(3)})`;
+  head.classList.toggle('shown', p > 0.55);
+  document.body.classList.toggle('mini-on', p > 0.5);
+  setLogoP(eLogo);
+}
+function miniFrame() {
+  miniRaf = 0;
+  const d = miniTarget - miniCur;
+  miniCur = Math.abs(d) < 0.0008 ? miniTarget : miniCur + d * 0.16;
+  applyMini(miniCur);
+  if (miniCur !== miniTarget) miniRaf = requestAnimationFrame(miniFrame);
+}
+function setMiniTarget(p, instant) {
+  miniTarget = p;
+  if (instant) { miniCur = p; applyMini(p); return; }
+  if (!miniRaf) miniRaf = requestAnimationFrame(miniFrame);
+}
+function setLogoP(t) {
   const logo = document.querySelector('.topbar .logo');
   if (!logo) return;
-  if (e <= 0.001) { logo.style.transform = ''; logo.style.opacity = ''; return; }
+  if (t <= 0.001) { logo.style.transform = ''; logo.style.opacity = ''; logo.style.filter = ''; return; }
   const root = document.documentElement;
   const inset = parseFloat(getComputedStyle(root).getPropertyValue('--top-inset')) || 0;
   const tb = document.querySelector('.topbar');
   const tbH = tb ? tb.offsetHeight : 56;
   const dx = window.innerWidth / 2 - (logo.offsetLeft + logo.offsetWidth / 2);
-  const dy = -(inset / 2 + tbH / 2); // центр острова — примерно посередине выреза
-  logo.style.transform = `translate(${(dx * e).toFixed(1)}px, ${(dy * e).toFixed(1)}px) scale(${(1 - 0.7 * e).toFixed(3)})`;
-  logo.style.opacity = String(Math.max(0, 1 - e * 1.3).toFixed(3));
+  const dy = -(inset / 2 + tbH / 2);              // центр острова — примерно посередине выреза
+  const go = Math.pow(t, 1.7);                     // к острову ускоряется, как будто его втягивает
+  const sx = 1 - 0.86 * Math.pow(t, 1.4);          // сужается
+  const sy = 1 + 0.55 * Math.sin(Math.PI * Math.min(1, t * 1.05)) - 0.6 * Math.pow(t, 3); // вытягивается вверх и в конце тает
+  const blur = 7 * Math.sin(Math.PI * Math.min(1, t * 0.92));
+  logo.style.transform = `translate(${(dx * go).toFixed(1)}px, ${(dy * go).toFixed(1)}px) scale(${sx.toFixed(3)}, ${Math.max(0.05, sy).toFixed(3)})`;
+  logo.style.opacity = String(Math.max(0, 1 - smooth01((t - 0.5) / 0.5)).toFixed(3));
+  logo.style.filter = blur > 0.2 ? `blur(${blur.toFixed(1)}px)` : '';
 }
 function updateMiniHead() {
-  const head = $('miniHead');
   const src = miniHeadSource();
   if (!src) {
-    head.style.opacity = 0;
-    head.classList.remove('shown');
-    document.body.classList.remove('mini-on', 'mini-screen');
-    setLogoP(0);
+    document.body.classList.remove('mini-screen');
+    setMiniTarget(0, true);
     return;
   }
-  const rect = src.hero.getBoundingClientRect();
-  // 0 — фото целиком на экране, 1 — фото уехало наверх
-  const p = Math.min(1, Math.max(0, (150 - rect.bottom) / 110));
-  const smooth = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); }; // плавное начало и конец
-  const eLogo = smooth(p / 0.7);          // логотип уезжает первым
-  const e = smooth((p - 0.3) / 0.7);      // плашка появляется чуть позже, когда логотип уже почти скрылся
   document.body.classList.add('mini-screen');
-  head.style.opacity = Math.min(1, e * 1.2);
-  // плашка «вырастает» из кружка с аватаркой справа
-  head.style.transform = `translateY(${(1 - e) * -8}px) scale(${0.35 + 0.65 * e})`;
-  setLogoP(eLogo);
-  head.classList.toggle('shown', p > 0.5);
-  document.body.classList.toggle('mini-on', p > 0.5);
+  const rect = src.hero.getBoundingClientRect();
+  // 0 — фото целиком на экране, 1 — фото уехало наверх (растянуто на 200 пикселей прокрутки — медленно и плавно)
+  const p = Math.min(1, Math.max(0, (180 - rect.bottom) / 200));
+  setMiniTarget(p);
   $('miniAva').style.transform = `scale(${0.5 + p * 0.5})`;
 
   const key = src.name + src.stats + src.ava;
@@ -6274,26 +6293,27 @@ function syncStack() {
   } catch (e) { /* без липкой стопки страница работает как раньше */ }
 }
 window.addEventListener('resize', syncStack);
-// Ступенчатое размытие: много тонких слоёв с плавной кривой силы; соседние слои сильно перекрываются,
-// поэтому границ между ними не видно. От края экрана (сильнее) к середине (слабее).
+// Размытие нарастает к краю экрана без видимых границ: слои лежат друг на друге, все прижаты к краю, но
+// достают на разную глубину. Длинные слои слабые (они задевают всю зону), короткие — сильнее (только у самого края).
+// Размытия складываются, поэтому сила плавно растёт к краю, а у каждого слоя граница почти не заметна.
 const fadeLayers = [];
-function buildFade(id, fromBottom, { steps, maxBlur, overlap }) {
+function buildFade(id, fromBottom, { layers, minBlur, maxBlur }) {
   const box = document.getElementById(id);
   if (!box) return;
-  const h = 100 / steps;
-  for (let k = 0; k < steps; k++) {
-    const t = k / (steps - 1);                        // 0 — у края, 1 — дальше всего от него
-    const blur = Math.max(0.25, maxBlur * Math.pow(1 - t, 2.2)); // плавное затухание
+  for (let j = 0; j < layers; j++) {
+    const t = layers > 1 ? j / (layers - 1) : 0;      // 0 — самый длинный и слабый слой, 1 — самый короткий и сильный
+    const reach = Math.pow(1 - j / layers, 1.25);      // доля зоны, которую слой покрывает
+    const blur = minBlur + (maxBlur - minBlur) * Math.pow(t, 1.3);
     const el = document.createElement('i');
-    el.style[fromBottom ? 'bottom' : 'top'] = (k * h) + '%';
-    el.style.height = (h * overlap) + '%';
+    el.style[fromBottom ? 'bottom' : 'top'] = '0';
+    el.style.height = (reach * 100).toFixed(1) + '%';
     el.dataset.blur = blur.toFixed(2);
     box.appendChild(el);
     fadeLayers.push(el);
   }
 }
-buildFade('statusFade', false, { steps: 18, maxBlur: 12, overlap: 3 });
-buildFade('bottomFade', true,  { steps: 8,  maxBlur: 5,  overlap: 3 });
+buildFade('statusFade', false, { layers: 14, minBlur: 0.9, maxBlur: 4.6 });
+buildFade('bottomFade', true,  { layers: 5,  minBlur: 0.7, maxBlur: 2.0 });
 let fadeFlip = false;
 function paintFade() {
   // 0.01px разницы — незаметно глазу, но заставляет iOS заново нарисовать размытие
