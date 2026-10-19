@@ -6222,6 +6222,41 @@ window.addEventListener('scroll', updateScrolledFlag, { passive: true });
 updateScrolledFlag();
 document.body.classList.add('has-bottom-fade');
 
+// Ступенчатое размытие: тонкие слои, у края экрана — сильнее, к середине — слабее
+const FADE_STEPS = [20, 15, 11, 8, 5.5, 4, 2.8, 1.8, 1.1, 0.6]; // сила размытия в пикселях, от края
+const fadeLayers = [];
+function buildFade(id, fromBottom) {
+  const box = document.getElementById(id);
+  if (!box) return;
+  const h = 100 / FADE_STEPS.length;
+  FADE_STEPS.forEach((blur, k) => {
+    const el = document.createElement('i');
+    // каждый слой вдвое выше шага: соседние перекрываются, и границы между ними не видны
+    el.style[fromBottom ? 'bottom' : 'top'] = (k * h) + '%';
+    el.style.height = (h * 2) + '%';
+    el.dataset.blur = blur;
+    box.appendChild(el);
+    fadeLayers.push(el);
+  });
+}
+buildFade('statusFade', false);
+buildFade('bottomFade', true);
+let fadeFlip = false;
+function paintFade() {
+  // 0.01px разницы — незаметно глазу, но заставляет iOS заново нарисовать размытие
+  fadeFlip = !fadeFlip;
+  const d = fadeFlip ? 0.01 : 0;
+  for (const el of fadeLayers) {
+    const v = `blur(${(Number(el.dataset.blur) + d).toFixed(2)}px)`;
+    el.style.backdropFilter = v; el.style.webkitBackdropFilter = v;
+  }
+}
+paintFade();
+let fadeIdle = 0;
+window.addEventListener('scroll', () => { clearTimeout(fadeIdle); fadeIdle = setTimeout(paintFade, 120); }, { passive: true });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) paintFade(); });
+window.addEventListener('pageshow', paintFade);
+
 // ---------- Push-уведомления (только в приложении из магазина) ----------
 let pushToken = '';
 function pushPlugin() { return NATIVE ? (window.Capacitor.Plugins || {}).PushNotifications : null; }
