@@ -6213,6 +6213,14 @@ function updateTopInset() {
 updateTopInset();
 window.addEventListener('resize', updateTopInset);
 window.addEventListener('orientationchange', () => setTimeout(updateTopInset, 300));
+// Дымка сверху видна, только когда страница прокручена (в самом верху под «островом» её быть не должно)
+function updateScrolledFlag() {
+  const y = window.scrollY || document.documentElement.scrollTop || 0;
+  document.documentElement.classList.toggle('scrolled-top', y > 4);
+}
+window.addEventListener('scroll', updateScrolledFlag, { passive: true });
+updateScrolledFlag();
+document.body.classList.add('has-bottom-fade');
 
 // ---------- Push-уведомления (только в приложении из магазина) ----------
 let pushToken = '';
