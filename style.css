@@ -2346,7 +2346,7 @@ html.scrolled-top #statusFade { visibility: visible; }
 /* лёгкое затемнение: время, значки и шапка остаются читаемыми поверх размытого */
 #statusFade::before {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(var(--fade-rgb), 0.72) 0%, rgba(var(--fade-rgb), 0.5) 60%, rgba(var(--fade-rgb), 0) 100%);
+  background: linear-gradient(180deg, rgba(var(--fade-rgb), 0.7) 0%, rgba(var(--fade-rgb), 0.62) 22%, rgba(var(--fade-rgb), 0.42) 45%, rgba(var(--fade-rgb), 0.2) 68%, rgba(var(--fade-rgb), 0.06) 86%, rgba(var(--fade-rgb), 0) 100%);
 }
 
 /* ---- низ: под плавающей нижней панелью ---- */
@@ -2384,7 +2384,7 @@ html.scrolled-top .screen-head.stuck-item { transform: scale(0.92); transform-or
 /* профиль: когда сверху появляется компактная карточка с именем, обычная шапка прячется */
 body.mini-on .topbar-right { opacity: 0; transform: scale(0.6); transform-origin: right center; pointer-events: none; }
 .topbar-right { transition: opacity 0.2s ease, transform 0.25s ease; }
-body.mini-screen .topbar .logo { font-size: 26px; transition: none; will-change: transform, opacity; }
+body.mini-screen .topbar .logo { font-size: 26px; transition: none; will-change: transform, opacity, filter; transform-origin: center center; }
 body.mini-screen .topbar .logo-dot { margin-bottom: 7px; }
 .mini-head { z-index: 47; transform-origin: right center; will-change: transform, opacity; }
 .bottom-nav { z-index: 48; }
