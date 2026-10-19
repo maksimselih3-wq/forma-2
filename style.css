@@ -21,6 +21,8 @@
   --grad-lime: linear-gradient(90deg, #c2f74a 0%, #6fdc3a 100%);
   --grad-plus: radial-gradient(circle at 30% 30%, #d6ff6a 0%, #8ee043 45%, #9b6bff 100%);
   --radius: 20px;
+  --fade-rgb: 10, 12, 17;   /* цвет затемнения у краёв экрана (в светлой теме другой) */
+  --topbar-h: 56px;
   --nav-space: 104px; /* место под нижнюю панель */
   /* отступ панели от низа: на iPhone с «полоской» внизу панель стоит почти у самого края, как в системных приложениях */
   --nav-bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) - 14px));
@@ -57,7 +59,13 @@ button { color: inherit; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px 10px;
+  padding: 0 16px;
+  height: var(--topbar-h, 56px);
+  box-sizing: border-box;
+  /* шапка остаётся наверху при прокрутке; содержимое уходит под неё и размывается */
+  position: sticky;
+  top: var(--top-inset, 0px);
+  z-index: 46;
 }
 .logo {
   font-family: var(--font-head);
@@ -1644,7 +1652,7 @@ html[data-theme="light"] .nav-indicator {
 .nav-btn svg, .nav-btn span { transition: transform 0.25s ease, color 0.2s ease; }
 .nav-btn.active svg { transform: translateY(-2px) scale(1.12); }
 .nav-btn.active span { color: var(--lime-text); }
-.screen.screen-in { animation: screen-in 0.28s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+.screen.screen-in { animation: screen-in 0.28s cubic-bezier(0.2, 0.8, 0.3, 1) backwards; }
 .screen.screen-in.from-right { --from: 26px; }
 .screen.screen-in.from-left { --from: -26px; }
 .screen.screen-in.from-none { --from: 0px; }
@@ -1855,6 +1863,7 @@ button.rank-row { cursor: pointer; }
    Светлая тема — включается в «Настройках» (html[data-theme="light"])
    ===================================================================== */
 html[data-theme="light"] {
+  --fade-rgb: 243, 244, 239;
   --bg: #f3f4ef;
   --card-top: #ffffff;
   --card-bottom: #fbfbf8;
@@ -2325,19 +2334,19 @@ html.web-app, html.web-app body { overscroll-behavior-y: none; }
 }
 #statusFade i, #bottomFade i { position: absolute; left: 0; right: 0; display: block; }
 
-/* ---- верх ---- */
-html.has-top-inset #statusFade {
+/* ---- верх: под липкой шапкой и вкладками ---- */
+#statusFade {
   display: block;
   top: 0;
-  height: calc(var(--top-inset, 0px) + 30px);
-  z-index: 50;
+  height: var(--top-fade-h, calc(var(--top-inset, 0px) + 78px));
+  z-index: 44;                      /* ниже шапки (46) и липких вкладок, выше содержимого */
 }
-/* видна, только когда страница прокручена: в самом верху под «островом» ничего не нужно */
-html.has-top-inset.scrolled-top #statusFade { visibility: visible; }
-/* лёгкое затемнение: делает время и значки читаемыми поверх размытого */
+/* видна, только когда страница прокручена: в самом верху ничего размывать не нужно */
+html.scrolled-top #statusFade { visibility: visible; }
+/* лёгкое затемнение: время, значки и шапка остаются читаемыми поверх размытого */
 #statusFade::before {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(10, 12, 17, 0.55) 0%, rgba(10, 12, 17, 0.3) 55%, rgba(10, 12, 17, 0) 100%);
+  background: linear-gradient(180deg, rgba(var(--fade-rgb), 0.72) 0%, rgba(var(--fade-rgb), 0.5) 60%, rgba(var(--fade-rgb), 0) 100%);
 }
 
 /* ---- низ: под плавающей нижней панелью ---- */
@@ -2350,9 +2359,64 @@ html.has-top-inset.scrolled-top #statusFade { visibility: visible; }
 body.has-bottom-fade #bottomFade { visibility: visible; }
 #bottomFade::before {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(0deg, rgba(10, 12, 17, 0.5) 0%, rgba(10, 12, 17, 0.28) 55%, rgba(10, 12, 17, 0) 100%);
+  background: linear-gradient(0deg, rgba(var(--fade-rgb), 0.5) 0%, rgba(var(--fade-rgb), 0.28) 55%, rgba(var(--fade-rgb), 0) 100%);
 }
 
 /* где нижняя панель скрыта или у экрана свой фон — дымка не нужна */
 body.login-open #bottomFade, body.kb-open #bottomFade { display: none; }
 html.web-app body.chat-open.kb-open #statusFade { display: none; }
+body.chat-open #statusFade { display: none; }  /* в чате страница не листается — размывать нечего */
+
+/* =====================================================================
+   Липкая шапка и вкладки: остаются наверху, при прокрутке «сжимаются»
+   ===================================================================== */
+.stuck-item { position: sticky; z-index: 46; }
+.topbar .logo, .topbar .streak-pill, .topbar .avatar-btn { transition: font-size 0.25s ease, transform 0.25s ease; }
+.topbar .streak-pill { transform-origin: right center; }
+.topbar .avatar-btn { transform-origin: right center; }
+html.scrolled-top .topbar .logo { font-size: 20px; }
+html.scrolled-top .topbar .logo-dot { margin-bottom: 5px; }
+html.scrolled-top .topbar .streak-pill { transform: scale(0.88); }
+html.scrolled-top .topbar .avatar-btn { transform: scale(0.8); }
+.segmented.stuck-item, .screen-head.stuck-item { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+html.scrolled-top .segmented.stuck-item { transform: scale(0.9); transform-origin: top center; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); }
+html.scrolled-top .screen-head.stuck-item { transform: scale(0.92); transform-origin: left center; }
+/* профиль: когда сверху появляется компактная карточка с именем, обычная шапка прячется */
+body.mini-on .topbar { opacity: 0; pointer-events: none; }
+.topbar { transition: opacity 0.2s ease; }
+.mini-head { z-index: 47; }
+.bottom-nav { z-index: 48; }
+#bottomFade { z-index: 47; }
+
+/* =====================================================================
+   Чат с Fom: строка ввода всегда внизу, как в мессенджерах; прокручивается только лента сообщений
+   ===================================================================== */
+body.chat-open { overflow: hidden; overscroll-behavior: none; }
+.chat-section {
+  position: fixed;
+  left: 0; right: 0;
+  top: calc(var(--top-inset, 0px) + var(--topbar-h, 56px));
+  bottom: calc(var(--nav-space) - 12px + var(--nav-bottom));
+  height: auto;
+  padding: 0 16px 8px;
+  z-index: 30;
+  overflow: hidden;
+}
+.chat-messages {
+  min-height: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  /* сообщения плавно растворяются у верхнего и нижнего края ленты */
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 18px, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 18px, #000 calc(100% - 14px), transparent 100%);
+}
+/* клавиатура открыта: чат на всю видимую высоту, строка ввода — над клавиатурой */
+body.chat-open.kb-open .chat-section {
+  top: var(--app-top, 0px);
+  bottom: auto;
+  height: var(--app-h, 100vh);
+  padding-top: calc(var(--top-inset, 0px) + 8px);
+}
+html.web-app body.chat-open.kb-open .chat-section { padding-top: calc(env(safe-area-inset-top, 0px) + 8px); }
+body.chat-open .chat-input-row { padding-bottom: env(safe-area-inset-bottom, 0px); }
+body.chat-open.kb-open .chat-input-row { padding-bottom: 0; }
