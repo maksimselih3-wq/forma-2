@@ -2483,3 +2483,5 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: rgba(180
 .login-or::before, .login-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 #mailCard input { margin-bottom: 8px; }
 #mailForm { margin-top: 10px; }
+
+.privacy-link { display: block; margin-top: 12px; text-align: center; font-size: 14px; color: var(--lime-text, #b4f53c); text-decoration: underline; }
