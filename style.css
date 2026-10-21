@@ -2469,3 +2469,17 @@ html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: n
 /* Фон окна «Поделиться» темнеет по переменной --dim, без скачков при отпускании */
 #shareSheet { background: rgba(0, 0, 0, calc(0.55 * var(--dim, 1))); }
 html[data-theme="light"] #shareSheet { background: rgba(30, 34, 44, calc(0.35 * var(--dim, 1))); }
+
+/* Вход по почте */
+input[type="email"], input[type="password"] {
+  width: 100%; box-sizing: border-box; padding: 13px 14px; border-radius: 14px;
+  border: 1px solid var(--border-strong); background: rgba(var(--ink), 0.05);
+  color: inherit; font: inherit; font-size: 16px; outline: none; margin-bottom: 8px;
+}
+input[type="email"]:focus, input[type="password"]:focus { border-color: rgba(180, 245, 60, 0.55); }
+.login-mail { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.login-mail input { margin: 0; }
+.login-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 6px 0 2px; }
+.login-or::before, .login-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+#mailCard input { margin-bottom: 8px; }
+#mailForm { margin-top: 10px; }
