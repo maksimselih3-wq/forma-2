@@ -5,7 +5,38 @@
 // Нативное приложение (Capacitor: Google Play / App Store): страницы лежат внутри приложения, сервер — всегда Railway
 const NATIVE = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
 const SELF_HOSTED = !/github\.io$/.test(location.hostname) && location.protocol !== 'file:' && !NATIVE;
-const API_BASE = SELF_HOSTED ? '' : 'https://forma-production-9c7a.up.railway.app';
+// Два адреса сервера: прямой (Railway) и зеркало на своём домене (проходит без VPN в России).
+// Приложение само выбирает тот, что отвечает, и запоминает выбор; если один пропал — переключается на другой.
+const API_DIRECT = 'https://forma-production-9c7a.up.railway.app';
+const API_MIRROR = 'https://gang.forma2ko5.online';
+let API_BASE = SELF_HOSTED ? '' : API_DIRECT;
+let apiReady = Promise.resolve();
+if (!SELF_HOSTED) {
+  let saved = '';
+  try { saved = localStorage.getItem('forma_api') || ''; } catch (e) { /* нет хранилища */ }
+  if (saved === API_DIRECT || saved === API_MIRROR) API_BASE = saved;
+  else if (NATIVE) API_BASE = API_MIRROR; // в приложении из магазина по умолчанию идём через зеркало
+  const alt = () => (API_BASE === API_DIRECT ? API_MIRROR : API_DIRECT);
+  const remember = () => { try { localStorage.setItem('forma_api', API_BASE); } catch (e) { /* ничего страшного */ } };
+  // проверяем оба адреса одновременно: кто первым ответил, тот и основной
+  const probe = (base, ms) => new Promise((ok, no) => {
+    const c = typeof AbortController === 'function' ? new AbortController() : null;
+    const t = setTimeout(() => { if (c) c.abort(); no(new Error('timeout')); }, ms);
+    fetch(base + '/api/asset/tg.js', { cache: 'no-store', signal: c ? c.signal : undefined })
+      .then((r) => { clearTimeout(t); r.ok ? ok(base) : no(new Error('http ' + r.status)); })
+      .catch((e) => { clearTimeout(t); no(e); });
+  });
+  const pick = (ms) => {
+    const list = [API_BASE, alt()];
+    return new Promise((ok) => {
+      let fails = 0;
+      list.forEach((b) => probe(b, ms).then((good) => { API_BASE = good; remember(); ok(); }, () => { if (++fails === list.length) ok(); }));
+    });
+  };
+  // первый запуск (адрес ещё не выбирали) — ждём проверку, но не дольше 7 секунд; дальше — проверяем в фоне
+  apiReady = saved ? (pick(8000), Promise.resolve()) : pick(7000);
+  window.__switchApi = () => { API_BASE = alt(); remember(); };
+}
 
 const tg = window.Telegram?.WebApp;
 
@@ -240,17 +271,26 @@ async function api(path, options = {}) {
   const timer = ctrl ? setTimeout(() => ctrl.abort(), options.timeout || 20000) : null;
   let res;
   try {
+    await apiReady;
     const { timeout, ...fetchOptions } = options;
-    res = await fetch(API_BASE + path, {
-    ...fetchOptions,
-    signal: ctrl ? ctrl.signal : undefined,
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-      'X-Client-Date': localDateStr(), // сервер узнаёт, какое «сегодня» у пользователя
-      ...(options.headers || {}),
-    },
-  });
+    const send = () => fetch(API_BASE + path, {
+      ...fetchOptions,
+      signal: ctrl ? ctrl.signal : undefined,
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(),
+        'X-Client-Date': localDateStr(), // сервер узнаёт, какое «сегодня» у пользователя
+        ...(options.headers || {}),
+      },
+    });
+    try {
+      res = await send();
+    } catch (e) {
+      // адрес не отвечает совсем (заблокирован): пробуем второй адрес. Запрос до сервера не дошёл, так что повтор безопасен
+      if (SELF_HOSTED || (ctrl && ctrl.signal.aborted)) throw e;
+      window.__switchApi();
+      res = await send();
+    }
   } catch (e) {
     const err = new Error(`Нет связи с сервером (${path})`);
     err.network = true;
