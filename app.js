@@ -2230,7 +2230,7 @@ $('shareCalendarToggle').addEventListener('change', async (e) => {
   }
 });
 // ---------- Экран «Настройки» ----------
-$('settingsBtn').addEventListener('click', () => { haptic(); paintThemeSeg(); showScreen('settingsScreen'); loadStrava(); });
+$('settingsBtn').addEventListener('click', () => { haptic(); paintThemeSeg(); showScreen('settingsScreen'); loadStrava(); loadMailState(); });
 $('settingsBackBtn').addEventListener('click', () => showScreen('profileScreen'));
 for (const [id, key] of [['digestToggle', 'digest'], ['partnersNotifyToggle', 'partners']]) {
   $(id).addEventListener('change', async (e) => {
@@ -6369,6 +6369,7 @@ function showLogin(msg) {
   const needInstall = IS_IOS && !IS_STANDALONE && !NATIVE; // в приложении из магазина ставить на экран не нужно
   $('loginInstall').classList.toggle('hidden', !needInstall);
   $('loginTgBtn').classList.toggle('hidden', needInstall);
+  $('loginMail').classList.toggle('hidden', needInstall);
   loginStatus(msg || '');
   if (!needInstall) prepareLogin(false);
 }
@@ -6390,11 +6391,69 @@ $('loginRetryBtn').addEventListener('click', () => { $('loginRetryBtn').classLis
 // вернулись в приложение из Telegram — сразу спрашиваем, подтвердил ли вход
 document.addEventListener('visibilitychange', () => { if (!document.hidden && loginPoll) checkLogin(); });
 
+
+// ---------- Вход по почте и паролю (когда Telegram не открывается) ----------
+let mailRegister = false;
+$('loginMailSwitch').addEventListener('click', () => {
+  mailRegister = !mailRegister;
+  $('loginName').classList.toggle('hidden', !mailRegister);
+  $('loginMailBtn').textContent = mailRegister ? 'Создать аккаунт' : 'Войти по почте';
+  $('loginMailSwitch').textContent = mailRegister ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Создать';
+  $('loginPass').autocomplete = mailRegister ? 'new-password' : 'current-password';
+  loginStatus('');
+});
+$('loginMailBtn').addEventListener('click', async () => {
+  const btn = $('loginMailBtn');
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPass').value;
+  if (!email || !password) return loginStatus('Введи почту и пароль.', 'error');
+  btn.disabled = true;
+  loginStatus(mailRegister ? 'Создаю аккаунт…' : 'Входим…');
+  try {
+    const r = await api(mailRegister ? '/api/email/register' : '/api/email/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name: $('loginName').value.trim() }),
+    });
+    stopLoginPoll();
+    setSession(r.session);
+    $('loginPass').value = '';
+    $('loginScreen').classList.add('hidden');
+    document.body.classList.remove('login-open');
+    init();
+  } catch (e) {
+    loginStatus(e.network ? 'Нет связи с сервером. Проверь интернет.' : (e.message || 'Не получилось войти'), 'error');
+  } finally { btn.disabled = false; }
+});
+$('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('loginMailBtn').click(); });
+
+// Привязка почты в настройках: потом можно входить без Telegram
+async function loadMailState() {
+  try {
+    const r = await api('/api/email/status');
+    if (r.email) {
+      $('mailState').textContent = `Привязана почта: ${r.email}. Ей можно войти на любом устройстве без Telegram.`;
+      $('mailLinkBtn').lastChild.textContent = ' Сменить почту или пароль';
+    }
+  } catch (e) { /* не страшно */ }
+}
+$('mailLinkBtn').addEventListener('click', async () => {
+  const email = $('mailEmail').value.trim(), password = $('mailPass').value;
+  const msg = $('mailMsg');
+  msg.classList.remove('hidden');
+  if (!email || !password) { msg.textContent = 'Введи почту и пароль.'; return; }
+  try {
+    await api('/api/email/link', { method: 'POST', body: JSON.stringify({ email, password }) });
+    msg.textContent = 'Готово! Теперь этой почтой и паролем можно войти без Telegram.';
+    $('mailPass').value = '';
+    loadMailState();
+  } catch (e) { msg.textContent = e.message || 'Не получилось привязать'; }
+});
+
 // Выйти на этом устройстве (только вне Telegram)
 if (OUTSIDE_TELEGRAM) {
   $('logoutBtn').classList.remove('hidden');
   $('logoutBtn').addEventListener('click', async () => {
-    if (!(await confirmAsk({ icon: 'lock', title: 'Выйти из аккаунта?', text: 'Данные останутся, чтобы вернуться, войди через Telegram ещё раз.', ok: 'Выйти' }))) return;
+    if (!(await confirmAsk({ icon: 'lock', title: 'Выйти из аккаунта?', text: 'Данные останутся. Чтобы вернуться, войди ещё раз: через Telegram или по почте.', ok: 'Выйти' }))) return;
     await dropPushToken();
     try { await api('/api/webauth/logout', { method: 'POST' }); } catch (e) { /* всё равно выходим */ }
     setSession('');
