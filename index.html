@@ -128,7 +128,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=85" />
+<link rel="stylesheet" href="style.css?v=86" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -167,6 +167,16 @@
       <div id="loginStatus" class="login-status" role="status"></div>
       <div id="loginAlt" class="login-alt hidden">Telegram не открылся на боте? <a id="loginAltLink" href="#" target="_blank" rel="noopener">Открыть по обычной ссылке</a></div>
       <div class="muted login-note">Откроется бот Forma в Telegram: нажми «Старт» и подтверди вход. Аккаунт и дневник те же, что в Telegram.</div>
+      <!-- Вход без Telegram: для тех, у кого он не открывается (например, в России без VPN) -->
+      <div id="loginMail" class="login-mail">
+        <div class="login-or"><span>или без Telegram</span></div>
+        <input type="email" id="loginEmail" placeholder="Почта" autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" />
+        <input type="password" id="loginPass" placeholder="Пароль (от 8 символов)" autocomplete="current-password" />
+        <input type="text" id="loginName" class="hidden" placeholder="Как тебя зовут" autocomplete="given-name" maxlength="40" />
+        <button type="button" id="loginMailBtn" class="primary-btn login-btn">Войти по почте</button>
+        <button type="button" id="loginMailSwitch" class="ghost-btn wide">Нет аккаунта? Создать</button>
+        <div class="muted login-note">Если ты уже пользуешься Forma через Telegram, привяжи почту в настройках — и входи ею на любом устройстве, даже когда Telegram не открывается.</div>
+      </div>
     </div>
   </section>
   <div id="splash" aria-hidden="true">
@@ -981,6 +991,17 @@
       <button type="button" class="ghost-btn wide" id="exportBtn"><i data-ico="share"></i> Выгрузить дневник (таблица)</button>
     </section>
 
+    <section class="card" id="mailCard">
+      <div class="eyebrow">Вход без Telegram</div>
+      <div class="muted privacy-hint" id="mailState">Привяжи почту и пароль — и сможешь войти в этот же аккаунт, даже когда Telegram не открывается.</div>
+      <div id="mailForm">
+        <input type="email" id="mailEmail" placeholder="Почта" autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" />
+        <input type="password" id="mailPass" placeholder="Новый пароль (от 8 символов)" autocomplete="new-password" />
+        <button type="button" class="ghost-btn wide" id="mailLinkBtn"><i data-ico="lock"></i> Привязать почту</button>
+      </div>
+      <div class="muted privacy-hint hidden" id="mailMsg"></div>
+    </section>
+
     <section class="card">
       <div class="eyebrow">Приложение</div>
       <button type="button" class="ghost-btn wide" id="addHomeBtn"><i data-ico="sparkle"></i> Добавить на главный экран</button>
@@ -1569,7 +1590,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=95';
+      s.src = 'app.js?v=96';
       document.body.appendChild(s);
     });
   </script>
