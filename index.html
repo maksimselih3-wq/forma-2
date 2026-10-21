@@ -91,22 +91,42 @@
     50% { filter: drop-shadow(0 0 4px rgba(180, 245, 60, 0.9)) drop-shadow(0 0 10px rgba(180, 245, 60, 0.5)); }
   }
 </style>
-<!-- Шрифты и скрипт Telegram: на своём домене берём их через наш сервер (в России внешние адреса часто недоступны),
-     на GitHub Pages — как раньше, из интернета -->
+<!-- Шрифты и скрипт Telegram. Ничего не блокирует показ страницы: если внешний адрес недоступен (в России часто так),
+     шрифты просто подтянутся позже, а скрипт Telegram берётся с запасного адреса -->
 <script>
   (function () {
     var native = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
     window.__native = native;
     var self = !/github\.io$/.test(location.hostname) && location.protocol !== 'file:' && !native;
+    var MIRROR = 'https://gang.forma2ko5.online';
     // в приложении из магазина шрифты лежат внутри (fonts.css), скрипт Telegram не нужен
     var fonts = native ? 'fonts.css' : self ? '/api/asset/fonts.css' : 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap';
-    document.write('<link rel="stylesheet" href="' + fonts + '" />');
-    if (!native) document.write('<script src="' + (self ? '/api/asset/tg.js' : 'https://telegram.org/js/telegram-web-app.js') + '"><\/script>');
+    var l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = fonts; l.media = 'print';
+    l.onload = function () { l.media = 'all'; };
+    l.onerror = function () { if (!native && !self) { l.onerror = null; l.href = MIRROR + '/api/asset/fonts.css'; } };
+    document.head.appendChild(l);
+
+    // скрипт Telegram: сначала основной адрес, при неудаче — запасной; страница ждёт не дольше 3,5 секунды
+    window.__tgWait = new Promise(function (resolve) {
+      if (native || window.Telegram) return resolve();
+      var urls = self ? ['/api/asset/tg.js', 'https://telegram.org/js/telegram-web-app.js']
+                      : ['https://telegram.org/js/telegram-web-app.js', MIRROR + '/api/asset/tg.js'];
+      var done = false, second = false;
+      function fin() { if (!done) { done = true; resolve(); } }
+      function load(u) {
+        var s = document.createElement('script');
+        s.src = u; s.async = true;
+        s.onload = function () { if (window.Telegram) fin(); else tryNext(); };
+        s.onerror = tryNext;
+        document.head.appendChild(s);
+      }
+      function tryNext() { if (second || window.Telegram) return; second = true; load(urls[1]); }
+      load(urls[0]);
+      setTimeout(function () { if (!window.Telegram) tryNext(); }, 1800);
+      setTimeout(fin, 3500);
+    });
   })();
-</script>
-<script>
-  // запасной вариант: если через наш сервер скрипт не пришёл — берём скрипт Telegram из интернета
-  if (!window.Telegram && !window.__native) document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\/script>');
 </script>
 <link rel="stylesheet" href="style.css?v=85" />
 </head>
@@ -1545,6 +1565,13 @@
     </button>
   </nav>
 
-  <script src="app.js?v=94"></script>
+  <script>
+    // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
+    (window.__tgWait || Promise.resolve()).then(function () {
+      var s = document.createElement('script');
+      s.src = 'app.js?v=95';
+      document.body.appendChild(s);
+    });
+  </script>
 </body>
 </html>
