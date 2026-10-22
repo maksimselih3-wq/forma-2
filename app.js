@@ -6593,59 +6593,83 @@ window.addEventListener('scroll', updateScrolledFlag, { passive: true });
   window.addEventListener('touchcancel', up, { passive: true });
 })();
 
-// Резиновые края: у верха и низа страницу можно немного оттянуть (тяжело), отпустил — пружинит назад
+// Резиновые края: у верха и низа любого прокручиваемого места можно оттянуть содержимое — всё тяжелее,
+// но можно тянуть долго, перекладывая пальцы, не отрывая от экрана. Отпустил — плавно пружинит назад.
 (function initRubber() {
-  const MAXPULL = 56, SOFT = 150;
-  let startOK = false, lastY = 0, lastX = 0, raw = 0, mode = 0, dir = null, items = [];
-  const scroller = (t) => {
+  const MAXPULL = 170, SOFT = 300;
+  let sc = null, ok = false, active = null, lastY = 0, lastX = 0, raw = 0, mode = 0, dir = null, items = [], off = 0, raf = 0;
+  const findScroller = (t) => {
     for (let n = t; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+      if (n.id === 'shareSheet') return false;
       const cs = getComputedStyle(n);
-      if (cs.position === 'fixed') return n;
-      if (/(auto|scroll)/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) return n;
+      const scrolls = /(auto|scroll)/.test(cs.overflowY);
+      if (cs.position === 'fixed') return scrolls ? n : false;
+      if (scrolls && n.scrollHeight > n.clientHeight + 1) return n;
     }
-    return null;
+    return null; // страница целиком
+  };
+  const atEdges = () => {
+    if (sc) return [sc.scrollTop <= 0, sc.scrollTop >= sc.scrollHeight - sc.clientHeight - 1];
+    const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const y = window.scrollY || 0;
+    return [y <= 0, y >= max - 1];
   };
   const targets = (bottom) => {
-    const scr = document.querySelector('.screen:not(.hidden)');
-    if (!scr || getComputedStyle(scr).position === 'fixed') return [];
-    return [...scr.children].filter((el) => !el.classList.contains('hidden') && !(bottom && el.classList.contains('stuck-item')) && getComputedStyle(el).position !== 'fixed');
+    const root = sc || document.querySelector('.screen:not(.hidden)');
+    if (!root || (!sc && getComputedStyle(root).position === 'fixed')) return [];
+    return [...root.children].filter((el) => !el.classList.contains('hidden') && !(bottom && el.classList.contains('stuck-item')) && getComputedStyle(el).position !== 'fixed');
   };
-  const apply = (off) => items.forEach((el) => { el.style.transform = off ? `translate3d(0,${off.toFixed(1)}px,0)` : ''; });
+  const apply = (v) => { off = v; items.forEach((el) => { el.style.transform = v ? `translate3d(0,${v.toFixed(1)}px,0)` : ''; }); };
+  const stop = () => { cancelAnimationFrame(raf); raf = 0; };
   document.addEventListener('touchstart', (e) => {
-    startOK = e.touches.length === 1 && !document.documentElement.classList.contains('sheet-open') && !scroller(e.target) && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
-    raw = 0; mode = 0; dir = null;
-    if (items.length) { items.forEach((el) => { el.classList.remove('rubber-back'); el.style.transform = ''; }); items = []; }
-    lastY = e.touches[0].clientY; lastX = e.touches[0].clientX;
+    if (document.documentElement.classList.contains('sheet-open')) return;
+    if (mode && items.length) { // добавился ещё палец во время оттягивания — продолжаем без рывка
+      active = e.changedTouches[0].identifier; lastY = e.changedTouches[0].clientY; lastX = e.changedTouches[0].clientX; return;
+    }
+    stop();
+    if (items.length) { apply(0); items = []; }
+    const t = e.changedTouches[0];
+    const s = findScroller(e.target);
+    ok = s !== false && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+    sc = s || null; active = t.identifier; lastY = t.clientY; lastX = t.clientX; raw = 0; mode = 0; dir = null;
   }, { passive: true });
   document.addEventListener('touchmove', (e) => {
-    if (!startOK || e.touches.length !== 1) return;
-    const t = e.touches[0], dy = t.clientY - lastY, dx = t.clientX - lastX;
+    if (!ok) return;
+    let t = null;
+    for (const c of e.changedTouches) if (c.identifier === active) t = c;
+    if (!t) return;
+    const dy = t.clientY - lastY, dx = t.clientX - lastX;
     lastY = t.clientY; lastX = t.clientX;
-    if (dir === null) { if (Math.abs(dx) + Math.abs(dy) < 4) return; dir = Math.abs(dy) >= Math.abs(dx) ? 'v' : 'h'; }
+    if (dir === null && !mode) { if (Math.abs(dx) + Math.abs(dy) < 4) return; dir = Math.abs(dy) >= Math.abs(dx) ? 'v' : 'h'; }
     if (dir === 'h') return;
-    const y = window.scrollY || 0;
-    const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
     if (!mode) {
-      if (y <= 0 && dy > 0) mode = 1;
-      else if (y >= max - 1 && dy < 0) mode = -1;
-      else return;
+      const [top, bot] = atEdges();
+      if (top && dy > 0) mode = 1; else if (bot && dy < 0) mode = -1; else return;
       items = targets(mode === -1);
-      if (!items.length) { mode = 0; startOK = false; return; }
-      items.forEach((el) => el.classList.remove('rubber-back'));
+      if (!items.length) { mode = 0; ok = false; return; }
       raw = 0;
     }
-    raw += dy * mode;           // положительное = тянем за край
+    raw += dy * mode;
     if (raw <= 0) { raw = 0; mode = 0; apply(0); items = []; return; }
     if (e.cancelable) e.preventDefault();
     apply(mode * MAXPULL * (1 - Math.exp(-raw / SOFT)));
   }, { passive: false });
-  const release = () => {
+  const release = (e) => {
+    if (e.touches && e.touches.length) { // один палец убрали, другой остался — тянем им
+      const r = e.touches[0]; active = r.identifier; lastY = r.clientY; lastX = r.clientX; return;
+    }
     if (!items.length) return;
-    const list = items; items = []; mode = 0; raw = 0;
-    list.forEach((el) => {
-      el.classList.add('rubber-back'); el.style.transform = 'translate3d(0,0,0)';
-      setTimeout(() => { el.classList.remove('rubber-back'); el.style.transform = ''; }, 460);
-    });
+    const list = items, m = mode; mode = 0; raw = 0;
+    // плавный возврат: пружина без отскока (почти критическое затухание)
+    let x = off, v = 0, last = performance.now();
+    stop();
+    const step = (now) => {
+      const dt = Math.min(0.032, (now - last) / 1000); last = now;
+      v += (-90 * x - 19 * v) * dt; x += v * dt;
+      if (Math.abs(x) < 0.4 && Math.abs(v) < 4) { items = list; apply(0); items = []; raf = 0; return; }
+      items = list; apply(x); raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
   };
   document.addEventListener('touchend', release, { passive: true });
   document.addEventListener('touchcancel', release, { passive: true });
