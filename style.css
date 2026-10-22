@@ -2486,4 +2486,3 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: rgba(180
 
 /* Резиновая прокрутка: на концах страница чуть тянется и пружинит обратно (см. initRubber) */
 html, html body { overscroll-behavior-y: none; }
-.rubber-back { transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1); }
