@@ -1684,10 +1684,12 @@ function buildWorkoutCard(w, { showAuthor = true } = {}) {
         ${showAuthor ? `<button type="button" class="wk-author">${nameHtml(w.author)}${isMine ? ' <span class="muted">· ты</span>' : ''}</button>` : ''}
         <div class="wk-date">${esc(formatWithWeekday(normDate(w.date)))} · ${ico(entryKindIco(w))} ${entryKindLabel(w)}</div>
       </div>
+      ${showAuthor && !isMine && w.author ? '<button type="button" class="more-btn wk-more" aria-label="Ещё">⋯</button>' : ''}
     </div>
     ${chips.length ? `<div class="wk-chips">${chips.join('')}</div>` : ''}
     ${lines.length ? `<div class="wk-body">${esc(lines.join('\n'))}</div>` : ''}`;
 
+  card.querySelector('.wk-more')?.addEventListener('click', () => openSafety({ userId: w.user_id, name: personName(w.author), kind: 'workout', targetId: w.id }));
   const authorBtn = card.querySelector('.wk-author');
   if (authorBtn) authorBtn.addEventListener('click', () => (isMine ? openProfile() : openFriendProfile(w.user_id)));
   card.appendChild(buildSocial(w));
@@ -1778,7 +1780,9 @@ function buildSocial(w, { openThread = false } = {}) {
             <div class="comment-top"><b>${nameHtml(c)}</b><span class="muted">${esc(timeAgo(c.created_at))}</span></div>
             <div class="comment-text">${esc(c.text)}</div>
           </div>
-          ${c.can_delete ? '<button type="button" class="comment-del" aria-label="Удалить">✕</button>' : ''}`;
+          ${c.can_delete ? '<button type="button" class="comment-del" aria-label="Удалить">✕</button>' : ''}
+          ${c.id !== currentUser?.id ? '<button type="button" class="more-btn comment-more" aria-label="Ещё">⋯</button>' : ''}`;
+        row.querySelector('.comment-more')?.addEventListener('click', () => openSafety({ userId: c.id, name: personName(c), kind: 'comment', targetId: c.comment_id }));
         row.querySelector('.comment-del')?.addEventListener('click', async () => {
           if (!(await confirmAsk({ icon: 'trash', title: 'Удалить комментарий?', ok: 'Удалить', danger: true }))) return;
           try {
@@ -2212,6 +2216,72 @@ $('fpRemoveBtn').addEventListener('click', async () => {
   }
 });
 
+
+// ---------- Жалобы и блокировка ----------
+let safetyCtx = null;
+function openSafety(ctx) {
+  safetyCtx = ctx;
+  $('safetyTitle').textContent = ctx.name ? ctx.name : 'Что сделать?';
+  $('safetyMain').classList.remove('hidden');
+  $('safetyReasons').classList.add('hidden');
+  $('safetyStatus').textContent = '';
+  $('safetyBlockBtn').classList.toggle('hidden', !ctx.userId);
+  $('safetySheet').classList.remove('hidden');
+}
+function closeSafety() { $('safetySheet').classList.add('hidden'); safetyCtx = null; }
+$('safetySheet').addEventListener('click', (e) => { if (e.target === $('safetySheet')) closeSafety(); });
+$('safetyCancelBtn').addEventListener('click', closeSafety);
+$('safetyReportBtn').addEventListener('click', () => {
+  $('safetyMain').classList.add('hidden');
+  $('safetyReasons').classList.remove('hidden');
+  $('safetyTitle').textContent = 'В чём проблема?';
+});
+document.querySelectorAll('#safetyReasons [data-reason]').forEach((b) => b.addEventListener('click', async () => {
+  if (!safetyCtx) return;
+  const ctx = safetyCtx;
+  $('safetyStatus').textContent = 'Отправляю…';
+  try {
+    await api('/api/safety/report', { method: 'POST', body: JSON.stringify({ kind: ctx.kind || 'user', target_id: ctx.targetId || null, user_id: ctx.userId || null, reason: b.dataset.reason }) });
+    $('safetyReasons').classList.add('hidden');
+    $('safetyStatus').textContent = 'Спасибо, жалоба отправлена. Мы проверим.';
+    setTimeout(closeSafety, 1400);
+  } catch (e) { $('safetyStatus').textContent = 'Не получилось отправить. Попробуй ещё раз.'; }
+}));
+$('safetyBlockBtn').addEventListener('click', async () => {
+  if (!safetyCtx?.userId) return;
+  const ctx = safetyCtx;
+  closeSafety();
+  const nm = ctx.name || 'этого человека';
+  if (!(await confirmAsk({ icon: 'lock', title: 'Заблокировать?', text: `${nm} пропадёт из друзей, его тренировки и комментарии больше не будут видны, а он не сможет писать тебе. Разблокировать можно в настройках.`, ok: 'Заблокировать', danger: true }))) return;
+  try {
+    await api('/api/safety/block', { method: 'POST', body: JSON.stringify({ user_id: ctx.userId }) });
+    if (!$('friendProfileScreen').classList.contains('hidden')) { showScreen('friendsScreen'); }
+    try { loadFeedTab(); } catch (e) { /* лента обновится при следующем открытии */ }
+    showDialog({ icon: 'lock', title: 'Заблокировано', text: 'Готово. Список заблокированных — в настройках.' });
+  } catch (e) { showDialog({ icon: 'warn', title: 'Не получилось', text: 'Попробуй ещё раз чуть позже.' }); }
+});
+$('fpSafetyBtn').addEventListener('click', () => {
+  if (!fpData) return;
+  openSafety({ userId: fpData.user.id, name: personName(fpData.user), kind: 'user', targetId: fpData.user.id });
+});
+async function loadBlocks() {
+  try {
+    const { blocks } = await api('/api/safety/blocks');
+    const card = $('blocksCard'), list = $('blocksList');
+    list.innerHTML = '';
+    card.classList.toggle('hidden', !blocks.length);
+    blocks.forEach((u) => {
+      const row = document.createElement('div');
+      row.className = 'blocks-row';
+      row.innerHTML = `<span>${esc(personName(u))}</span><button type="button" class="link-btn">Разблокировать</button>`;
+      row.querySelector('button').addEventListener('click', async () => {
+        try { await api('/api/safety/unblock', { method: 'POST', body: JSON.stringify({ user_id: u.id }) }); loadBlocks(); } catch (e) { /* ничего */ }
+      });
+      list.appendChild(row);
+    });
+  } catch (e) { /* не страшно */ }
+}
+
 // ---------- Приватность в своём профиле ----------
 $('profileFriends').addEventListener('click', () => {
   showScreen('friendsScreen');
@@ -2230,7 +2300,7 @@ $('shareCalendarToggle').addEventListener('change', async (e) => {
   }
 });
 // ---------- Экран «Настройки» ----------
-$('settingsBtn').addEventListener('click', () => { haptic(); paintThemeSeg(); showScreen('settingsScreen'); loadStrava(); loadMailState(); });
+$('settingsBtn').addEventListener('click', () => { haptic(); paintThemeSeg(); showScreen('settingsScreen'); loadStrava(); loadMailState(); loadBlocks(); });
 $('settingsBackBtn').addEventListener('click', () => showScreen('profileScreen'));
 for (const [id, key] of [['digestToggle', 'digest'], ['partnersNotifyToggle', 'partners']]) {
   $(id).addEventListener('change', async (e) => {
@@ -2923,6 +2993,7 @@ function goBack() {
   if (dialogOpen()) return closeDialog();
   if (!$('tour').classList.contains('hidden')) return;
   if (!$('startSheet').classList.contains('hidden')) return closeStartSheet();
+  if (!$('safetySheet').classList.contains('hidden')) return closeSafety();
   if (!$('shareSheet').classList.contains('hidden')) return closeShareSheet();
   if (!$('watchSheet').classList.contains('hidden')) return closeWatchHelp();
   if (!$('repeatSheet').classList.contains('hidden')) return closeRepeatSheet();
