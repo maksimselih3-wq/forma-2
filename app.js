@@ -2370,7 +2370,7 @@ async function loadInsight() {
   }
 }
 
-$('insightsBtn').addEventListener('click', () => { showScreen('insightsScreen'); showInsTab('charts'); });
+$('insightsBtn').addEventListener('click', () => { showScreen('insightsScreen'); renderCharts(); });
 
 document.querySelectorAll('#insightsScreen [data-period]').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -4046,7 +4046,7 @@ function niceMax(v) {
 function chartFrame(el, weeks, max, ticks, drawMarks, tipText) {
   const W = Math.max(280, el.clientWidth || 320);
   // график занимает всё свободное место на экране (но не меньше 170 и не больше 340 пикселей)
-  const H = Math.max(170, Math.min(340, el.clientHeight || 190));
+  const H = Math.max(84, Math.min(300, el.clientHeight || 120));
   const L = 30, R = 6, T = 18, B = 22;
   const band = (W - L - R) / weeks.length;
   const y = (v) => T + (H - T - B) * (1 - v / max);
@@ -4134,25 +4134,6 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.c-hit')) hideChartTip();
 }, true);
 
-// Какой график открыт и какая вкладка («Динамика» / «Разбор от Fom») на экране разбора
-let activeChart = 'km';
-function showActiveChart() {
-  document.querySelectorAll('#chartsCard .chart-block').forEach((b) => b.classList.toggle('hidden', b.dataset.chart !== activeChart));
-  document.querySelectorAll('#chartChips .chip').forEach((c) => c.classList.toggle('active', c.dataset.chart === activeChart));
-}
-document.querySelectorAll('#chartChips .chip').forEach((c) => c.addEventListener('click', () => {
-  activeChart = c.dataset.chart;
-  $('chartTable').classList.add('hidden'); $('chartsTableBtn').textContent = 'Таблица';
-  showActiveChart();
-  renderCharts();
-}));
-function showInsTab(tab) {
-  document.querySelectorAll('#insTabs .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.ins === tab));
-  $('insPaneCharts').classList.toggle('hidden', tab !== 'charts');
-  $('insPaneAi').classList.toggle('hidden', tab !== 'ai');
-  if (tab === 'charts') renderCharts();
-}
-document.querySelectorAll('#insTabs .seg-btn').forEach((b) => b.addEventListener('click', () => showInsTab(b.dataset.ins)));
 window.addEventListener('resize', () => { if (!$('insightsScreen').classList.contains('hidden')) renderCharts(); });
 
 function renderCharts() {
@@ -4161,29 +4142,24 @@ function renderCharts() {
   const any = weeks.some((w) => w.count || w.feel != null);
   $('chartsCard').classList.toggle('empty', !any);
   if (!any) {
-    activeChart = 'km'; showActiveChart();
     ['chartKm', 'chartCount', 'chartFeel'].forEach((id) => { $(id).innerHTML = ''; });
     $('chartKm').innerHTML = '<div class="muted chart-empty">Графики появятся, когда в дневнике будут записи за последние недели.</div>';
     return;
   }
   hideChartTip();
-  // рисуем только открытый график: у скрытого нет размеров
-  if (activeChart === 'km') barChart($('chartKm'), weeks, 'km', CHART_COLORS.km, 'км');
-  if (activeChart === 'count') barChart($('chartCount'), weeks, 'count', CHART_COLORS.count, 'трен.');
-  if (activeChart === 'feel') lineChart($('chartFeel'), weeks);
+  barChart($('chartKm'), weeks, 'km', CHART_COLORS.km, 'км');
+  barChart($('chartCount'), weeks, 'count', CHART_COLORS.count, 'трен.');
+  lineChart($('chartFeel'), weeks);
   // та же информация таблицей
   $('chartTable').innerHTML = `<table><thead><tr><th>Неделя</th><th>км</th><th>трен.</th><th>самоч.</th><th>RPE</th></tr></thead><tbody>${
     weeks.slice().reverse().map((w) => `<tr><td>${esc(weekLabel(w))}</td><td>${fmtNum(w.km)}</td><td>${w.count}</td><td>${w.feel == null ? '—' : fmtNum(w.feel)}</td><td>${w.rpe == null ? '—' : fmtNum(w.rpe)}</td></tr>`).join('')
   }</tbody></table>`;
 }
 $('chartsTableBtn').addEventListener('click', () => {
-  const t = $('chartTable');
-  t.classList.toggle('hidden');
-  const open = !t.classList.contains('hidden');
+  const open = $('chartTable').classList.toggle('hidden') === false;
   $('chartsTableBtn').textContent = open ? 'График' : 'Таблица';
-  // таблица занимает место графика
-  document.querySelectorAll('#chartsCard .chart-block').forEach((b) => b.classList.toggle('hidden', open || b.dataset.chart !== activeChart));
-  document.querySelector('#chartsCard .chart-period-row .eyebrow')?.classList.toggle('hidden', open);
+  // таблица занимает место графиков
+  document.querySelectorAll('#chartsCard .chart-block').forEach((b) => b.classList.toggle('hidden', open));
   if (!open) renderCharts();
 });
 
@@ -6589,8 +6565,91 @@ function updateScrolledFlag() {
   // два порога (24 и 6 пикселей), чтобы шапка не дёргалась на границе
   const next = on ? y > 6 : y > 24;
   if (next !== on) document.documentElement.classList.toggle('scrolled-top', next);
+  // плавное сжатие шапки и вкладок: 0…60 пикселей прокрутки
+  const stk = Math.min(1, Math.max(0, y / 60));
+  if (stk !== lastStk) { lastStk = stk; document.documentElement.style.setProperty('--stk', stk.toFixed(3)); }
 }
+let lastStk = -1;
 window.addEventListener('scroll', updateScrolledFlag, { passive: true });
+
+// «Привязь» шапки: если отпустили палец, когда она сжата наполовину, — доезжает до края (0 или 60)
+(function initStackSnap() {
+  let timer = null, touching = false;
+  const arm = () => { clearTimeout(timer); timer = setTimeout(snap, 120); };
+  function snap() {
+    if (touching) return;
+    const y = window.scrollY || 0;
+    if (y < 2 || y > 58) return;
+    const maxTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    if (maxTop < 30) return;
+    const top = Math.min(maxTop, y >= 30 ? 60 : 0);
+    if (Math.abs(top - y) < 1) return;
+    window.scrollTo({ top, behavior: 'smooth' });
+  }
+  window.addEventListener('scroll', arm, { passive: true });
+  window.addEventListener('touchstart', () => { touching = true; clearTimeout(timer); }, { passive: true });
+  const up = () => { touching = false; arm(); };
+  window.addEventListener('touchend', up, { passive: true });
+  window.addEventListener('touchcancel', up, { passive: true });
+})();
+
+// Резиновые края: у верха и низа страницу можно немного оттянуть (тяжело), отпустил — пружинит назад
+(function initRubber() {
+  const MAXPULL = 56, SOFT = 150;
+  let startOK = false, lastY = 0, lastX = 0, raw = 0, mode = 0, dir = null, items = [];
+  const scroller = (t) => {
+    for (let n = t; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+      const cs = getComputedStyle(n);
+      if (cs.position === 'fixed') return n;
+      if (/(auto|scroll)/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) return n;
+    }
+    return null;
+  };
+  const targets = (bottom) => {
+    const scr = document.querySelector('.screen:not(.hidden)');
+    if (!scr || getComputedStyle(scr).position === 'fixed') return [];
+    return [...scr.children].filter((el) => !el.classList.contains('hidden') && !(bottom && el.classList.contains('stuck-item')) && getComputedStyle(el).position !== 'fixed');
+  };
+  const apply = (off) => items.forEach((el) => { el.style.transform = off ? `translate3d(0,${off.toFixed(1)}px,0)` : ''; });
+  document.addEventListener('touchstart', (e) => {
+    startOK = e.touches.length === 1 && !document.documentElement.classList.contains('sheet-open') && !scroller(e.target) && !/INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+    raw = 0; mode = 0; dir = null;
+    if (items.length) { items.forEach((el) => { el.classList.remove('rubber-back'); el.style.transform = ''; }); items = []; }
+    lastY = e.touches[0].clientY; lastX = e.touches[0].clientX;
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!startOK || e.touches.length !== 1) return;
+    const t = e.touches[0], dy = t.clientY - lastY, dx = t.clientX - lastX;
+    lastY = t.clientY; lastX = t.clientX;
+    if (dir === null) { if (Math.abs(dx) + Math.abs(dy) < 4) return; dir = Math.abs(dy) >= Math.abs(dx) ? 'v' : 'h'; }
+    if (dir === 'h') return;
+    const y = window.scrollY || 0;
+    const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    if (!mode) {
+      if (y <= 0 && dy > 0) mode = 1;
+      else if (y >= max - 1 && dy < 0) mode = -1;
+      else return;
+      items = targets(mode === -1);
+      if (!items.length) { mode = 0; startOK = false; return; }
+      items.forEach((el) => el.classList.remove('rubber-back'));
+      raw = 0;
+    }
+    raw += dy * mode;           // положительное = тянем за край
+    if (raw <= 0) { raw = 0; mode = 0; apply(0); items = []; return; }
+    if (e.cancelable) e.preventDefault();
+    apply(mode * MAXPULL * (1 - Math.exp(-raw / SOFT)));
+  }, { passive: false });
+  const release = () => {
+    if (!items.length) return;
+    const list = items; items = []; mode = 0; raw = 0;
+    list.forEach((el) => {
+      el.classList.add('rubber-back'); el.style.transform = 'translate3d(0,0,0)';
+      setTimeout(() => { el.classList.remove('rubber-back'); el.style.transform = ''; }, 460);
+    });
+  };
+  document.addEventListener('touchend', release, { passive: true });
+  document.addEventListener('touchcancel', release, { passive: true });
+})();
 updateScrolledFlag();
 setTimeout(syncStack, 0);
 setTimeout(syncStack, 1500); // когда приложение уже загрузило данные
