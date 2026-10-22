@@ -2371,16 +2371,13 @@ body.chat-open #statusFade { display: none; }  /* в чате страница �
    Липкая шапка и вкладки: остаются наверху, при прокрутке «сжимаются»
    ===================================================================== */
 .stuck-item { position: sticky; z-index: 46; }
-.topbar .logo, .topbar .streak-pill, .topbar .avatar-btn { transition: font-size 0.25s ease, transform 0.25s ease; }
-.topbar .streak-pill { transform-origin: right center; }
-.topbar .avatar-btn { transform-origin: right center; }
-html.scrolled-top .topbar .logo { font-size: 20px; }
-html.scrolled-top .topbar .logo-dot { margin-bottom: 5px; }
-html.scrolled-top .topbar .streak-pill { transform: scale(0.88); }
-html.scrolled-top .topbar .avatar-btn { transform: scale(0.8); }
-.segmented.stuck-item, .screen-head.stuck-item { transition: transform 0.25s ease, box-shadow 0.25s ease; }
-html.scrolled-top .segmented.stuck-item { transform: scale(0.9); transform-origin: top center; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); }
-html.scrolled-top .screen-head.stuck-item { transform: scale(0.92); transform-origin: left center; }
+/* --stk: 0 (страница вверху) … 1 (прокручена на 60px); задаётся в JS и плавно ведёт сжатие */
+.topbar .logo { font-size: calc(26px - 6px * var(--stk, 0)); }
+.topbar .logo-dot { margin-bottom: calc(7px - 2px * var(--stk, 0)); }
+.topbar .streak-pill { transform-origin: right center; transform: scale(calc(1 - 0.12 * var(--stk, 0))); }
+.topbar .avatar-btn { transform-origin: right center; transform: scale(calc(1 - 0.2 * var(--stk, 0))); }
+.segmented.stuck-item { transform-origin: top center; transform: scale(calc(1 - 0.1 * var(--stk, 0))); box-shadow: 0 8px 24px rgba(0, 0, 0, calc(0.35 * var(--stk, 0))); }
+.screen-head.stuck-item { transform-origin: left center; transform: scale(calc(1 - 0.08 * var(--stk, 0))); }
 /* профиль: когда сверху появляется компактная карточка с именем, обычная шапка прячется */
 body.mini-on .topbar-right { opacity: 0; transform: scale(0.6); transform-origin: right center; pointer-events: none; }
 .topbar-right { transition: opacity 0.2s ease, transform 0.25s ease; }
@@ -2438,28 +2435,20 @@ body[data-screen="insightsScreen"] { overflow: hidden; overscroll-behavior: none
   z-index: 30;
 }
 .insights-one.hidden { display: none; }
-.insights-one > .segmented { flex: 0 0 auto; margin-bottom: 10px; }
-.ins-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.ins-pane.hidden { display: none; }
-.insights-one .charts-card { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0; padding-bottom: 10px; }
-.insights-one .charts-head { gap: 8px; margin-bottom: 4px; }
-.chart-chips { display: flex; gap: 6px; flex-wrap: nowrap; min-width: 0; }
-.chart-chips .chip { padding: 7px 11px; font-size: 13px; white-space: nowrap; }
-.chart-period { margin: 6px 0 0; }
+.insights-one { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.insights-one > * { flex: 0 0 auto; }
+.insights-one .charts-card { flex: 1 0 auto; min-height: 300px; display: flex; flex-direction: column; margin: 0 0 10px; padding: 12px 14px 10px; }
+.insights-one .charts-head { margin-bottom: 2px; }
 .insights-one .chart-block { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 6px; }
-.insights-one .chart { flex: 1; min-height: 170px; }
+.insights-one .chart-title { font-size: 13px; margin: 0 0 2px; }
+.insights-one .chart { flex: 1; min-height: 84px; }
 .insights-one .chart-table { flex: 1; min-height: 0; overflow-y: auto; margin-top: 8px; }
-.insights-one .charts-card.empty .chart-chips, .insights-one .charts-card.empty .chart-period-row { display: none; }
-/* вкладка с разбором: результат занимает остаток экрана и листается внутри */
-#insPaneAi .primary-btn { flex: 0 0 auto; margin-bottom: 10px; }
-#insPaneAi .segmented { flex: 0 0 auto; }
-#insPaneAi #insightBox { flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 0; -webkit-overflow-scrolling: touch; }
-#insPaneAi .status-msg, #insPaneAi .empty-hint { flex: 0 0 auto; }
-.chart-period-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
-.chart-period-row .eyebrow { margin: 0; }
-.chart-period-row .gift-rules-btn { padding: 5px 12px; font-size: 13px; }
-.chart-chips { width: 100%; }
-.chart-chips .chip { flex: 0 1 auto; padding: 7px 10px; }
+.insights-one .charts-card.empty .chart-block + .chart-block { display: none; }
+.insights-one > .segmented { margin: 0 0 8px; }
+.insights-one .primary-btn { margin-bottom: 8px; }
+.insights-one #insightBox { max-height: 30vh; overflow-y: auto; margin: 0; -webkit-overflow-scrolling: touch; }
+.chart-legend-inline { float: right; font-size: 11px; font-weight: 400; color: var(--muted, #888); }
+.chart-legend-inline .key { margin: 0 3px 0 6px; }
 
 /* Окно «Поделиться»: страница под ним не прокручивается, жесты уходят в окно */
 html.sheet-open, html.sheet-open body { overflow: hidden; overscroll-behavior: none; }
@@ -2494,3 +2483,7 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: rgba(180
 .blocks-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; }
 .blocks-row + .blocks-row { border-top: 1px solid var(--border); }
 .blocks-row .link-btn { white-space: nowrap; }
+
+/* Резиновая прокрутка: на концах страница чуть тянется и пружинит обратно (см. initRubber) */
+html, html body { overscroll-behavior-y: none; }
+.rubber-back { transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1); }
