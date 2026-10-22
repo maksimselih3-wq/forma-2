@@ -128,7 +128,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=87" />
+<link rel="stylesheet" href="style.css?v=88" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -586,6 +586,25 @@
     </div>
   </div>
 
+  <!-- Жалоба и блокировка -->
+  <div id="safetySheet" class="sheet-backdrop hidden">
+    <div class="sheet">
+      <div class="sheet-title" id="safetyTitle">Что сделать?</div>
+      <div id="safetyMain">
+        <button type="button" class="sheet-btn" id="safetyReportBtn">Пожаловаться</button>
+        <button type="button" class="sheet-btn danger-btn" id="safetyBlockBtn">Заблокировать</button>
+      </div>
+      <div id="safetyReasons" class="hidden">
+        <button type="button" class="sheet-btn" data-reason="Спам или реклама">Спам или реклама</button>
+        <button type="button" class="sheet-btn" data-reason="Оскорбления или травля">Оскорбления или травля</button>
+        <button type="button" class="sheet-btn" data-reason="Неприемлемый контент">Неприемлемый контент</button>
+        <button type="button" class="sheet-btn" data-reason="Другое">Другое</button>
+      </div>
+      <div class="status-msg" id="safetyStatus"></div>
+      <button type="button" class="sheet-btn muted-btn" id="safetyCancelBtn">Отмена</button>
+    </div>
+  </div>
+
   <!-- Поделиться: карточка для сторис -->
   <div id="shareSheet" class="sheet-backdrop hidden">
     <div class="sheet share-sheet">
@@ -991,6 +1010,11 @@
       <button type="button" class="ghost-btn wide" id="exportBtn"><i data-ico="share"></i> Выгрузить дневник (таблица)</button>
     </section>
 
+    <section class="card hidden" id="blocksCard">
+      <div class="eyebrow">Заблокированные</div>
+      <div id="blocksList"></div>
+    </section>
+
     <section class="card" id="mailCard">
       <div class="eyebrow">Вход без Telegram</div>
       <div class="muted privacy-hint" id="mailState">Привяжи почту и пароль — и сможешь войти в этот же аккаунт, даже когда Telegram не открывается.</div>
@@ -1372,6 +1396,7 @@
     <h3 class="section-title">Открытые тренировки</h3>
     <div id="fpWorkouts"></div>
 
+    <button type="button" class="ghost-btn wide" id="fpSafetyBtn">Пожаловаться или заблокировать</button>
     <button type="button" class="ghost-btn danger wide" id="fpRemoveBtn">Удалить из друзей</button>
     <div id="fpStatus" class="status-msg"></div>
   </section>
@@ -1591,7 +1616,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=96';
+      s.src = 'app.js?v=97';
       document.body.appendChild(s);
     });
   </script>
