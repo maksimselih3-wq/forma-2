@@ -110,6 +110,9 @@
     // скрипт Telegram: сначала основной адрес, при неудаче — запасной; страница ждёт не дольше 3,5 секунды
     window.__tgWait = new Promise(function (resolve) {
       if (native || window.Telegram) return resolve();
+      // вне Telegram (браузер, иконка на экране, приложение) скрипт Telegram не нужен — запускаемся сразу, не ждём его
+      var inTg = /tgWebApp/i.test(location.hash + location.search) || !!window.TelegramWebviewProxy || /Telegram/i.test(navigator.userAgent);
+      if (!inTg) return resolve();
       var urls = self ? ['/api/asset/tg.js', 'https://telegram.org/js/telegram-web-app.js']
                       : ['https://telegram.org/js/telegram-web-app.js', MIRROR + '/api/asset/tg.js'];
       var done = false, second = false;
@@ -128,7 +131,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=93" />
+<link rel="stylesheet" href="style.css?v=95" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -1597,7 +1600,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=103';
+      s.src = 'app.js?v=105';
       document.body.appendChild(s);
     });
   </script>
