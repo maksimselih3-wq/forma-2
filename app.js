@@ -2207,30 +2207,59 @@ function setFriendsTab(tab) {
 }
 document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.addEventListener('click', () => { if (!dockDragged) setFriendsTab(b.dataset.tab); }));
 
+// «Жидкий» бегунок: едет за пальцем с пружинкой, от скорости вытягивается и сжимается
+function liquidThumb(apply) {
+  let pos = 0, vel = 0, target = 0, raf = 0, last = 0, on = false;
+  const draw = () => {
+    const s = Math.min(0.42, Math.abs(vel) * 0.02);
+    apply(pos, 1 + s, 1 - s * 0.45);
+  };
+  const step = (t) => {
+    const dt = Math.min(2, (t - (last || t - 16.7)) / 16.7); last = t;
+    vel = vel * Math.pow(0.7, dt) + (target - pos) * 0.2 * dt;
+    pos += vel * dt;
+    draw();
+    if (on) raf = requestAnimationFrame(step);
+  };
+  return {
+    start(p) { pos = target = p; vel = 0; last = 0; on = true; cancelAnimationFrame(raf); raf = requestAnimationFrame(step); },
+    to(p) { target = p; if (REDUCED_MOTION) { pos = p; vel = 0; } },
+    stop() { on = false; cancelAnimationFrame(raf); },
+  };
+}
+
 // Бегунок можно взять пальцем и перетащить к нужной вкладке — отпустил, и он «примагничивается»
 let dockDragged = false;
 (function initDock() {
   const dock = $('friendsTabs');
-  let startX = 0, active = false, moved = false, w = 1;
+  const thumb = dock.querySelector('.dock-thumb');
+  let startX = 0, active = false, moved = false, w = 1, pid = null;
+  const lq = liquidThumb((p, sx, sy) => { thumb.style.transform = `translateX(${p.toFixed(1)}px) scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`; });
+  const xAt = (cx) => Math.min(3, Math.max(0, (cx - dock.getBoundingClientRect().left - 5) / w - 0.5));
   dock.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    active = true; moved = false; startX = e.clientX; w = (dock.clientWidth - 10) / 4;
+    if (active) return;
+    active = true; moved = false; pid = e.pointerId; startX = e.clientX; w = (dock.clientWidth - 10) / 4;
   });
   dock.addEventListener('pointermove', (e) => {
-    if (!active) return;
+    if (!active || e.pointerId !== pid) return;
     if (!moved && Math.abs(e.clientX - startX) < 8) return;
-    if (!moved) { moved = true; dockDragged = true; dock.classList.add('dragging'); try { dock.setPointerCapture(e.pointerId); } catch (err) { /* не страшно */ } }
-    const x = Math.min(3, Math.max(0, (e.clientX - dock.getBoundingClientRect().left - 5) / w - 0.5));
-    dock.style.setProperty('--i', x.toFixed(3));
+    if (!moved) {
+      moved = true; dockDragged = true; dock.classList.add('dragging');
+      try { dock.setPointerCapture(e.pointerId); } catch (err) { /* не страшно */ }
+      lq.start(Math.max(0, FRIENDS_TAB_ORDER.indexOf(friendsTab)) * w);
+    }
+    lq.to(xAt(e.clientX) * w);
   });
   const end = (e) => {
-    if (!active) return;
-    active = false;
+    if (!active || e.pointerId !== pid) return;
+    active = false; pid = null;
     if (moved) {
+      lq.stop();
+      const idx = Math.round(xAt(e.clientX));
       dock.classList.remove('dragging');
-      const x = Math.min(3, Math.max(0, (e.clientX - dock.getBoundingClientRect().left - 5) / w - 0.5));
-      const idx = Math.round(x);
       dock.style.setProperty('--i', String(idx));
+      thumb.style.transform = '';
       setFriendsTab(FRIENDS_TAB_ORDER[idx]);
       setTimeout(() => { dockDragged = false; }, 60);
     }
@@ -3463,7 +3492,7 @@ function goBack() {
 }
 
 const swipe = { active: false, x: 0, y: 0, dx: 0, decided: false, horizontal: false };
-const SWIPE_BLOCKERS = 'input, textarea, .crop-view, .sheet, .dlg, .tour';
+const SWIPE_BLOCKERS = 'input, textarea, .crop-view, .sheet, .dlg, .tour, .bottom-nav, .dock-tabs';
 
 document.addEventListener('touchstart', (e) => {
   if (e.touches.length !== 1 || e.target.closest(SWIPE_BLOCKERS)) { swipe.active = false; return; }
@@ -4921,13 +4950,19 @@ function moveNavIndicator(targetId) {
   const tick = () => {
     try { if (tg?.HapticFeedback?.selectionChanged) tg.HapticFeedback.selectionChanged(); else if (navigator.vibrate) navigator.vibrate(8); } catch (e) { /* без вибрации */ }
   };
-  const follow = (x) => {
+  const bounds = () => {
     const nr = nav.getBoundingClientRect();
-    const first = items().find((b) => !b.classList.contains('nav-plus')) || nav;
-    const w = Math.max(40, first.getBoundingClientRect().width - 8);
-    const left = Math.min(Math.max(x - nr.left - nav.clientLeft - w / 2, 2), nr.width - nav.clientLeft * 2 - w - 2);
-    ind.style.width = `${w}px`;
-    ind.style.transform = `translateX(${left}px)`;
+    const its = items();
+    const w = Math.max(40, (its.find((b) => !b.classList.contains('nav-plus')) || nav).getBoundingClientRect().width - 8);
+    const at = (b) => { const r = b.getBoundingClientRect(); return r.left - nr.left - nav.clientLeft + (r.width - w) / 2; };
+    return { w, nr, min: at(its[0]), max: at(its[its.length - 1]) };
+  };
+  let bnd = null;
+  const lq = liquidThumb((p, sx, sy) => { ind.style.transform = `translateX(${p.toFixed(1)}px) scale(${(1.08 * sx).toFixed(3)}, ${(1.08 * sy).toFixed(3)})`; });
+  const follow = (x) => {
+    bnd = bnd || bounds();
+    ind.style.width = `${bnd.w}px`;
+    lq.to(Math.min(Math.max(x - bnd.nr.left - nav.clientLeft - bnd.w / 2, bnd.min), bnd.max));
     const b = nearest(x);
     if (b !== hot) {
       items().forEach((el) => el.classList.toggle('hot', el === b));
@@ -4938,6 +4973,7 @@ function moveNavIndicator(targetId) {
   };
   const finish = (commit) => {
     const target = hot;
+    lq.stop(); bnd = null;
     nav.classList.remove('dragging');
     items().forEach((el) => el.classList.remove('hot'));
     dragging = false; hot = null; pid = null;
@@ -4958,8 +4994,9 @@ function moveNavIndicator(targetId) {
     if (e.pointerId !== pid) return;
     if (!dragging) {
       if (Math.abs(e.clientX - startX) < 8) return;
-      dragging = true;
+      dragging = true; bnd = bounds();
       nav.classList.add('dragging');
+      lq.start(new DOMMatrixReadOnly(getComputedStyle(ind).transform).m41);
       try { nav.setPointerCapture(pid); } catch (err) { /* не страшно */ }
     }
     follow(e.clientX);
