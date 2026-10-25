@@ -461,6 +461,130 @@ function entryKindLabel(w) {
 }
 function entryKindIco(w) { return w.type === 'rest' ? 'moon' : w.competition ? 'trophy' : 'runner'; }
 
+// ---------- Форма записи под дисциплину ----------
+// По дисциплине из профиля подбираются подписи, подсказки, быстрые шаблоны и (для прыжков, метаний, многоборья) блок «попытки».
+const S = (distance_m, reps, time_or_pace = '', rest_between = '') => ({ distance_m, reps, time_or_pace, rest_between });
+const X = (name, sets = '', reps = '', weight = '') => ({ name, sets, reps, weight });
+const DISC_PROFILES = {
+  sprint: {
+    smart: 'Например: разминка 15 мин + СБУ, старты 6×30 м с низкого, 3×150 м за 18 сек отдых 5 мин, прыжки через барьеры 4×6, присед 5×3 100 кг. Было свежо.',
+    warmup: 'Например: 10 мин трусцой, суставная, СБУ, 4 ускорения по 60 м',
+    runTitle: 'Скоростная работа', runHint: 'отрезок, м · повторы · время · отдых', runPh: ['м (30, 60, 150)', 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
+    exTitle: 'Сила и ОФП', exPh: 'Упражнение (присед, рывок, выпрыгивания...)',
+    templates: [
+      { label: 'Старты 6×30', warmup: 'Трусцой 10 мин, суставная, СБУ, 3 ускорения по 40 м', sets: [S('30', '6', '', "3'")] },
+      { label: 'Макс. скорость', warmup: 'Трусцой 10 мин, СБУ, ускорения 3×60 м', sets: [S('60', '4', '', "5'"), S('80', '2', '', "6'")] },
+      { label: 'Скор. выносливость', warmup: 'Трусцой 10 мин, суставная, СБУ', sets: [S('150', '3', '', "6'")] },
+      { label: 'Сила + прыжки', exercises: [X('Присед', 5, '3', '100'), X('Выпрыгивания', 4, '6', 'свой вес'), X('Рывковая тяга', 4, '3', '60')] },
+    ],
+  },
+  hurdles: {
+    smart: 'Например: разминка 15 мин + барьерная ходьба, старт до 3-го барьера 6×, 4×5 барьеров через 8,5 м, 2×60 м с/б, ОФП и пресс. Атака на барьер лучше.',
+    warmup: 'Например: 10 мин трусцой, суставная, барьерная ходьба и трейл/лид',
+    runTitle: 'Бег и барьеры', runHint: 'отрезок, м · повторы · время · отдых', runPh: ['м (30, 60 с/б)', 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
+    exTitle: 'Барьерные упражнения, сила и ОФП', exPh: 'Упражнение (барьерная ходьба, трейл, присед...)',
+    templates: [
+      { label: 'Барьерный ритм', warmup: 'Трусцой 10 мин, СБУ, барьерная ходьба', sets: [S('50', '5', '', "3'")], exercises: [X('Барьерные упражнения (ходьба, трейл/лид)', 3, '5 барьеров')] },
+      { label: 'Старт до 3-го', warmup: 'Трусцой 10 мин, СБУ, ускорения', sets: [S('25', '6', '', "3'")] },
+      { label: 'Скорость на барьерах', warmup: 'Трусцой 10 мин, СБУ, ускорения 3×60 м', sets: [S('60', '3', '', "6'")] },
+      { label: 'Сила + ОФП', exercises: [X('Присед', 5, '5', '80'), X('Выпрыгивания', 4, '6', 'свой вес'), X('Пресс', 3, '20', 'свой вес')] },
+    ],
+  },
+  middle: {
+    smart: 'Например: разминка кросс 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, потом 4×200 быстро, заминка 2 км. Пульс ср 165 макс 188. Ноги живые.',
+    warmup: 'Например: кросс 3 км + СБУ, 4 ускорения по 80 м',
+    runTitle: 'Беговая работа', runHint: 'метры или время (1\', 30") · повторы · время/темп · отдых', runPh: ["м / км / 1'", 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
+    exTitle: 'Силовая / ОФП', exPh: 'Упражнение (присед, выпрыгивания, пресс...)',
+    templates: [
+      { label: 'Интервалы 6×400', warmup: 'Кросс 3 км + СБУ', sets: [S('400', '6', '', "1'30\"")], cooldown: 'Кросс 2 км' },
+      { label: 'Темповый 3×1000', warmup: 'Кросс 3 км + СБУ', sets: [S('1000', '3', '', "2'")], cooldown: 'Кросс 2 км' },
+      { label: 'Скорость 8×200', warmup: 'Кросс 3 км + СБУ + ускорения', sets: [S('200', '8', '', "2'")] },
+      { label: "Фартлек 10×1'", warmup: 'Кросс 2 км', sets: [S("1'", '10', '', "1'")], cooldown: 'Кросс 2 км' },
+      { label: 'Лёгкий кросс', warmup: 'Кросс 8 км в лёгком темпе' },
+    ],
+  },
+  long: {
+    smart: 'Например: длительный кросс 20 км, первые 10 лёгко, потом 5×1 км в темпе 3:25 через 1 мин трусцой. Пульс ср 152. Устал к концу.',
+    warmup: 'Например: кросс 15 км в спокойном темпе / разминка 2 км + СБУ',
+    runTitle: 'Беговая работа', runHint: 'метры, км или время · повторы · время/темп · отдых', runPh: ["м / км / 1'", 'Кол-во', 'Время/темп', 'Отдых'], addSet: '+ Добавить отрезок',
+    exTitle: 'Силовая / ОФП', exPh: 'Упражнение (присед, выпады, планка...)',
+    templates: [
+      { label: 'Длительный', warmup: 'Длительный кросс 20 км в спокойном темпе' },
+      { label: 'Темповый 2×3 км', warmup: 'Кросс 3 км + СБУ', sets: [S('3000', '2', '', "3'")], cooldown: 'Кросс 2 км' },
+      { label: 'Интервалы 5×1000', warmup: 'Кросс 3 км + СБУ', sets: [S('1000', '5', '', "2'")], cooldown: 'Кросс 2 км' },
+      { label: "Фартлек 12×1'", warmup: 'Кросс 3 км', sets: [S("1'", '12', '', "1'")], cooldown: 'Кросс 2 км' },
+      { label: 'Восстановительный', warmup: 'Кросс 8 км очень лёгко' },
+    ],
+  },
+  walk: {
+    smart: 'Например: разминка 2 км, ходьба 8×1000 м по 4:35 отдых 2 мин, техника 4×200 м, заминка 1 км. Судейская ошибка — «потеря контакта» на финише.',
+    warmup: 'Например: 2 км ходьбы в лёгком темпе, суставная, техника',
+    runTitle: 'Работа на дорожке', runHint: 'метры, км или время · повторы · время · отдых', runPh: ["м / км / 1'", 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
+    exTitle: 'ОФП и сила', exPh: 'Упражнение (присед, пресс, махи...)',
+    templates: [
+      { label: 'Интервалы 8×1000', warmup: 'Ходьба 2 км + суставная', sets: [S('1000', '8', '', "2'")], cooldown: 'Ходьба 1 км' },
+      { label: 'Длительная', warmup: 'Ходьба 15 км в ровном темпе' },
+      { label: 'Техника 4×200', warmup: 'Ходьба 2 км', sets: [S('200', '4', '', "1'30\"")] },
+    ],
+  },
+  jumps: {
+    smart: 'Например: разминка 15 мин, ускорения 4×30 м, длина с 12 шагов 6 попыток лучший 6,48, прыжки в глубину 4×5, присед 5×3 90 кг. Отталкивание лучше.',
+    warmup: 'Например: 10 мин трусцой, суставная, СБУ, ускорения 4×30 м',
+    tech: true, techTitle: 'Прыжки — попытки', techHint: 'вид · попытки · результат · планка / разбег', techPh: ['Вид: длина, тройной, высота, шест', 'Попыток', 'Лучший, м', 'Планка / разбег'], addTech: '+ Добавить прыжок',
+    runTitle: 'Разбег и скорость', runHint: 'отрезок, м · повторы · время · отдых', runPh: ['м (20, 30, 60)', 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
+    exTitle: 'Прыжковая работа, сила и ОФП', exPh: 'Упражнение (прыжки в глубину, присед, рывок...)',
+    templates: [
+      { label: 'Длина', warmup: 'Трусцой 10 мин, СБУ, ускорения 4×30 м', sets: [S('30', '4', '', "4'")], tech: [X('Длина с полного разбега', 6, '', '12 шагов')] },
+      { label: 'Тройной', warmup: 'Трусцой 10 мин, СБУ, ускорения 4×30 м', tech: [X('Тройной с разбега', 6, '', '10 шагов')] },
+      { label: 'Высота', warmup: 'Трусцой 10 мин, СБУ, ускорения', tech: [X('Высота', '', '', 'планка')] },
+      { label: 'Шест', warmup: 'Трусцой 10 мин, СБУ, ускорения', tech: [X('Шест', 6, '', 'хват / разбег')] },
+      { label: 'Прыжковая сила', exercises: [X('Прыжки в глубину', 4, '5', 'свой вес'), X('Прыжки на тумбу', 4, '5', 'свой вес'), X('Присед', 5, '3', '90')] },
+    ],
+  },
+  throws: {
+    smart: 'Например: разминка 15 мин, копьё 800 г 8 бросков лучший 54,2, ядро набивное 5×6, рывок 5×3 70 кг, пресс. Техника последнего шага лучше.',
+    warmup: 'Например: 10 мин трусцой, суставная, СБУ, ускорения 4×30 м',
+    tech: true, techTitle: 'Метания — броски', techHint: 'снаряд · броски · лучший результат · вес снаряда', techPh: ['Снаряд: копьё, ядро, диск, молот', 'Бросков', 'Лучший, м', 'Вес снаряда'], addTech: '+ Добавить снаряд',
+    runTitle: 'Ускорения и бег', runHint: 'отрезок, м · повторы · время · отдых', runPh: ['м (20, 30, 60)', 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
+    exTitle: 'Сила и ОФП', exPh: 'Упражнение (рывок, жим, присед, броски мяча...)',
+    templates: [
+      { label: 'Копьё', warmup: 'Трусцой 10 мин, суставная, СБУ, ускорения', tech: [X('Копьё', 8, '', '800 г')] },
+      { label: 'Ядро', warmup: 'Трусцой 10 мин, суставная, СБУ', tech: [X('Ядро', 8, '', '7,26 кг')] },
+      { label: 'Диск', warmup: 'Трусцой 10 мин, суставная, СБУ', tech: [X('Диск', 8, '', '2 кг')] },
+      { label: 'Молот', warmup: 'Трусцой 10 мин, суставная, СБУ', tech: [X('Молот', 8, '', '7,26 кг')] },
+      { label: 'Сила для метаний', exercises: [X('Рывок', 5, '3', '70'), X('Жим лёжа', 5, '5', '90'), X('Присед', 5, '5', '110'), X('Броски набивного мяча', 4, '8', '4')] },
+    ],
+  },
+  combined: {
+    smart: 'Например: день скорости: 60 м 5× и 150 м 3×, потом высота 12 попыток лучший 1,82, ядро 6 бросков, ОФП. Копьё лучше, высота хуже.',
+    warmup: 'Например: 10 мин трусцой, суставная, СБУ, ускорения',
+    tech: true, techTitle: 'Технические виды — попытки', techHint: 'вид · попытки · результат · снаряд / планка', techPh: ['Вид: длина, высота, ядро, копьё...', 'Попыток', 'Лучший', 'Снаряд / планка'], addTech: '+ Добавить вид',
+    runTitle: 'Бег и скорость', runHint: 'метры или время · повторы · время · отдых', runPh: ["м / км / 1'", 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
+    exTitle: 'Сила и ОФП', exPh: 'Упражнение (присед, рывок, пресс...)',
+    templates: [
+      { label: 'День скорости', warmup: 'Трусцой 10 мин, СБУ, ускорения', sets: [S('60', '5', '', "4'"), S('150', '3', '', "6'")] },
+      { label: 'Прыжки', warmup: 'Трусцой 10 мин, СБУ, ускорения', tech: [X('Длина', 6), X('Высота', 10)] },
+      { label: 'Метания', warmup: 'Трусцой 10 мин, суставная, СБУ', tech: [X('Ядро', 6, '', '7,26 кг'), X('Копьё', 6, '', '800 г'), X('Диск', 6, '', '2 кг')] },
+      { label: 'Бег 800 / 1500', warmup: 'Кросс 3 км + СБУ', sets: [S('300', '5', '', "2'30\"")] },
+      { label: 'Сила + ОФП', exercises: [X('Присед', 5, '3', '90'), X('Рывок', 4, '3', '60'), X('Пресс', 3, '20', 'свой вес')] },
+    ],
+  },
+};
+function disciplineGroup(d) {
+  const s = String(d || '').toLowerCase();
+  if (!s) return null;
+  if (/многобор|десятибор|семибор|пятибор/.test(s)) return 'combined';
+  if (/барьер|с\/б/.test(s)) return 'hurdles';
+  if (/ходьб/.test(s)) return 'walk';
+  if (/длинн|марафон|5000|10 ?000|стипл|кросс|3000/.test(s)) return 'long';
+  if (/средн|800|1500|миля/.test(s)) return 'middle';
+  if (/спринт|^60|100 ?м|200 ?м|400 ?м|эстафет/.test(s)) return 'sprint';
+  if (/метан|ядр|диск|копь|молот/.test(s)) return 'throws';
+  if (/прыж|длина|тройн|высот|шест/.test(s)) return 'jumps';
+  return null;
+}
+function myProfile() { return DISC_PROFILES[disciplineGroup(currentUser?.discipline)] || null; }
+
 const FORM_TEMPLATE = `
   <section class="card smart-card">
     <div class="card-label">${ico('sparkle')}Умный ввод</div>
@@ -471,6 +595,11 @@ const FORM_TEMPLATE = `
   </section>
 
   <button type="button" class="repeat-btn" data-f="repeatBtn">↻ Повторить прошлую тренировку</button>
+
+  <div class="tpl-box hidden" data-f="tplBox">
+    <div class="opt-chips-label" data-f="tplLabel">Шаблоны</div>
+    <div class="comp-chips" data-f="tplChips"></div>
+  </div>
 
   <div class="segmented seg-3" data-f="typeSwitch">
     <button type="button" class="seg-btn active" data-type="training">${ico('runner')} Тренировка</button>
@@ -497,10 +626,19 @@ const FORM_TEMPLATE = `
       <textarea data-f="warmup" rows="2" placeholder="Например: 3 км трусцой + суставная"></textarea>
     </section>
 
+    <section class="card hidden" data-f="techCard">
+      <div class="card-head">
+        <div class="card-label">${ico('trophy')}<span data-f="techTitle">Попытки</span></div>
+        <div class="card-hint" data-f="techHint">вид · попытки · результат</div>
+      </div>
+      <div data-f="techList"></div>
+      <button type="button" class="add-btn" data-f="addTech">+ Добавить</button>
+    </section>
+
     <section class="card">
       <div class="card-head">
-        <div class="card-label">${ico('runner')}Беговая работа</div>
-        <div class="card-hint">метры или время (1', 30") · кол-во · время/темп · отдых</div>
+        <div class="card-label">${ico('runner')}<span data-f="runTitle">Беговая работа</span></div>
+        <div class="card-hint" data-f="runHint">метры или время (1', 30") · кол-во · время/темп · отдых</div>
       </div>
       <div data-f="setsList"></div>
       <button type="button" class="add-btn" data-f="addSet">+ Добавить отрезок</button>
@@ -508,7 +646,7 @@ const FORM_TEMPLATE = `
 
     <section class="card">
       <div class="card-head">
-        <div class="card-label">${ico('dumbbell')}Силовая / ОФП</div>
+        <div class="card-label">${ico('dumbbell')}<span data-f="exTitle">Силовая / ОФП</span></div>
         <div class="card-hint">упражнение · подходы × повторы · вес</div>
       </div>
       <div data-f="exList"></div>
@@ -607,6 +745,10 @@ const FORM_TEMPLATE = `
   </section>
 `;
 
+const formProfileSyncs = [];
+function registerFormProfile(fn) { formProfileSyncs.push(fn); }
+function syncAllFormProfiles() { formProfileSyncs.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } }); }
+
 function createWorkoutForm(root, { getDate = () => null } = {}) {
   root.innerHTML = FORM_TEMPLATE;
   const f = (name) => root.querySelector(`[data-f="${name}"]`);
@@ -615,6 +757,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   let mode = 'training'; // training | competition | rest
   let sets = [];      // беговые отрезки: { distance_m, reps, time_or_pace, rest_between }
   let exercises = []; // силовая/ОФП:     { name, sets, reps, weight }
+  let tech = [];      // попытки в прыжках/метаниях: { name, sets, reps, weight } (на сервере kind = 'tech')
   // время тренировки «ЧЧ:ММ» (или null)
   let startTime = null, endTime = null;
   function paintTimes() {
@@ -836,6 +979,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   f('typeSwitch').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => setType(b.dataset.type)));
 
   // --- беговые отрезки ---
+  const runPh = () => myProfile()?.runPh || ["м / км / 1'", 'Кол-во', 'Время', 'Отдых'];
   function renderSets() {
     const list = f('setsList');
     list.innerHTML = '';
@@ -843,10 +987,10 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       const row = document.createElement('div');
       row.className = 'set-row';
       row.innerHTML = `
-        <input type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="м / км / 1'" value="${esc(distInput(s.distance_m))}" data-k="distance_m" />
-        <input type="number" inputmode="numeric" placeholder="Кол-во" value="${esc(s.reps)}" data-k="reps" />
-        <input type="text" placeholder="Время" value="${esc(s.time_or_pace)}" data-k="time_or_pace" />
-        <input type="text" placeholder="Отдых" value="${esc(s.rest_between)}" data-k="rest_between" />
+        <input type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(runPh()[0])}" value="${esc(distInput(s.distance_m))}" data-k="distance_m" />
+        <input type="number" inputmode="numeric" placeholder="${esc(runPh()[1])}" value="${esc(s.reps)}" data-k="reps" />
+        <input type="text" placeholder="${esc(runPh()[2])}" value="${esc(s.time_or_pace)}" data-k="time_or_pace" />
+        <input type="text" placeholder="${esc(runPh()[3])}" value="${esc(s.rest_between)}" data-k="rest_between" />
         <button type="button" class="row-del" aria-label="Удалить">✕</button>`;
       row.querySelectorAll('input').forEach((inp) => inp.addEventListener('input', () => { sets[i][inp.dataset.k] = inp.value; }));
       row.querySelector('.row-del').addEventListener('click', () => { sets.splice(i, 1); renderSets(); });
@@ -867,7 +1011,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       row.className = 'ex-row';
       row.innerHTML = `
         <div class="ex-top">
-          <input type="text" placeholder="Упражнение (присед, выпрыгивания, барьеры...)" value="${esc(e.name)}" data-k="name" />
+          <input type="text" placeholder="${esc(myProfile()?.exPh || 'Упражнение (присед, выпрыгивания, барьеры...)')}" value="${esc(e.name)}" data-k="name" />
           <button type="button" class="row-del" aria-label="Удалить">✕</button>
         </div>
         <div class="ex-bottom">
@@ -886,6 +1030,72 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     const inputs = f('exList').querySelectorAll('.ex-top input');
     inputs[inputs.length - 1]?.focus();
   });
+
+  // --- попытки (прыжки, метания, многоборье) ---
+  function renderTech() {
+    const ph = myProfile()?.techPh || ['Вид', 'Попыток', 'Лучший', 'Снаряд / планка'];
+    const list = f('techList');
+    list.innerHTML = '';
+    tech.forEach((e, i) => {
+      const row = document.createElement('div');
+      row.className = 'ex-row';
+      row.innerHTML = `
+        <div class="ex-top">
+          <input type="text" placeholder="${esc(ph[0])}" value="${esc(e.name)}" data-k="name" />
+          <button type="button" class="row-del" aria-label="Удалить">✕</button>
+        </div>
+        <div class="ex-bottom">
+          <input type="number" inputmode="numeric" placeholder="${esc(ph[1])}" value="${esc(e.sets)}" data-k="sets" />
+          <input type="text" inputmode="decimal" placeholder="${esc(ph[2])}" value="${esc(e.reps)}" data-k="reps" />
+          <input type="text" placeholder="${esc(ph[3])}" value="${esc(e.weight)}" data-k="weight" />
+        </div>`;
+      row.querySelectorAll('input').forEach((inp) => inp.addEventListener('input', () => { tech[i][inp.dataset.k] = inp.value; }));
+      row.querySelector('.row-del').addEventListener('click', () => { tech.splice(i, 1); renderTech(); syncProfile(); });
+      list.appendChild(row);
+    });
+  }
+  f('addTech').addEventListener('click', () => {
+    tech.push({ name: '', sets: '', reps: '', weight: '' });
+    renderTech();
+    const inputs = f('techList').querySelectorAll('.ex-top input');
+    inputs[inputs.length - 1]?.focus();
+  });
+
+  // --- подстройка формы под дисциплину из профиля ---
+  function syncProfile() {
+    const p = myProfile();
+    const set = (name, v, def) => { f(name).textContent = v || def; };
+    set('runTitle', p?.runTitle, 'Беговая работа');
+    set('runHint', p?.runHint, 'метры или время (1\', 30") · кол-во · время/темп · отдых');
+    set('exTitle', p?.exTitle, 'Силовая / ОФП');
+    set('techTitle', p?.techTitle, 'Попытки');
+    set('techHint', p?.techHint, 'вид · попытки · результат');
+    f('addSet').textContent = p?.addSet || '+ Добавить отрезок';
+    f('addTech').textContent = p?.addTech || '+ Добавить';
+    f('smartText').placeholder = p?.smart || 'Например: разминка 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, присед 5×5 80 кг, пульс ср 150 макс 182, в паузах до 110. Было тяжело.';
+    f('warmup').placeholder = p?.warmup || 'Например: 3 км трусцой + суставная';
+    f('techCard').classList.toggle('hidden', !(p?.tech || tech.length));
+    // быстрые шаблоны под дисциплину
+    const tpls = p?.templates || [];
+    f('tplBox').classList.toggle('hidden', !tpls.length);
+    f('tplLabel').textContent = `Шаблоны: ${currentUser?.discipline || ''}`;
+    f('tplChips').innerHTML = tpls.map((t, i) => `<button type="button" class="chip" data-i="${i}">${esc(t.label)}</button>`).join('');
+    f('tplChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => applyTemplate(tpls[+c.dataset.i])));
+    renderSets(); renderExercises(); renderTech();
+  }
+  function applyTemplate(t) {
+    if (!t) return;
+    setType('training');
+    if (t.warmup) f('warmup').value = t.warmup;
+    if (t.cooldown) f('cooldown').value = t.cooldown;
+    if (t.sets) sets = t.sets.map((s) => ({ ...s }));
+    if (t.exercises) exercises = t.exercises.map((e) => ({ ...e }));
+    if (t.tech) tech = t.tech.map((e) => ({ ...e }));
+    syncProfile();
+    growAll(root);
+    haptic('select');
+  }
+  registerFormProfile(syncProfile);
 
   // --- ползунки ---
   // цвет цифры: самочувствие — чем выше, тем зеленее; нагрузка — чем выше, тем краснее
@@ -925,10 +1135,10 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       renderSets();
     }
     if (Array.isArray(p.exercises) && p.exercises.length) {
-      exercises = p.exercises.map((e) => ({
-        name: e.name ?? '', sets: e.sets ?? '', reps: e.reps ?? '', weight: e.weight ?? '',
-      }));
-      renderExercises();
+      const mapEx = (e) => ({ name: e.name ?? '', sets: e.sets ?? '', reps: e.reps ?? '', weight: e.weight ?? '' });
+      exercises = p.exercises.filter((e) => e.kind !== 'tech').map(mapEx);
+      tech = p.exercises.filter((e) => e.kind === 'tech').map(mapEx);
+      syncProfile();
     }
   }
 
@@ -1007,11 +1217,11 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       sets = (Array.isArray(w.sets) ? w.sets : []).map((s) => ({
         distance_m: s.duration_s ? durLabel(s.duration_s) : (s.distance_m ?? ''), reps: s.reps ?? '', time_or_pace: s.time_or_pace ?? '', rest_between: s.rest_between ?? '',
       }));
-      exercises = (Array.isArray(w.exercises) ? w.exercises : []).map((e) => ({
-        name: e.name ?? '', sets: e.sets ?? '', reps: e.reps ?? '', weight: e.weight ?? '',
-      }));
-      renderSets();
-      renderExercises();
+      const allEx = Array.isArray(w.exercises) ? w.exercises : [];
+      const mapEx = (e) => ({ name: e.name ?? '', sets: e.sets ?? '', reps: e.reps ?? '', weight: e.weight ?? '' });
+      exercises = allEx.filter((e) => e.kind !== 'tech').map(mapEx);
+      tech = allEx.filter((e) => e.kind === 'tech').map(mapEx);
+      syncProfile();
       syncOptional();
       growAll(root);
   }
@@ -1049,7 +1259,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
           const dur = looksLikeDuration(x.distance_m) ? parseDuration(x.distance_m) : null;
           return { ...x, duration_s: dur, distance_m: dur ? null : parseDistance(x.distance_m) };
         }) : [],
-        exercises: type === 'training' ? exercises : [],
+        exercises: type === 'training' ? [...exercises.map((e) => ({ ...e, kind: null })), ...tech.filter((e) => String(e.name || '').trim()).map((e) => ({ ...e, kind: 'tech' }))] : [],
         hr_avg: f('hrAvg').value,
         hr_max: f('hrMax').value,
         hr_min: f('hrMin').value,
@@ -2360,8 +2570,10 @@ async function loadInsight() {
       return;
     }
 
+    $('insightBoxTitle').textContent = 'Разбор от Fom';
     $('insightText').innerHTML = renderMarkdownBold(insight);
     boxEl.classList.remove('hidden');
+    setTimeout(() => boxEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
   } catch (err) {
     console.error('Failed to load insight', err);
     loadingEl.classList.add('hidden');
@@ -2381,6 +2593,32 @@ document.querySelectorAll('#insightsScreen [data-period]').forEach((btn) => {
 });
 
 $('refreshInsightBtn').addEventListener('click', loadInsight);
+
+// Примерный план на неделю под дисциплину (Fom учитывает последние 3 недели)
+async function loadPlan() {
+  const loadingEl = $('insightLoading'), emptyEl = $('insightEmpty'), boxEl = $('insightBox');
+  loadingEl.textContent = 'Fom составляет план...';
+  loadingEl.classList.remove('hidden'); emptyEl.classList.add('hidden'); boxEl.classList.add('hidden');
+  $('planBtn').disabled = true;
+  try {
+    const { plan } = await api('/api/insights/plan', { timeout: 90000 });
+    loadingEl.classList.add('hidden');
+    if (!plan) { emptyEl.textContent = 'Не получилось составить план. Попробуй ещё раз.'; emptyEl.classList.remove('hidden'); return; }
+    $('insightBoxTitle').textContent = 'План на неделю от Fom';
+    $('insightText').innerHTML = renderMarkdownBold(plan);
+    boxEl.classList.remove('hidden');
+    setTimeout(() => boxEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
+  } catch (err) {
+    console.error('Failed to load plan', err);
+    loadingEl.classList.add('hidden');
+    emptyEl.textContent = err.data?.error || 'Не удалось составить план. Попробуй ещё раз.';
+    emptyEl.classList.remove('hidden');
+  } finally {
+    loadingEl.textContent = 'Fom анализирует тренировки...';
+    $('planBtn').disabled = false;
+  }
+}
+$('planBtn').addEventListener('click', loadPlan);
 
 // ---------- Чат с Fom ----------
 let chatHistory = []; // { role: 'user'|'assistant', content } — хранится только пока открыто приложение
@@ -3141,6 +3379,7 @@ function renderMySport() {
   const label = sportLabel(currentUser);
   tag.textContent = label || '＋ Укажи дисциплину';
   tag.classList.toggle('empty', !label);
+  syncAllFormProfiles(); // форма записи подстраивается под дисциплину
 }
 
 let sportDraft = { discipline: '' };
