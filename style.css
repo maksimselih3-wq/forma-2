@@ -2445,7 +2445,10 @@ body[data-screen="insightsScreen"] { overflow: hidden; overscroll-behavior: none
 .insights-one .chart-table { flex: 1; min-height: 0; overflow-y: auto; margin-top: 8px; }
 .insights-one .charts-card.empty .chart-block + .chart-block { display: none; }
 .insights-one > .segmented { margin: 0 0 8px; }
-.insights-one .primary-btn { margin-bottom: 8px; }
+.insights-one .primary-btn { margin: 0; }
+.ins-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.ins-actions .primary-btn { flex: 1; padding: 15px 8px; }
+.ins-actions .plan-btn { background: rgba(var(--ink), 0.06); color: var(--text); border: 1px solid var(--border-strong); box-shadow: none; }
 .insights-one #insightBox { max-height: 30vh; overflow-y: auto; margin: 0; -webkit-overflow-scrolling: touch; }
 .chart-legend-inline { float: right; font-size: 11px; font-weight: 400; color: var(--muted, #888); }
 .chart-legend-inline .key { margin: 0 3px 0 6px; }
@@ -2486,3 +2489,7 @@ input[type="email"]:focus, input[type="password"]:focus { border-color: rgba(180
 
 /* Резиновая прокрутка: на концах страница чуть тянется и пружинит обратно (см. initRubber) */
 html, html body { overscroll-behavior-y: none; }
+
+/* Шаблоны записи под дисциплину */
+.tpl-box { margin: 0 0 12px; }
+.tpl-box .opt-chips-label { display: block; margin: 0 0 6px; }
