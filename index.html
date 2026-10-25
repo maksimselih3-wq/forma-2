@@ -128,7 +128,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=91" />
+<link rel="stylesheet" href="style.css?v=92" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -1432,8 +1432,7 @@
     </div>
 
     <div class="ins-actions">
-      <button id="refreshInsightBtn" class="primary-btn" type="button">Разбор от Fom</button>
-      <button id="planBtn" class="primary-btn plan-btn" type="button">План на неделю</button>
+      <button id="refreshInsightBtn" class="primary-btn" type="button">Получить разбор от Fom</button>
     </div>
 
     <div id="insightLoading" class="status-msg hidden">Fom анализирует тренировки...</div>
@@ -1598,7 +1597,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=100';
+      s.src = 'app.js?v=101';
       document.body.appendChild(s);
     });
   </script>
