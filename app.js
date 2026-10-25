@@ -1274,13 +1274,14 @@ const mainForm = createWorkoutForm($('mainFormFields'), { getDate: () => entryDa
 const editForm = createWorkoutForm($('editFormFields'), { getDate: () => currentEditWorkout?.date });
 
 // ---------- Заставка ----------
+// Заставка всегда показывается до конца: надпись дописывается за ~1 c (~1.25–1.4 c с запасом)
 // Убираем заставку, когда надпись дописана (~1.4 c) и данные загрузились (но не дольше 4 c)
 let splashGone = false;
 function hideSplash(fast = false) {
   if (splashGone) return;
   const el = document.getElementById('splash');
   if (!el) return;
-  const wait = Math.max(0, (fast ? 500 : 1400) - (Date.now() - (window.__splashStart || 0)));
+  const wait = Math.max(0, (fast ? 1250 : 1400) - (Date.now() - (window.__splashStart || 0)));
   splashGone = true;
   setTimeout(() => {
     el.classList.add('hide');
