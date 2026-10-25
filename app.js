@@ -43,7 +43,7 @@ const tg = window.Telegram?.WebApp;
 // Вход вне Telegram (сайт на главном экране телефона): вместо подписи Telegram — личный ключ сессии
 const SESSION_KEY = 'forma_session';
 function getSession() { try { return localStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; } }
-function setSession(v) { try { if (v) localStorage.setItem(SESSION_KEY, v); else { localStorage.removeItem(SESSION_KEY); localStorage.removeItem('forma_boot'); } } catch (e) { /* нет хранилища */ } }
+function setSession(v) { try { if (v) localStorage.setItem(SESSION_KEY, v); else { localStorage.removeItem(SESSION_KEY); localStorage.removeItem('forma_boot'); localStorage.removeItem('forma_social'); } } catch (e) { /* нет хранилища */ } }
 function authHeaders() {
   if (tg?.initData) return { 'X-Telegram-Init-Data': tg.initData };
   const s = getSession();
@@ -1349,7 +1349,9 @@ async function init() {
     await loadMyWorkouts(await preWorkouts);
     writeBootCache();
     renderEntryState();
-    setTimeout(prefetchSocial, 2500); // друзья и лента подгружаются заранее — вкладка откроется сразу
+    loadSocialCache();
+    setTimeout(() => { if (friendsScreenCache) warmAvatars(friendsScreenCache.friends); }, 300);
+    setTimeout(prefetchSocial, 400); // друзья и лента подгружаются заранее — вкладка откроется сразу
     loadGiveaway();
     loadAthleteProfile();
     loadMorning();
@@ -2318,6 +2320,7 @@ async function loadFeedPage(first = false) {
       const sig = JSON.stringify(workouts);
       if (feedCache && feedCache.sig === sig) { status.textContent = ''; more.classList.toggle('hidden', workouts.length < 15); return; }
       feedCache = { workouts, sig };
+      saveSocialCache(); warmAvatars(workouts.map((w) => w.author));
       paintFeedItems(workouts, { reset: true });
     } else {
       paintFeedItems(workouts);
@@ -2359,12 +2362,42 @@ async function loadActivity() {
 }
 
 // Заранее подгружаем друзей и ленту (тихо, в фоне), чтобы вкладка «Друзья» открывалась без ожидания
+function socialWho() { return bootWho(); }
+function loadSocialCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem('forma_social') || 'null');
+    if (!c || c.who !== socialWho()) return;
+    if (!friendsScreenCache && c.friends) friendsScreenCache = { requests: c.requests || [], friends: c.friends, sig: JSON.stringify([c.requests || [], c.friends]) };
+    if (!feedCache && c.feed) feedCache = { workouts: c.feed, sig: JSON.stringify(c.feed) };
+  } catch (e) { /* нет кэша — не страшно */ }
+}
+function saveSocialCache() {
+  try {
+    const s = JSON.stringify({ who: socialWho(), requests: friendsScreenCache?.requests || [], friends: friendsScreenCache?.friends || null, feed: (feedCache?.workouts || []).slice(0, 15), t: Date.now() });
+    if (s.length < 600000) localStorage.setItem('forma_social', s);
+  } catch (e) { /* место закончилось — пропускаем */ }
+}
+// фото друзей и авторов ленты скачиваем заранее, чтобы в списках они уже были на месте
+const warmedAva = new Set();
+function warmAvatars(users) {
+  let i = 0;
+  (users || []).forEach((u) => {
+    const src = u && u.id !== currentUser?.id ? avatarSrc(u) : '';
+    if (!src || warmedAva.has(src) || warmedAva.size > 60) return;
+    warmedAva.add(src);
+    setTimeout(() => { try { new Image().src = src; } catch (e) { /* не страшно */ } }, 150 * i++);
+  });
+}
+let lastSocialAt = 0;
 async function prefetchSocial() {
   try {
     const [{ requests }, { friends }, feed] = await Promise.all([api('/api/friends/requests'), api('/api/friends'), api('/api/friends/feed')]);
     friendsScreenCache = { requests, friends, sig: JSON.stringify([requests, friends]) };
     feedCache = { workouts: feed.workouts, sig: JSON.stringify(feed.workouts) };
-    friends.slice(0, 3).forEach((f, i) => setTimeout(() => warmFriendProfile(f.id), 600 + i * 500)); // профили первых друзей — заранее
+    lastSocialAt = Date.now();
+    saveSocialCache();
+    warmAvatars([...friends, ...feed.workouts.map((w) => w.author)]);
+    friends.slice(0, 5).forEach((f, i) => setTimeout(() => warmFriendProfile(f.id), 800 + i * 400)); // профили первых друзей — заранее
   } catch (e) { /* не страшно — загрузится при открытии */ }
 }
 
@@ -2379,6 +2412,7 @@ async function loadFriendsList() {
     const sig = JSON.stringify([requests, friends]);
     if (friendsScreenCache && friendsScreenCache.sig === sig) return;
     friendsScreenCache = { requests, friends, sig };
+    saveSocialCache(); warmAvatars(friends);
     renderFriendsList(friendsScreenCache);
   } catch (err) {
     console.error('Failed to load friends', err);
@@ -6937,6 +6971,8 @@ $('loginTgBtn').addEventListener('click', () => {
   window.location.href = tgDeepLink(loginLink);
 });
 $('loginRetryBtn').addEventListener('click', () => { $('loginRetryBtn').classList.add('hidden'); loginStatus(''); prepareLogin(true); });
+// вернулись в приложение — обновляем друзей и ленту в фоне, если данным больше минуты
+document.addEventListener('visibilitychange', () => { if (!document.hidden && currentUser && Date.now() - lastSocialAt > 60000) prefetchSocial(); });
 // вернулись в приложение из Telegram — сразу спрашиваем, подтвердил ли вход
 document.addEventListener('visibilitychange', () => { if (!document.hidden && loginPoll) checkLogin(); });
 
