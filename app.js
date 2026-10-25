@@ -2594,31 +2594,6 @@ document.querySelectorAll('#insightsScreen [data-period]').forEach((btn) => {
 
 $('refreshInsightBtn').addEventListener('click', loadInsight);
 
-// Примерный план на неделю под дисциплину (Fom учитывает последние 3 недели)
-async function loadPlan() {
-  const loadingEl = $('insightLoading'), emptyEl = $('insightEmpty'), boxEl = $('insightBox');
-  loadingEl.textContent = 'Fom составляет план...';
-  loadingEl.classList.remove('hidden'); emptyEl.classList.add('hidden'); boxEl.classList.add('hidden');
-  $('planBtn').disabled = true;
-  try {
-    const { plan } = await api('/api/insights/plan', { timeout: 90000 });
-    loadingEl.classList.add('hidden');
-    if (!plan) { emptyEl.textContent = 'Не получилось составить план. Попробуй ещё раз.'; emptyEl.classList.remove('hidden'); return; }
-    $('insightBoxTitle').textContent = 'План на неделю от Fom';
-    $('insightText').innerHTML = renderMarkdownBold(plan);
-    boxEl.classList.remove('hidden');
-    setTimeout(() => boxEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
-  } catch (err) {
-    console.error('Failed to load plan', err);
-    loadingEl.classList.add('hidden');
-    emptyEl.textContent = err.data?.error || 'Не удалось составить план. Попробуй ещё раз.';
-    emptyEl.classList.remove('hidden');
-  } finally {
-    loadingEl.textContent = 'Fom анализирует тренировки...';
-    $('planBtn').disabled = false;
-  }
-}
-$('planBtn').addEventListener('click', loadPlan);
 
 // ---------- Чат с Fom ----------
 let chatHistory = []; // { role: 'user'|'assistant', content } — хранится только пока открыто приложение
