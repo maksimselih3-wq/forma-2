@@ -128,7 +128,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=90" />
+<link rel="stylesheet" href="style.css?v=91" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -1431,12 +1431,15 @@
       <button type="button" class="seg-btn" data-period="month">За месяц</button>
     </div>
 
-    <button id="refreshInsightBtn" class="primary-btn" type="button">Получить разбор от Fom</button>
+    <div class="ins-actions">
+      <button id="refreshInsightBtn" class="primary-btn" type="button">Разбор от Fom</button>
+      <button id="planBtn" class="primary-btn plan-btn" type="button">План на неделю</button>
+    </div>
 
     <div id="insightLoading" class="status-msg hidden">Fom анализирует тренировки...</div>
     <div id="insightEmpty" class="empty-hint hidden">Пока недостаточно записей за этот период.</div>
     <div id="insightBox" class="card ai-box-big hidden">
-      <div class="ai-box-title"><span class="fom-badge">F</span> Разбор от Fom</div>
+      <div class="ai-box-title"><span class="fom-badge">F</span> <span id="insightBoxTitle">Разбор от Fom</span></div>
       <div id="insightText"></div>
     </div>
   </section>
@@ -1595,7 +1598,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=99';
+      s.src = 'app.js?v=100';
       document.body.appendChild(s);
     });
   </script>
