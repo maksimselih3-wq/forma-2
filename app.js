@@ -2178,19 +2178,66 @@ async function updateFriendsBadge() {
 let friendsTab = 'feed';
 let feedCursor = null;
 
+const FRIENDS_TAB_ORDER = ['feed', 'runs', 'list', 'groups'];
 function setFriendsTab(tab) {
+  const prev = friendsTab;
   friendsTab = tab;
+  const dock = $('friendsTabs');
+  dock.dataset.i = FRIENDS_TAB_ORDER.indexOf(tab);
+  dock.style.setProperty('--i', dock.dataset.i);
+  if (prev !== tab) { // «жидкое» растяжение бегунка при переезде
+    dock.classList.remove('moving'); void dock.offsetWidth; dock.classList.add('moving');
+    clearTimeout(dock._mv); dock._mv = setTimeout(() => dock.classList.remove('moving'), 600);
+    haptic('select');
+  }
   document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   $('feedTab').classList.toggle('hidden', tab !== 'feed');
   $('runsTab').classList.toggle('hidden', tab !== 'runs');
   $('listTab').classList.toggle('hidden', tab !== 'list');
   $('groupsTab').classList.toggle('hidden', tab !== 'groups');
+  if (prev !== tab) { // новая вкладка мягко въезжает
+    const shown = $({ feed: 'feedTab', runs: 'runsTab', list: 'listTab', groups: 'groupsTab' }[tab]);
+    shown.classList.remove('tab-in'); void shown.offsetWidth; shown.classList.add('tab-in');
+    setTimeout(() => shown.classList.remove('tab-in'), 450);
+  }
   if (tab === 'feed') loadFeedTab();
   else if (tab === 'runs') loadRunsTab();
   else if (tab === 'groups') loadGroupsTab();
   else loadFriendsList();
 }
-document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.addEventListener('click', () => setFriendsTab(b.dataset.tab)));
+document.querySelectorAll('#friendsTabs .seg-btn').forEach((b) => b.addEventListener('click', () => { if (!dockDragged) setFriendsTab(b.dataset.tab); }));
+
+// Бегунок можно взять пальцем и перетащить к нужной вкладке — отпустил, и он «примагничивается»
+let dockDragged = false;
+(function initDock() {
+  const dock = $('friendsTabs');
+  let startX = 0, active = false, moved = false, w = 1;
+  dock.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    active = true; moved = false; startX = e.clientX; w = (dock.clientWidth - 10) / 4;
+  });
+  dock.addEventListener('pointermove', (e) => {
+    if (!active) return;
+    if (!moved && Math.abs(e.clientX - startX) < 8) return;
+    if (!moved) { moved = true; dockDragged = true; dock.classList.add('dragging'); try { dock.setPointerCapture(e.pointerId); } catch (err) { /* не страшно */ } }
+    const x = Math.min(3, Math.max(0, (e.clientX - dock.getBoundingClientRect().left - 5) / w - 0.5));
+    dock.style.setProperty('--i', x.toFixed(3));
+  });
+  const end = (e) => {
+    if (!active) return;
+    active = false;
+    if (moved) {
+      dock.classList.remove('dragging');
+      const x = Math.min(3, Math.max(0, (e.clientX - dock.getBoundingClientRect().left - 5) / w - 0.5));
+      const idx = Math.round(x);
+      dock.style.setProperty('--i', String(idx));
+      setFriendsTab(FRIENDS_TAB_ORDER[idx]);
+      setTimeout(() => { dockDragged = false; }, 60);
+    }
+  };
+  dock.addEventListener('pointerup', end);
+  dock.addEventListener('pointercancel', end);
+})();
 
 $('friendsBtn').addEventListener('click', () => {
   showScreen('friendsScreen');
