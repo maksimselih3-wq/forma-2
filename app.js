@@ -43,7 +43,7 @@ const tg = window.Telegram?.WebApp;
 // Вход вне Telegram (сайт на главном экране телефона): вместо подписи Telegram — личный ключ сессии
 const SESSION_KEY = 'forma_session';
 function getSession() { try { return localStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; } }
-function setSession(v) { try { if (v) localStorage.setItem(SESSION_KEY, v); else localStorage.removeItem(SESSION_KEY); } catch (e) { /* нет хранилища */ } }
+function setSession(v) { try { if (v) localStorage.setItem(SESSION_KEY, v); else { localStorage.removeItem(SESSION_KEY); localStorage.removeItem('forma_boot'); } } catch (e) { /* нет хранилища */ } }
 function authHeaders() {
   if (tg?.initData) return { 'X-Telegram-Init-Data': tg.initData };
   const s = getSession();
@@ -1264,11 +1264,11 @@ const editForm = createWorkoutForm($('editFormFields'), { getDate: () => current
 // ---------- Заставка ----------
 // Убираем заставку, когда надпись дописана (~1.4 c) и данные загрузились (но не дольше 4 c)
 let splashGone = false;
-function hideSplash() {
+function hideSplash(fast = false) {
   if (splashGone) return;
   const el = document.getElementById('splash');
   if (!el) return;
-  const wait = Math.max(0, 1400 - (Date.now() - (window.__splashStart || 0)));
+  const wait = Math.max(0, (fast ? 500 : 1400) - (Date.now() - (window.__splashStart || 0)));
   splashGone = true;
   setTimeout(() => {
     el.classList.add('hide');
@@ -1277,12 +1277,43 @@ function hideSplash() {
 }
 setTimeout(hideSplash, 4000); // запасной вариант, если сервер долго отвечает
 
+// ---------- Быстрый старт: показываем прошлые данные сразу, свежие подтягиваем в фоне ----------
+function bootWho() { return tg?.initDataUnsafe?.user?.id ? 'tg' + tg.initDataUnsafe.user.id : 'web' + String(getSession() || '').slice(-12); }
+function readBootCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem('forma_boot') || 'null');
+    if (c && c.who === bootWho() && c.user && c.user.consent_at && Array.isArray(c.workouts)) return c;
+  } catch (e) { /* нет кэша — не страшно */ }
+  return null;
+}
+function writeBootCache() {
+  try {
+    if (!currentUser || !currentUser.consent_at) return;
+    const s = JSON.stringify({ who: bootWho(), user: currentUser, workouts: myWorkouts, streak: { current: currentUser.current_streak, longest: currentUser.longest_streak }, t: Date.now() });
+    if (s.length < 1500000) localStorage.setItem('forma_boot', s);
+  } catch (e) { /* место закончилось — пропускаем */ }
+}
+
 // ---------- Инициализация ----------
 async function init() {
   setEntryDate(localDateStr());
   showScreen('mainScreen');
   // открыли вне Telegram и ещё не входили — сначала вход
   if (OUTSIDE_TELEGRAM && !getSession()) { hideSplash(); showLogin(); return; }
+  // Уже заходили: рисуем главный экран из сохранённых данных сразу, не дожидаясь сервера
+  const boot = readBootCache();
+  let preWorkouts = null;
+  if (boot) {
+    try {
+      currentUser = boot.user;
+      MAX_BACKFILL_DAYS = Number(boot.user.backfill_days) || 1;
+      try { setEntryDate(entryDate); } catch (e) { /* главная ещё не готова */ }
+      ingestWorkouts(boot.workouts, boot.streak);
+      renderMySport(); updateAvatar(); renderEntryState();
+      hideSplash(true);
+      preWorkouts = api('/api/workouts').catch(() => null); // свежие записи грузим параллельно со входом
+    } catch (e) { console.warn('Boot cache skipped', e); }
+  }
   try {
     // start_param — если приложение открыли по ссылке-приглашению
     const { user } = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ start_param: tg?.initDataUnsafe?.start_param || '' }) });
@@ -1303,7 +1334,8 @@ async function init() {
     updateFriendsBadge();
     setInterval(updateFriendsBadge, 60000); // раз в минуту проверяем новые реакции и заявки
     updateStats();
-    await loadMyWorkouts();
+    await loadMyWorkouts(await preWorkouts);
+    writeBootCache();
     renderEntryState();
     loadGiveaway();
     loadAthleteProfile();
@@ -1342,8 +1374,7 @@ async function init() {
   hideSplash();
 }
 
-async function loadMyWorkouts() {
-  const { workouts, streak } = await api('/api/workouts');
+function ingestWorkouts(workouts, streak) {
   myWorkouts = workouts.map((w) => ({ ...w, date: normDate(w.date) }));
   workoutsByDate = {};
   myWorkouts.forEach((w) => { (workoutsByDate[w.date] = workoutsByDate[w.date] || []).push(w); });
@@ -1354,6 +1385,16 @@ async function loadMyWorkouts() {
   }
   updateStats();
 }
+
+// pre — уже загруженный ответ /api/workouts (при быстром старте), иначе запрашиваем сами
+async function loadMyWorkouts(pre) {
+  const { workouts, streak } = pre && pre.workouts ? pre : await api('/api/workouts');
+  ingestWorkouts(workouts, streak);
+  scheduleBootSave();
+}
+
+let bootSaveTimer = null;
+function scheduleBootSave() { clearTimeout(bootSaveTimer); bootSaveTimer = setTimeout(writeBootCache, 1500); }
 
 function applyStreak(streak) {
   if (!currentUser || !streak) return;
@@ -1566,6 +1607,23 @@ async function fomVolumeCheck(id) {
   } catch (e) { console.warn('Volume check skipped', e); }
 }
 
+// Отзыв Fom пишется на сервере в фоне — забираем, когда будет готов, и показываем в карточке записи
+async function waitFeedback(id, { fresh = false } = {}) {
+  if (!id) return;
+  try {
+    const { ai_feedback } = await api(`/api/workouts/${id}/feedback-wait`, { timeout: 70000 });
+    if (!ai_feedback) return;
+    const w = myWorkouts.find((x) => x.id === id);
+    if (w) w.ai_feedback = ai_feedback;
+    if (currentEditWorkout && currentEditWorkout.id === id) {
+      currentEditWorkout.ai_feedback = ai_feedback;
+      $('editStatusMsg').textContent = fresh ? 'Сохранено ✓ Fom обновил отзыв' : $('editStatusMsg').textContent;
+      renderEditFeedback(currentEditWorkout, true);
+    }
+    try { renderEntryState(); } catch (e) { /* экран ещё не готов */ }
+  } catch (e) { console.warn('Feedback wait failed', e); }
+}
+
 // ---------- Сохранение новой записи ----------
 $('saveBtn').addEventListener('click', async () => {
   const statusEl = $('statusMsg');
@@ -1576,7 +1634,7 @@ $('saveBtn').addEventListener('click', async () => {
   if (entrySession === 2) payload.type = 'training';
 
   saveBtn.disabled = true;
-  statusEl.textContent = payload.type === 'training' ? 'Сохраняю, Fom смотрит тренировку...' : 'Сохраняю...';
+  statusEl.textContent = 'Сохраняю...';
 
   try {
     const result = await api('/api/workouts', { method: 'POST', body: JSON.stringify(payload), timeout: 60000 });
@@ -1599,7 +1657,10 @@ $('saveBtn').addEventListener('click', async () => {
     } else {
       haptic('success');
     }
-    if (payload.type === 'training') setTimeout(() => fomVolumeCheck(result.workout?.id), 600);
+    if (payload.type === 'training') {
+      setTimeout(() => fomVolumeCheck(result.workout?.id), 600);
+      if (result.feedback_pending) waitFeedback(result.workout?.id);
+    }
     justSavedDate = entryDate;
     entrySession = 1;
     setTimeout(renderAchievements, 900); // вдруг открылось новое достижение
@@ -2936,9 +2997,11 @@ $('editSaveBtn').addEventListener('click', async () => {
     currentEditWorkout = { ...currentEditWorkout, ...result.workout, date: normDate(result.workout.date) };
     const st = result.feedback_status;
     const updatedFb = st === 'updated' || (!st && result.workout.ai_feedback && result.workout.ai_feedback !== oldFeedback);
-    statusEl.textContent = updatedFb ? 'Сохранено ✓ Fom обновил отзыв'
+    statusEl.textContent = st === 'pending' ? 'Сохранено ✓ Fom пишет новый отзыв…'
+      : updatedFb ? 'Сохранено ✓ Fom обновил отзыв'
       : st === 'failed' ? 'Сохранено ✓ Fom не успел обновить отзыв — нажми «Обновить отзыв»'
       : 'Сохранено ✓';
+    if (st === 'pending') waitFeedback(currentEditWorkout.id, { fresh: true });
     renderEditFeedback(currentEditWorkout, updatedFb);
     haptic('success');
     renderEditSocial(currentEditWorkout);
