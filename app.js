@@ -596,10 +596,6 @@ const FORM_TEMPLATE = `
 
   <button type="button" class="repeat-btn" data-f="repeatBtn">↻ Повторить прошлую тренировку</button>
 
-  <div class="tpl-box hidden" data-f="tplBox">
-    <div class="opt-chips-label" data-f="tplLabel">Шаблоны</div>
-    <div class="comp-chips" data-f="tplChips"></div>
-  </div>
 
   <div class="segmented seg-3" data-f="typeSwitch">
     <button type="button" class="seg-btn active" data-type="training">${ico('runner')} Тренировка</button>
@@ -1075,25 +1071,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     f('smartText').placeholder = p?.smart || 'Например: разминка 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, присед 5×5 80 кг, пульс ср 150 макс 182, в паузах до 110. Было тяжело.';
     f('warmup').placeholder = p?.warmup || 'Например: 3 км трусцой + суставная';
     f('techCard').classList.toggle('hidden', !(p?.tech || tech.length));
-    // быстрые шаблоны под дисциплину
-    const tpls = p?.templates || [];
-    f('tplBox').classList.toggle('hidden', !tpls.length);
-    f('tplLabel').textContent = `Шаблоны: ${currentUser?.discipline || ''}`;
-    f('tplChips').innerHTML = tpls.map((t, i) => `<button type="button" class="chip" data-i="${i}">${esc(t.label)}</button>`).join('');
-    f('tplChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => applyTemplate(tpls[+c.dataset.i])));
     renderSets(); renderExercises(); renderTech();
-  }
-  function applyTemplate(t) {
-    if (!t) return;
-    setType('training');
-    if (t.warmup) f('warmup').value = t.warmup;
-    if (t.cooldown) f('cooldown').value = t.cooldown;
-    if (t.sets) sets = t.sets.map((s) => ({ ...s }));
-    if (t.exercises) exercises = t.exercises.map((e) => ({ ...e }));
-    if (t.tech) tech = t.tech.map((e) => ({ ...e }));
-    syncProfile();
-    growAll(root);
-    haptic('select');
   }
   registerFormProfile(syncProfile);
 
