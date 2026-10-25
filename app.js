@@ -1350,8 +1350,7 @@ async function init() {
     writeBootCache();
     renderEntryState();
     loadSocialCache();
-    setTimeout(() => { if (friendsScreenCache) warmAvatars(friendsScreenCache.friends); }, 300);
-    setTimeout(prefetchSocial, 400); // друзья и лента подгружаются заранее — вкладка откроется сразу
+    setTimeout(prefetchSocial, 1200); // друзья и лента подгружаются заранее — вкладка откроется сразу
     loadGiveaway();
     loadAthleteProfile();
     loadMorning();
@@ -2383,9 +2382,10 @@ function warmAvatars(users) {
   let i = 0;
   (users || []).forEach((u) => {
     const src = u && u.id !== currentUser?.id ? avatarSrc(u) : '';
-    if (!src || warmedAva.has(src) || warmedAva.size > 60) return;
+    if (!src || warmedAva.has(src) || warmedAva.size >= 24) return;
     warmedAva.add(src);
-    setTimeout(() => { try { new Image().src = src; } catch (e) { /* не страшно */ } }, 150 * i++);
+    // по одной и не сразу: браузер держит всего несколько соединений, фоновые фото не должны мешать ленте и друзьям
+    setTimeout(() => { try { const im = new Image(); im.fetchPriority = 'low'; im.src = src; } catch (e) { /* не страшно */ } }, 2500 + 400 * i++);
   });
 }
 let lastSocialAt = 0;
@@ -2397,7 +2397,7 @@ async function prefetchSocial() {
     lastSocialAt = Date.now();
     saveSocialCache();
     warmAvatars([...friends, ...feed.workouts.map((w) => w.author)]);
-    friends.slice(0, 5).forEach((f, i) => setTimeout(() => warmFriendProfile(f.id), 800 + i * 400)); // профили первых друзей — заранее
+    friends.slice(0, 3).forEach((f, i) => setTimeout(() => warmFriendProfile(f.id), 6000 + i * 1500)); // профили первых друзей — заранее
   } catch (e) { /* не страшно — загрузится при открытии */ }
 }
 
