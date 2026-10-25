@@ -131,7 +131,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=95" />
+<link rel="stylesheet" href="style.css?v=96" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -1056,11 +1056,24 @@
   </section>
 
   <section id="friendsScreen" class="screen hidden">
-    <div class="segmented seg-4" id="friendsTabs">
-      <button type="button" class="seg-btn active" data-tab="feed">Лента</button>
-      <button type="button" class="seg-btn" data-tab="runs">Пробежки</button>
-      <button type="button" class="seg-btn" data-tab="list">Друзья <span class="tab-badge hidden" id="requestsBadge"></span></button>
-      <button type="button" class="seg-btn" data-tab="groups">Группы</button>
+    <div class="segmented seg-4 dock-tabs" id="friendsTabs" data-i="0">
+      <span class="dock-thumb" aria-hidden="true"></span>
+      <button type="button" class="seg-btn active" data-tab="feed">
+        <svg class="dk-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="dk-lbl">Лента</span>
+      </button>
+      <button type="button" class="seg-btn" data-tab="runs">
+        <svg class="dk-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="14.5" cy="4.8" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 21l2.4-5.2L9 13l1.8-4.6 3.4 2.2 2.8 1.2M6 11.5l3-3.2M11.4 15.8L14 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="dk-lbl">Пробежки</span>
+      </button>
+      <button type="button" class="seg-btn" data-tab="list">
+        <svg class="dk-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16.8" cy="9" r="2.4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16.3 14.2c2.3 0 3.8 1.4 4.3 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="dk-lbl">Друзья</span><span class="tab-badge hidden" id="requestsBadge"></span>
+      </button>
+      <button type="button" class="seg-btn" data-tab="groups">
+        <svg class="dk-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 5h11l-2 3.5L16 12H5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="dk-lbl">Группы</span>
+      </button>
     </div>
 
     <!-- Лента: что нового у меня + открытые тренировки друзей -->
@@ -1600,7 +1613,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=107';
+      s.src = 'app.js?v=108';
       document.body.appendChild(s);
     });
   </script>
