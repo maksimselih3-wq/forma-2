@@ -264,7 +264,19 @@ function mondayOf(str) {
 }
 
 // ---------- API ----------
-async function api(path, options = {}) {
+// Одинаковые GET-запросы, которые идут одновременно, объединяем в один (экраны часто просят одно и то же)
+const apiInflight = new Map();
+function api(path, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  if (method !== 'GET' || options.headers) return apiRaw(path, options);
+  const hit = apiInflight.get(path);
+  if (hit) return hit;
+  const p = apiRaw(path, options).finally(() => apiInflight.delete(path));
+  apiInflight.set(path, p);
+  return p;
+}
+
+async function apiRaw(path, options = {}) {
   // не ждём сервер бесконечно: если связи нет (например, сайт заблокирован), через 20 секунд — ошибка,
   // и приложение покажет понятное сообщение вместо вечной заставки
   const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
@@ -1337,6 +1349,7 @@ async function init() {
     await loadMyWorkouts(await preWorkouts);
     writeBootCache();
     renderEntryState();
+    setTimeout(prefetchSocial, 2500); // друзья и лента подгружаются заранее — вкладка откроется сразу
     loadGiveaway();
     loadAthleteProfile();
     loadMorning();
@@ -1374,7 +1387,9 @@ async function init() {
   hideSplash();
 }
 
+let lastWorkoutsAt = 0;
 function ingestWorkouts(workouts, streak) {
+  lastWorkoutsAt = Date.now();
   myWorkouts = workouts.map((w) => ({ ...w, date: normDate(w.date) }));
   workoutsByDate = {};
   myWorkouts.forEach((w) => { (workoutsByDate[w.date] = workoutsByDate[w.date] || []).push(w); });
@@ -1703,7 +1718,7 @@ async function loadProfileScreen() {
     .catch((err) => console.error('Friends count failed', err));
 
   try {
-    await loadMyWorkouts();
+    if (Date.now() - lastWorkoutsAt > 20000) await loadMyWorkouts(); // свежие записи уже есть — не качаем заново
     renderCalendar();
     renderHistory();
     renderRecords();
@@ -2183,39 +2198,58 @@ $('friendsBtn').addEventListener('click', () => {
 });
 
 // ---------- Лента ----------
+let feedCache = null; // первая порция ленты с прошлого раза: показываем сразу, свежую подгружаем в фоне
+function paintFeedItems(workouts, { reset = false } = {}) {
+  const status = $('feedStatus');
+  const more = $('feedMoreBtn');
+  if (reset) $('feedList').innerHTML = '';
+  workouts.forEach((w) => $('feedList').appendChild(buildWorkoutCard(w)));
+  if (workouts.length) {
+    const last = workouts[workouts.length - 1];
+    feedCursor = { date: normDate(last.date), id: last.id };
+  }
+  status.textContent = '';
+  more.classList.toggle('hidden', workouts.length < 15);
+  if (!$('feedList').children.length) {
+    $('feedList').innerHTML = `
+      <div class="card empty-feed">
+        <div class="empty-feed-ico">👟</div>
+        <div class="empty-feed-title">Лента пока пустая</div>
+        <div class="muted">Здесь появляются открытые тренировки — твои и друзей. Включи «Показывать друзьям» в записи, а друзей добавь во вкладке «Друзья».</div>
+      </div>`;
+  }
+}
+
 async function loadFeedTab() {
   loadActivity();
   feedCursor = null;
-  $('feedList').innerHTML = '';
-  await loadFeedPage();
+  if (feedCache) paintFeedItems(feedCache.workouts, { reset: true });
+  else $('feedList').innerHTML = '';
+  await loadFeedPage(true);
 }
 
-async function loadFeedPage() {
+async function loadFeedPage(first = false) {
+  first = first === true; // из обработчика клика приходит событие, а не true
   const status = $('feedStatus');
   const more = $('feedMoreBtn');
-  status.textContent = 'Загружаю ленту...';
+  const showing = first && feedCache; // уже нарисовано из сохранённого
+  if (!showing) status.textContent = 'Загружаю ленту...';
   more.classList.add('hidden');
   try {
-    const qs = feedCursor ? `?before_date=${feedCursor.date}&before_id=${feedCursor.id}` : '';
+    const qs = !first && feedCursor ? `?before_date=${feedCursor.date}&before_id=${feedCursor.id}` : '';
     const { workouts } = await api('/api/friends/feed' + qs);
-    status.textContent = '';
-    workouts.forEach((w) => $('feedList').appendChild(buildWorkoutCard(w)));
-    if (workouts.length) {
-      const last = workouts[workouts.length - 1];
-      feedCursor = { date: normDate(last.date), id: last.id };
-    }
-    more.classList.toggle('hidden', workouts.length < 15);
-    if (!$('feedList').children.length) {
-      $('feedList').innerHTML = `
-        <div class="card empty-feed">
-          <div class="empty-feed-ico">👟</div>
-          <div class="empty-feed-title">Лента пока пустая</div>
-          <div class="muted">Здесь появляются открытые тренировки — твои и друзей. Включи «Показывать друзьям» в записи, а друзей добавь во вкладке «Друзья».</div>
-        </div>`;
+    if (first) {
+      const sig = JSON.stringify(workouts);
+      if (feedCache && feedCache.sig === sig) { status.textContent = ''; more.classList.toggle('hidden', workouts.length < 15); return; }
+      feedCache = { workouts, sig };
+      paintFeedItems(workouts, { reset: true });
+    } else {
+      paintFeedItems(workouts);
     }
   } catch (err) {
     console.error(err);
-    status.textContent = 'Не удалось загрузить ленту.';
+    if (!showing) status.textContent = 'Не удалось загрузить ленту.';
+    else more.classList.toggle('hidden', feedCache.workouts.length < 15);
   }
 }
 $('feedMoreBtn').addEventListener('click', loadFeedPage);
@@ -2248,13 +2282,35 @@ async function loadActivity() {
   }
 }
 
+// Заранее подгружаем друзей и ленту (тихо, в фоне), чтобы вкладка «Друзья» открывалась без ожидания
+async function prefetchSocial() {
+  try {
+    const [{ requests }, { friends }, feed] = await Promise.all([api('/api/friends/requests'), api('/api/friends'), api('/api/friends/feed')]);
+    friendsScreenCache = { requests, friends, sig: JSON.stringify([requests, friends]) };
+    feedCache = { workouts: feed.workouts, sig: JSON.stringify(feed.workouts) };
+  } catch (e) { /* не страшно — загрузится при открытии */ }
+}
+
 // ---------- Список друзей и заявки ----------
+let friendsScreenCache = null; // список друзей и заявок с прошлого раза: показываем сразу, свежий подгружаем в фоне
 async function loadFriendsList() {
   const statusEl = $('friendRequestStatus');
   statusEl.textContent = '';
-
+  if (friendsScreenCache) { try { renderFriendsList(friendsScreenCache); } catch (e) { console.warn(e); } }
   try {
     const [{ requests }, { friends }] = await Promise.all([api('/api/friends/requests'), api('/api/friends')]);
+    const sig = JSON.stringify([requests, friends]);
+    if (friendsScreenCache && friendsScreenCache.sig === sig) return;
+    friendsScreenCache = { requests, friends, sig };
+    renderFriendsList(friendsScreenCache);
+  } catch (err) {
+    console.error('Failed to load friends', err);
+    if (!friendsScreenCache) statusEl.textContent = 'Не удалось загрузить друзей.';
+  }
+}
+
+function renderFriendsList({ requests, friends }) {
+  {
 
     const reqList = $('incomingRequestsList');
     reqList.innerHTML = '';
@@ -2303,9 +2359,6 @@ async function loadFriendsList() {
         friendsList.appendChild(btn);
       });
     }
-  } catch (err) {
-    console.error('Failed to load friends', err);
-    statusEl.textContent = 'Не удалось загрузить друзей.';
   }
 }
 
@@ -2330,19 +2383,41 @@ let fpData = null;       // что пришло с сервера
 let fpMonth = new Date(); // какой месяц показывает календарь друга
 let fpReturnScreen = 'friendsScreen';
 
+const fpCache = {}; // профили друзей с прошлого раза: открываются сразу, свежие данные подгружаются в фоне
+let fpCurrentId = null;
 async function openFriendProfile(userId, returnTo) {
   fpReturnScreen = returnTo || (document.querySelector('.screen:not(.hidden)')?.id === 'profileScreen' ? 'profileScreen' : 'friendsScreen');
   showScreen('friendProfileScreen');
+  fpCurrentId = userId;
   fpData = null;
   fpMonth = new Date();
-  $('fpWorkouts').innerHTML = '';
-  $('fpStatus').textContent = 'Загружаю профиль...';
-  $('fpName').textContent = '';
-  $('fpHeadName').textContent = '';
-  $('fpCalGrid').innerHTML = '';
-
+  const cached = fpCache[userId];
+  if (cached) {
+    paintFriendProfile(cached.data);
+  } else {
+    $('fpWorkouts').innerHTML = '';
+    $('fpStatus').textContent = 'Загружаю профиль...';
+    $('fpName').textContent = '';
+    $('fpHeadName').textContent = '';
+    $('fpCalGrid').innerHTML = '';
+  }
   try {
-    fpData = await api(`/api/friends/${userId}/profile`);
+    const data = await api(`/api/friends/${userId}/profile`);
+    const sig = JSON.stringify(data);
+    if (fpCurrentId !== userId) { fpCache[userId] = { data, sig }; return; } // успел открыть другого — только запомним
+    if (cached && cached.sig === sig) return;
+    fpCache[userId] = { data, sig };
+    paintFriendProfile(data);
+  } catch (err) {
+    console.error(err);
+    if (!cached) $('fpStatus').textContent = err.data?.error || 'Не удалось загрузить профиль.';
+  }
+}
+
+function paintFriendProfile(data) {
+  fpData = data;
+  $('fpWorkouts').innerHTML = '';
+  try {
     const u = fpData.user;
     const isMe = currentUser && u.id === currentUser.id;
     $('fpStatus').textContent = '';
@@ -2381,7 +2456,6 @@ async function openFriendProfile(userId, returnTo) {
     }
   } catch (err) {
     console.error(err);
-    $('fpStatus').textContent = err.data?.error || 'Не удалось загрузить профиль.';
   }
 }
 
