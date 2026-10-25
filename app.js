@@ -2364,6 +2364,7 @@ async function prefetchSocial() {
     const [{ requests }, { friends }, feed] = await Promise.all([api('/api/friends/requests'), api('/api/friends'), api('/api/friends/feed')]);
     friendsScreenCache = { requests, friends, sig: JSON.stringify([requests, friends]) };
     feedCache = { workouts: feed.workouts, sig: JSON.stringify(feed.workouts) };
+    friends.slice(0, 3).forEach((f, i) => setTimeout(() => warmFriendProfile(f.id), 600 + i * 500)); // профили первых друзей — заранее
   } catch (e) { /* не страшно — загрузится при открытии */ }
 }
 
@@ -2431,6 +2432,7 @@ function renderFriendsList({ requests, friends }) {
           </span>
           <span class="friend-streak">${ico('flame')} ${esc(fr.current_streak ?? 0)}</span>
           <span class="history-arrow">›</span>`;
+        btn.addEventListener('pointerdown', () => warmFriendProfile(fr.id));
         btn.addEventListener('click', () => openFriendProfile(fr.id));
         friendsList.appendChild(btn);
       });
@@ -2476,6 +2478,7 @@ async function openFriendProfile(userId, returnTo) {
     $('fpName').textContent = '';
     $('fpHeadName').textContent = '';
     $('fpCalGrid').innerHTML = '';
+    previewFriendProfile(userId); // имя, фото и серия уже известны из списка друзей — показываем сразу
   }
   try {
     const data = await api(`/api/friends/${userId}/profile`);
@@ -2489,6 +2492,35 @@ async function openFriendProfile(userId, returnTo) {
     if (!cached) $('fpStatus').textContent = err.data?.error || 'Не удалось загрузить профиль.';
   }
 }
+
+function knownUser(id) {
+  const fr = friendsScreenCache?.friends?.find((f) => f.id === id);
+  if (fr) return fr;
+  const w = feedCache?.workouts?.find((x) => x.user_id === id || x.author?.id === id);
+  return w?.author || null;
+}
+function previewFriendProfile(id) {
+  const u = knownUser(id);
+  if (!u) return;
+  try {
+    $('fpHeadName').innerHTML = nameHtml(u);
+    $('fpName').innerHTML = nameHtml(u);
+    $('fpEyebrow').textContent = sportLabel(u) || 'Друг';
+    $('fpUsername').textContent = u.username ? '@' + u.username : 'спортсмен';
+    $('fpStreak').textContent = u.current_streak ?? 0;
+    const src = avatarSrc(u);
+    const hero = $('fpHero');
+    hero.style.backgroundImage = src ? `url("${src}")` : '';
+    hero.classList.toggle('no-photo', !src);
+  } catch (e) { /* не страшно */ }
+}
+// Профиль заранее: пока палец ещё на карточке друга, запрос уже летит
+function warmFriendProfile(id) {
+  if (fpCache[id] || warming.has(id)) return;
+  warming.add(id);
+  api(`/api/friends/${id}/profile`).then((data) => { fpCache[id] = { data, sig: JSON.stringify(data) }; }).catch(() => 0).finally(() => warming.delete(id));
+}
+const warming = new Set();
 
 function paintFriendProfile(data) {
   fpData = data;
@@ -6911,29 +6943,53 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && lo
 
 // ---------- Вход по почте и паролю (когда Telegram не открывается) ----------
 let mailRegister = false;
-$('loginMailSwitch').addEventListener('click', () => {
-  mailRegister = !mailRegister;
+let mailForgot = 0; // 0 — обычный вход, 1 — попросили код, 2 — код отправлен, ждём код и новый пароль
+function mailUi() {
   $('loginName').classList.toggle('hidden', !mailRegister);
-  $('loginMailBtn').textContent = mailRegister ? 'Создать аккаунт' : 'Войти по почте';
+  $('loginCode').classList.toggle('hidden', mailForgot !== 2);
+  $('loginPass').classList.toggle('hidden', mailForgot === 1);
+  $('loginPass').placeholder = mailForgot === 2 ? 'Новый пароль (от 8 символов)' : 'Пароль (от 8 символов)';
+  $('loginPass').autocomplete = mailRegister || mailForgot ? 'new-password' : 'current-password';
+  $('loginMailBtn').textContent = mailForgot === 1 ? 'Прислать код на почту' : mailForgot === 2 ? 'Сменить пароль и войти' : mailRegister ? 'Создать аккаунт' : 'Войти по почте';
+  $('loginForgot').textContent = mailForgot ? 'Вспомнил пароль' : 'Забыл пароль?';
+  $('loginForgot').classList.toggle('hidden', mailRegister);
   $('loginMailSwitch').textContent = mailRegister ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Создать';
-  $('loginPass').autocomplete = mailRegister ? 'new-password' : 'current-password';
-  loginStatus('');
+  $('loginMailSwitch').classList.toggle('hidden', !!mailForgot);
+}
+$('loginMailSwitch').addEventListener('click', () => {
+  mailRegister = !mailRegister; mailForgot = 0; mailUi(); loginStatus('');
+});
+$('loginForgot').addEventListener('click', () => {
+  mailForgot = mailForgot ? 0 : 1; mailUi(); loginStatus('');
 });
 $('loginMailBtn').addEventListener('click', async () => {
   const btn = $('loginMailBtn');
   const email = $('loginEmail').value.trim();
   const password = $('loginPass').value;
+  if (mailForgot === 1) {
+    if (!email) return loginStatus('Введи почту, на которую регистрировался.', 'error');
+    btn.disabled = true; loginStatus('Отправляю код…');
+    try {
+      await api('/api/email/forgot', { method: 'POST', body: JSON.stringify({ email }) });
+      mailForgot = 2; mailUi();
+      loginStatus('Если такая почта есть, мы отправили на неё код. Проверь и папку «Спам». Введи код и новый пароль.');
+    } catch (e) { loginStatus(e.network ? 'Нет связи с сервером. Проверь интернет.' : (e.message || 'Не получилось отправить'), 'error'); }
+    finally { btn.disabled = false; }
+    return;
+  }
   if (!email || !password) return loginStatus('Введи почту и пароль.', 'error');
+  if (mailForgot === 2 && $('loginCode').value.replace(/\D/g, '').length !== 6) return loginStatus('Введи 6 цифр из письма.', 'error');
   btn.disabled = true;
-  loginStatus(mailRegister ? 'Создаю аккаунт…' : 'Входим…');
+  loginStatus(mailForgot ? 'Меняю пароль…' : mailRegister ? 'Создаю аккаунт…' : 'Входим…');
   try {
-    const r = await api(mailRegister ? '/api/email/register' : '/api/email/login', {
+    const r = await api(mailForgot ? '/api/email/reset' : mailRegister ? '/api/email/register' : '/api/email/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password, name: $('loginName').value.trim() }),
+      body: JSON.stringify({ email, password, name: $('loginName').value.trim(), code: $('loginCode').value }),
     });
     stopLoginPoll();
     setSession(r.session);
-    $('loginPass').value = '';
+    $('loginPass').value = ''; $('loginCode').value = '';
+    mailForgot = 0; mailUi();
     $('loginScreen').classList.add('hidden');
     document.body.classList.remove('login-open');
     init();
