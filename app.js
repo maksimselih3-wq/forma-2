@@ -1511,6 +1511,61 @@ $('entryBackBtn')?.addEventListener('click', () => {
   renderEntryState();
 });
 
+
+// ---------- Fom проверяет беговой объём после сохранения ----------
+// Fom сам считает километры записи и сверяет с тем, что вписал человек. Совпало — «подтвердил»;
+// не совпало — предлагает исправить (одно нажатие), ничего не меняя без согласия.
+let volToastTimer = null;
+function hideVolToast() {
+  clearTimeout(volToastTimer);
+  const el = $('volToast');
+  if (el) { el.classList.remove('show'); setTimeout(() => el.remove(), 350); }
+}
+function showVolToast(html, actions = [], ms = 6000) {
+  $('volToast')?.remove();
+  const el = document.createElement('div');
+  el.id = 'volToast';
+  el.className = 'vol-toast';
+  el.innerHTML = `<div class="vol-head"><span class="fom-badge">F</span><div class="vol-text">${html}</div></div>` +
+    (actions.length ? `<div class="vol-actions">${actions.map((a, i) => `<button type="button" class="vol-btn${a.primary ? ' primary' : ''}" data-i="${i}">${esc(a.label)}</button>`).join('')}</div>` : '');
+  document.body.appendChild(el);
+  el.querySelectorAll('.vol-btn').forEach((b) => b.addEventListener('click', async () => {
+    b.disabled = true;
+    try { await actions[+b.dataset.i].run(); } finally { hideVolToast(); }
+  }));
+  requestAnimationFrame(() => el.classList.add('show'));
+  clearTimeout(volToastTimer);
+  volToastTimer = setTimeout(hideVolToast, ms);
+}
+async function fomVolumeCheck(id) {
+  if (!id) return;
+  try {
+    const v = await api(`/api/workouts/${id}/volume`, { method: 'POST', timeout: 60000 });
+    if (!v || v.status === 'none') return;
+    const parts = (v.parts || []).length > 1 ? `<div class="vol-parts">${v.parts.map((p) => `${esc(p.label)} ${fmtNum(p.km)}`).join(' · ')}</div>` : '';
+    const note = v.note ? `<div class="vol-parts">${esc(v.note)}</div>` : '';
+    const setKm = async (km) => {
+      await api(`/api/workouts/${id}/total-km`, { method: 'POST', body: JSON.stringify({ km }) });
+      try { await loadMyWorkouts(); refreshAfterWorkoutChange?.(); } catch (e) { /* не страшно */ }
+    };
+    if (v.status === 'match') {
+      showVolToast(`Fom проверил объём: <b>${fmtNum(v.user_km)} км</b> — сходится ✓${parts}`);
+    } else if (v.status === 'counted') {
+      showVolToast(`Fom посчитал объём: <b>${fmtNum(v.fom_km)} км</b> ✓${parts}`);
+    } else if (v.status === 'differs') {
+      showVolToast(`Ты вписал <b>${fmtNum(v.user_km)} км</b>, а по записи у Fom выходит <b>${fmtNum(v.fom_km)} км</b>${parts}${note}`, [
+        { label: `Исправить на ${fmtNum(v.fom_km)}`, primary: true, run: () => setKm(v.fom_km) },
+        { label: 'Оставить мои', run: async () => {} },
+      ], 15000);
+    } else { // better: программа считала иначе (например, не увидела вставки по времени)
+      showVolToast(`Fom посчитал объём точнее: <b>${fmtNum(v.fom_km)} км</b>${v.program_km > 0 ? ` (простой подсчёт дал ${fmtNum(v.program_km)})` : ''}${parts}${note}`, [
+        { label: `Записать ${fmtNum(v.fom_km)} км`, primary: true, run: () => setKm(v.fom_km) },
+        { label: 'Не нужно', run: async () => {} },
+      ], 15000);
+    }
+  } catch (e) { console.warn('Volume check skipped', e); }
+}
+
 // ---------- Сохранение новой записи ----------
 $('saveBtn').addEventListener('click', async () => {
   const statusEl = $('statusMsg');
@@ -1544,6 +1599,7 @@ $('saveBtn').addEventListener('click', async () => {
     } else {
       haptic('success');
     }
+    if (payload.type === 'training') setTimeout(() => fomVolumeCheck(result.workout?.id), 600);
     justSavedDate = entryDate;
     entrySession = 1;
     setTimeout(renderAchievements, 900); // вдруг открылось новое достижение
@@ -2887,6 +2943,7 @@ $('editSaveBtn').addEventListener('click', async () => {
     haptic('success');
     renderEditSocial(currentEditWorkout);
     try { await loadMyWorkouts(); refreshAfterWorkoutChange(); } catch (e) { console.error(e); }
+    if (currentEditWorkout.type === 'training') fomVolumeCheck(currentEditWorkout.id);
   } catch (err) {
     console.error(err);
     statusEl.textContent = 'Ошибка сохранения. Попробуй ещё раз.';
