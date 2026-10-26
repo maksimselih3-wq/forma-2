@@ -2558,3 +2558,17 @@ html, html body { overscroll-behavior-y: none; }
 .tab-in { animation: tabIn 0.38s cubic-bezier(0.22, 1, 0.36, 1); }
 @keyframes tabIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .tab-in, .dock-tabs.moving .dock-thumb::before { animation: none; } .dock-tabs .dock-thumb { transition: none; } }
+
+
+/* ---------- Лёгкий режим: слабые телефоны без размытия и тяжёлых эффектов ---------- */
+html.lite *, html.lite *::before, html.lite *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html.lite #statusFade, html.lite #bottomFade { display: none !important; }
+html.lite .bottom-nav { background: #14171f; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); }
+html[data-theme="light"].lite .bottom-nav { background: #ffffff; }
+html.lite .mini-head, html.lite .tag, html.lite .photo-btn { background-color: var(--card-solid); }
+html.lite .dlg-backdrop { background: rgba(0, 0, 0, 0.6); }
+html.lite .nav-indicator, html.lite .bottom-nav.dragging .nav-indicator { box-shadow: none; }
+html.lite .screen-in, html.lite .tab-in { animation: none !important; }
+html.lite .dock-tabs.moving .dock-thumb::before { animation: none; }
+html.lite .dock-tabs .dock-thumb { transition-duration: 0.25s; }
+html.lite .card { box-shadow: none; }
