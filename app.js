@@ -5076,7 +5076,7 @@ function moveNavIndicator(targetId) {
 function animateScreenIn(targetId) {
   const idx = NAV_ORDER.indexOf(NAV_PARENT[targetId] || targetId);
   const el = $(targetId);
-  if (!el || REDUCED_MOTION) return;
+  if (!el || REDUCED_MOTION || document.documentElement.classList.contains('lite')) return;
   const dir = idx < 0 || idx === navPrevIndex ? 0 : idx > navPrevIndex ? 1 : -1;
   if (idx >= 0) navPrevIndex = idx;
   el.classList.remove('screen-in', 'from-left', 'from-right');
@@ -7129,7 +7129,7 @@ function updateScrolledFlag() {
   const next = on ? y > 6 : y > 24;
   if (next !== on) document.documentElement.classList.toggle('scrolled-top', next);
   // плавное сжатие шапки и вкладок: 0…60 пикселей прокрутки
-  const stk = Math.min(1, Math.max(0, y / 60));
+  const stk = document.documentElement.classList.contains('lite') ? 1 : Math.min(1, Math.max(0, y / 60));
   if (stk !== lastStk) { lastStk = stk; document.documentElement.style.setProperty('--stk', stk.toFixed(3)); }
 }
 let lastStk = -1;
@@ -7159,6 +7159,7 @@ window.addEventListener('scroll', updateScrolledFlag, { passive: true });
 // Резиновые края: у верха и низа любого прокручиваемого места можно оттянуть содержимое — всё тяжелее,
 // но можно тянуть долго, перекладывая пальцы, не отрывая от экрана. Отпустил — плавно пружинит назад.
 (function initRubber() {
+  if (document.documentElement.classList.contains('lite')) return; // на слабых телефонах — обычная прокрутка
   const MAXPULL = 170, SOFT = 300;
   let sc = null, ok = false, active = null, lastY = 0, lastX = 0, raw = 0, mode = 0, dir = null, items = [], off = 0, raf = 0;
   const findScroller = (t) => {
@@ -7284,8 +7285,11 @@ function buildFade(id, fromBottom, { layers, minBlur, maxBlur }) {
     fadeLayers.push(el);
   }
 }
-buildFade('statusFade', false, { layers: 18, minBlur: 0.5, maxBlur: 3.0 });
-buildFade('bottomFade', true,  { layers: 8,  minBlur: 0.4, maxBlur: 1.2 });
+const LITE = () => document.documentElement.classList.contains('lite');
+if (!LITE()) {
+  buildFade('statusFade', false, { layers: 18, minBlur: 0.5, maxBlur: 3.0 });
+  buildFade('bottomFade', true,  { layers: 8,  minBlur: 0.4, maxBlur: 1.2 });
+}
 let fadeFlip = false;
 function paintFade() {
   // 0.01px разницы — незаметно глазу, но заставляет iOS заново нарисовать размытие
@@ -7298,7 +7302,7 @@ function paintFade() {
 }
 paintFade();
 let fadeIdle = 0;
-window.addEventListener('scroll', () => { clearTimeout(fadeIdle); fadeIdle = setTimeout(paintFade, 120); }, { passive: true });
+window.addEventListener('scroll', () => { if (LITE()) return; clearTimeout(fadeIdle); fadeIdle = setTimeout(paintFade, 120); }, { passive: true });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) paintFade(); });
 window.addEventListener('pageshow', paintFade);
 
@@ -7729,3 +7733,36 @@ $('suppAskBtn').addEventListener('click', () => {
     $('chatInput').focus();
   }, 150);
 });
+
+
+// ---------- Лёгкий режим: переключатель и автоопределение лагов ----------
+(function liteMode() {
+  const root = document.documentElement;
+  const t = $('liteToggle');
+  if (t) {
+    t.checked = root.classList.contains('lite');
+    t.addEventListener('change', () => {
+      try { localStorage.setItem('forma_lite', t.checked ? '1' : '0'); } catch (e) { /* ладно */ }
+      location.reload(); // так проще всего убрать/вернуть все эффекты
+    });
+  }
+  // если телефон не признан слабым, но при первой прокрутке кадры идут реже ~40 в секунду — включаем лёгкий режим сами
+  let saved = null; try { saved = localStorage.getItem('forma_lite'); } catch (e) { /* ладно */ }
+  if (root.classList.contains('lite') || saved === '0' || !/Android/i.test(navigator.userAgent)) return;
+  let sampling = false;
+  const probe = () => {
+    if (sampling) return; sampling = true;
+    const d = []; let last = performance.now(), n = 0;
+    const step = (now) => {
+      d.push(now - last); last = now;
+      if (++n < 40) return requestAnimationFrame(step);
+      d.sort((a, b) => a - b);
+      const median = d[d.length >> 1];
+      if (median > 26) { try { localStorage.setItem('forma_lite', '1'); } catch (e) { /* ладно */ } root.classList.add('lite'); if (t) t.checked = true; }
+      else window.removeEventListener('scroll', probe);
+      sampling = false;
+    };
+    requestAnimationFrame(step);
+  };
+  window.addEventListener('scroll', probe, { passive: true });
+})();
