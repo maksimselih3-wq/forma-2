@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+<script>
+  // Лёгкий режим: на слабых Android-телефонах отключаем тяжёлые эффекты (размытие, плавные подложки), чтобы не лагало
+  (function () {
+    try {
+      var ua = navigator.userAgent || '', saved = localStorage.getItem('forma_lite');
+      var weak = /Android/i.test(ua) && ((navigator.deviceMemory || 8) <= 4 || (navigator.hardwareConcurrency || 8) <= 6 || /Redmi|POCO|Xiaomi|MIUI|HUAWEI|HONOR|realme|SM-A|SM-M|Infinix|TECNO/i.test(ua));
+      if (saved === '1' || (saved !== '0' && weak)) document.documentElement.classList.add('lite');
+    } catch (e) { /* без лёгкого режима */ }
+  })();
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Forma</title>
@@ -131,7 +141,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=98" />
+<link rel="stylesheet" href="style.css?v=99" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -961,6 +971,16 @@
     </section>
 
     <section class="card">
+      <div class="eyebrow">Плавность</div>
+      <label class="toggle-row privacy-row">
+        <input type="checkbox" id="liteToggle" />
+        <span class="toggle"></span>
+        <span>Лёгкий режим</span>
+      </label>
+      <div class="muted privacy-hint">Отключает размытие и часть анимаций — приложение быстрее работает на слабых телефонах. Если у тебя лагает, включи.</div>
+    </section>
+
+    <section class="card">
       <div class="eyebrow">Уведомления от бота</div>
 
       <label class="toggle-row privacy-row">
@@ -1615,7 +1635,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=113';
+      s.src = 'app.js?v=114';
       document.body.appendChild(s);
     });
   </script>
