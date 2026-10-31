@@ -670,12 +670,12 @@ const FORM_TEMPLATE = `
       <div class="card-label">Как прошло</div>
       <div class="slider-row">
         <div class="slider-top"><span>Самочувствие</span><b data-f="feelingNum"><span data-f="feelingVal">5</span>/10</b></div>
-        <input type="range" class="range-good" data-f="feeling" min="1" max="10" value="5" />
+        <input type="range" class="range-good" data-f="feeling" min="0" max="10" value="5" />
         <div class="slider-scale"><span>плохо</span><span>отлично</span></div>
       </div>
       <div class="slider-row">
         <div class="slider-top"><span>Нагрузка (RPE)</span><b data-f="rpeNum"><span data-f="rpeVal">5</span>/10</b></div>
-        <input type="range" class="range-load" data-f="rpe" min="1" max="10" value="5" />
+        <input type="range" class="range-load" data-f="rpe" min="0" max="10" value="5" />
         <div class="slider-scale"><span>очень легко</span><span>на пределе</span></div>
         <div class="muted slider-hint">RPE — насколько тяжело далась тренировка по твоим ощущениям.</div>
       </div>
@@ -737,7 +737,7 @@ const FORM_TEMPLATE = `
   <section class="card">
     <div class="card-label">Заметки</div>
     <textarea data-f="notes" rows="2" placeholder="Как прошло, что заметил..."></textarea>
-    <div class="vis-block">
+    <div class="vis-block" data-f="kmBlock">
       <div class="vis-label">Общий объём за тренировку, км</div>
       <input type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" data-f="totalKm" maxlength="14" placeholder="Необязательно — иначе посчитаю по записи">
     </div>
@@ -957,6 +957,8 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     f('typeSwitch').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.type === mode));
     f('trainingFields').classList.toggle('hidden', type !== 'training');
     f('compFields').classList.toggle('hidden', mode !== 'competition');
+    f('kmBlock').classList.toggle('hidden', type !== 'training'); // у дня отдыха объёма нет
+    f('notes').placeholder = type === 'rest' ? 'Как отдыхал, как самочувствие, что болит…' : 'Как прошло, что заметил...';
   }
 
   // --- старт: быстрый выбор дисциплины ---
@@ -1091,8 +1093,9 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   // цвет цифры: самочувствие — чем выше, тем зеленее; нагрузка — чем выше, тем краснее
   function paintSlider(k) {
     const v = Number(f(k).value);
-    f(k + 'Val').textContent = v;
-    f(k + 'Num').style.color = scaleColor(v, k === 'rpe');
+    // 0 — «не оцениваю»: шкала 0–10, чтобы 5 стояла ровно посередине
+    f(k + 'Val').textContent = v || '—';
+    f(k + 'Num').style.color = v ? scaleColor(v, k === 'rpe') : '';
   }
   ['feeling', 'rpe'].forEach((k) => {
     f(k).addEventListener('input', () => paintSlider(k));
@@ -1235,10 +1238,11 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
         type,
         warmup: f('warmup').value,
         cooldown: f('cooldown').value,
-        feeling: Number(f('feeling').value),
-        rpe: Number(f('rpe').value),
+        // у дня отдыха оценок нет — только заметка
+        feeling: type === 'training' ? Number(f('feeling').value) : null,
+        rpe: type === 'training' ? Number(f('rpe').value) : null,
         notes: f('notes').value,
-        total_km: cleanKm(f('totalKm').value),
+        total_km: type === 'training' ? cleanKm(f('totalKm').value) : null,
         visibility: vis,
         visible_to: vis === 'custom' ? visTo : [],
         start_time: startTime,
@@ -1659,7 +1663,15 @@ $('saveBtn').addEventListener('click', async () => {
 
     // обновляем список записей — из него рисуется карточка «сохранено», календарь и цифры
     try {
-      await loadMyWorkouts();
+      if (payload.type === 'rest' && result.workout) {
+        // день отдыха: сервер уже прислал всю запись — показываем сразу, а полный список обновим в фоне
+        const nw = { ...result.workout, date: normDate(result.workout.date) };
+        const all = [nw, ...myWorkouts.filter((x) => x.id !== nw.id)].sort((a, b) => b.date.localeCompare(a.date) || (a.session || 1) - (b.session || 1));
+        ingestWorkouts(all, result.streak);
+        loadMyWorkouts().then(() => { try { renderEntryState(); refreshAfterWorkoutChange?.(); } catch (e) { /* не страшно */ } }).catch(() => 0);
+      } else {
+        await loadMyWorkouts();
+      }
     } catch (e) {
       const w = { ...result.workout, date: normDate(result.workout.date) };
       (workoutsByDate[w.date] = workoutsByDate[w.date] || []).push(w);
@@ -1996,8 +2008,8 @@ function buildWorkoutCard(w, { showAuthor = true } = {}) {
   const chips = [];
   // личный рекорд на старте — заметный значок, чтобы друзья сразу видели и ставили 🔥
   if (w.competition && (w.is_pb || (isMine && isPersonalBest(w)))) chips.push(`<span class="wk-chip pb-chip">${ico('trophy')} Личный рекорд</span>`);
-  if (w.rpe) chips.push(`<span class="wk-chip" style="color:${scaleColor(w.rpe, true)}">RPE ${esc(w.rpe)}</span>`);
-  if (w.feeling) chips.push(`<span class="wk-chip" style="color:${scaleColor(w.feeling)}">😊 ${esc(w.feeling)}/10</span>`);
+  if (w.rpe && w.type !== 'rest') chips.push(`<span class="wk-chip" style="color:${scaleColor(w.rpe, true)}">RPE ${esc(w.rpe)}</span>`);
+  if (w.feeling && w.type !== 'rest') chips.push(`<span class="wk-chip" style="color:${scaleColor(w.feeling)}">😊 ${esc(w.feeling)}/10</span>`);
 
   card.innerHTML = `
     <div class="wk-head">
@@ -2873,7 +2885,7 @@ async function loadInsight() {
   boxEl.classList.add('hidden');
 
   try {
-    const { insight, workoutsCount } = await api(`/api/insights?period=${selectedInsightPeriod}`, { timeout: 60000 });
+    const { insight, workoutsCount } = await api(`/api/insights?period=${selectedInsightPeriod}&focus=${encodeURIComponent(focusKeys())}`, { timeout: 60000 });
     loadingEl.classList.add('hidden');
 
     if (!insight || workoutsCount === 0) {
@@ -3066,7 +3078,7 @@ function buildDetailLines(w) {
     if (pulse.length) lines.push(`❤️ Пульс: ${pulse.join(' · ')} уд/мин`);
     if (w.rpe) lines.push(`RPE: ${w.rpe}/10`);
   }
-  if (w.feeling) lines.push(`Самочувствие: ${w.feeling}/10`);
+  if (w.feeling && w.type !== 'rest') lines.push(`Самочувствие: ${w.feeling}/10`);
   if (w.notes) lines.push(`Заметка: ${w.notes}`);
   return lines;
 }
@@ -4535,6 +4547,19 @@ function volumeKm(w) {
   return m / 1000;
 }
 
+// Числа из записей для «Разбора» по дисциплинам
+const numOf = (v) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) && n > 0 ? n : 0; };
+const isTechEx = (e) => e && e.kind === 'tech';
+function attemptsOf(w) { return (Array.isArray(w.exercises) ? w.exercises : []).filter(isTechEx).reduce((a, e) => a + Math.floor(numOf(e.sets)), 0); }
+function ofpSetsOf(w) { return (Array.isArray(w.exercises) ? w.exercises : []).filter((e) => !isTechEx(e)).reduce((a, e) => a + (Math.floor(numOf(e.sets)) || (e.name ? 1 : 0)), 0); }
+function tonnageOf(w) { // т: подходы × повторы × вес (только там, где вес — число)
+  return (Array.isArray(w.exercises) ? w.exercises : []).filter((e) => !isTechEx(e)).reduce((a, e) => a + (Math.floor(numOf(e.sets)) || 1) * repsCount(e.reps) * numOf(e.weight), 0) / 1000;
+}
+function fastMetersOf(w) { // метры скоростных отрезков (до 400 м)
+  return (Array.isArray(w.sets) ? w.sets : []).reduce((a, s) => { const d = Number(s.distance_m) || 0; return d > 0 && d <= 400 ? a + d * repsCount(s.reps) : a; }, 0);
+}
+function repsOf(w) { return (Array.isArray(w.sets) ? w.sets : []).reduce((a, s) => a + ((Number(s.distance_m) || Number(s.duration_s)) ? repsCount(s.reps) : 0), 0); }
+
 function weekStats() {
   const weeks = [];
   const thisMonday = mondayOf(localDateStr());
@@ -4544,11 +4569,19 @@ function weekStats() {
     const list = myWorkouts.filter((w) => w.date >= from && w.date <= to);
     const tr = list.filter((w) => w.type === 'training');
     const avg = (arr) => (arr.length ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null);
+    const sum = (fn, d = 1) => { const k = 10 ** d; return Math.round(tr.reduce((a, w) => a + fn(w), 0) * k) / k; };
     weeks.push({
       from, to,
-      km: Math.round(tr.reduce((a, w) => a + volumeKm(w), 0) * 10) / 10,
+      km: sum(volumeKm),
       count: tr.length,
-      feel: avg(list.map((w) => Number(w.feeling)).filter((v) => v > 0)),
+      attempts: sum(attemptsOf, 0),
+      fast: sum(fastMetersOf, 0),
+      reps: sum(repsOf, 0),
+      ofp: sum(ofpSetsOf, 0),
+      tonn: sum(tonnageOf, 1),
+      rest: list.filter((w) => w.type === 'rest').length,
+      // оценки — только по тренировкам (у дня отдыха оценок нет)
+      feel: avg(tr.map((w) => Number(w.feeling)).filter((v) => v > 0)),
       rpe: avg(tr.map((w) => Number(w.rpe)).filter((v) => v > 0)),
     });
   }
@@ -4604,10 +4637,11 @@ function chartFrame(el, weeks, max, ticks, drawMarks, tipText) {
 }
 
 // Столбики одной серии; подпись — только у самого большого и у текущей недели
-function barChart(el, weeks, key, color, unit) {
+function barChart(el, weeks, key, color, unit, whole = false) {
   const vals = weeks.map((w) => w[key] || 0);
   const maxV = Math.max(...vals);
-  const max = niceMax(maxV * 1.1);
+  // счётные показатели (тренировки, попытки…) — шкала из целых чисел: 0, 1, 2 …
+  const max = whole && maxV <= 10 ? Math.max(2, 2 * Math.ceil((maxV * 1.1) / 2)) : niceMax(maxV * 1.1);
   const ticks = [0, max / 2, max].map((t) => Math.round(t * 10) / 10);
   const iMax = vals.indexOf(maxV);
   chartFrame(el, weeks, max, ticks, ({ band, y, cx, H, B }) => {
@@ -4665,32 +4699,96 @@ document.addEventListener('click', (e) => {
 
 window.addEventListener('resize', () => { if (!$('insightsScreen').classList.contains('hidden')) renderCharts(); });
 
+// ---------- Что показывать в «Разборе»: набор показателей и умолчания под дисциплину ----------
+const METRICS = {
+  km:       { title: 'Беговой объём, км', note: 'примерно', unit: 'км', col: 'км', kind: 'bar', color: CHART_COLORS.km, label: 'беговой объём (км)' },
+  fast:     { title: 'Скоростная работа, м', note: 'отрезки до 400 м', unit: 'м', col: 'м', kind: 'bar', color: '#ffb02e', label: 'скоростная работа (метры отрезков до 400 м)' },
+  reps:     { title: 'Отрезков за неделю', unit: 'отр.', col: 'отр.', whole: true, kind: 'bar', color: '#4fc3f7', label: 'число отрезков' },
+  attempts: { title: 'Попытки: прыжки и броски', note: 'из карточки попыток', unit: 'поп.', col: 'поп.', whole: true, kind: 'bar', color: '#ff7a59', label: 'число попыток (прыжков/бросков)' },
+  ofp:      { title: 'Сила и ОФП, подходов', unit: 'подх.', col: 'ОФП', whole: true, kind: 'bar', color: '#7bd88f', label: 'силовая и ОФП (подходы)' },
+  tonn:     { title: 'Силовая, тонн', note: 'подходы × повторы × вес', unit: 'т', col: 'т', kind: 'bar', color: '#c18cff', label: 'силовой тоннаж' },
+  count:    { title: 'Тренировок в неделю', unit: 'трен.', col: 'трен.', whole: true, kind: 'bar', color: CHART_COLORS.count, label: 'число тренировок' },
+  rest:     { title: 'Дней отдыха в неделю', unit: 'дн.', col: 'отд.', whole: true, kind: 'bar', color: '#6c7a96', label: 'дни отдыха' },
+  feelrpe:  { title: 'Самочувствие и нагрузка, среднее за неделю', kind: 'line', cols: [['самоч.', 'feel'], ['RPE', 'rpe']], label: 'самочувствие и нагрузка (RPE)' },
+};
+const METRIC_ORDER = ['km', 'fast', 'reps', 'attempts', 'ofp', 'tonn', 'count', 'rest', 'feelrpe'];
+const METRIC_DEFAULTS = {
+  sprint: ['fast', 'count', 'feelrpe'], hurdles: ['fast', 'count', 'feelrpe'],
+  middle: ['km', 'count', 'feelrpe'], long: ['km', 'count', 'feelrpe'], walk: ['km', 'count', 'feelrpe'],
+  jumps: ['attempts', 'count', 'feelrpe'], throws: ['attempts', 'count', 'feelrpe'],
+  combined: ['km', 'attempts', 'feelrpe'],
+};
+function defaultMetrics() { return (METRIC_DEFAULTS[disciplineGroup(currentUser?.discipline)] || ['km', 'count', 'feelrpe']).slice(); }
+function chosenMetrics() {
+  try {
+    const s = JSON.parse(localStorage.getItem('forma_charts') || 'null');
+    if (Array.isArray(s)) { const ok = s.filter((k) => METRICS[k]).slice(0, 3); if (ok.length) return ok; }
+  } catch (e) { /* нет сохранённого */ }
+  return defaultMetrics();
+}
+function saveMetrics(list) { try { localStorage.setItem('forma_charts', JSON.stringify(list)); } catch (e) { /* ладно */ } }
+// что Fom должен считать главным: названия выбранных показателей
+function focusKeys() { return chosenMetrics().join(','); }
+
 function renderCharts() {
   if (!$('chartsCard')) return;
+  const keys = chosenMetrics();
   const weeks = weekStats();
-  const any = weeks.some((w) => w.count || w.feel != null);
+  const any = weeks.some((w) => w.count || w.rest || w.feel != null);
   $('chartsCard').classList.toggle('empty', !any);
+  const body = $('chartsBody');
+  body.innerHTML = keys.map((k) => {
+    const m = METRICS[k];
+    const legend = m.kind === 'line' ? '<span class="chart-legend-inline"><i class="key key-feel"></i>самоч. <i class="key key-rpe"></i>RPE</span>' : '';
+    return `<div class="chart-block"><div class="chart-title">${esc(m.title)}${m.note ? ` <span class="muted">· ${esc(m.note)}</span>` : ''}${legend}</div><div class="chart" data-metric="${k}"></div></div>`;
+  }).join('');
   if (!any) {
-    ['chartKm', 'chartCount', 'chartFeel'].forEach((id) => { $(id).innerHTML = ''; });
-    $('chartKm').innerHTML = '<div class="muted chart-empty">Графики появятся, когда в дневнике будут записи за последние недели.</div>';
+    body.querySelectorAll('.chart').forEach((c) => { c.innerHTML = ''; });
+    const first = body.querySelector('.chart');
+    if (first) first.innerHTML = '<div class="muted chart-empty">Графики появятся, когда в дневнике будут записи за последние недели.</div>';
     return;
   }
   hideChartTip();
-  barChart($('chartKm'), weeks, 'km', CHART_COLORS.km, 'км');
-  barChart($('chartCount'), weeks, 'count', CHART_COLORS.count, 'трен.');
-  lineChart($('chartFeel'), weeks);
+  body.querySelectorAll('.chart').forEach((el) => {
+    const m = METRICS[el.dataset.metric];
+    if (m.kind === 'line') lineChart(el, weeks); else barChart(el, weeks, el.dataset.metric, m.color, m.unit, !!m.whole);
+  });
   // та же информация таблицей
-  $('chartTable').innerHTML = `<table><thead><tr><th>Неделя</th><th>км</th><th>трен.</th><th>самоч.</th><th>RPE</th></tr></thead><tbody>${
-    weeks.slice().reverse().map((w) => `<tr><td>${esc(weekLabel(w))}</td><td>${fmtNum(w.km)}</td><td>${w.count}</td><td>${w.feel == null ? '—' : fmtNum(w.feel)}</td><td>${w.rpe == null ? '—' : fmtNum(w.rpe)}</td></tr>`).join('')
+  const cols = [];
+  keys.forEach((k) => { const m = METRICS[k]; if (m.kind === 'line') m.cols.forEach(([t, f]) => cols.push([t, f])); else cols.push([m.col, k]); });
+  $('chartTable').innerHTML = `<table><thead><tr><th>Неделя</th>${cols.map(([t]) => `<th>${esc(t)}</th>`).join('')}</tr></thead><tbody>${
+    weeks.slice().reverse().map((w) => `<tr><td>${esc(weekLabel(w))}</td>${cols.map(([, f]) => `<td>${w[f] == null ? '—' : fmtNum(w[f])}</td>`).join('')}</tr>`).join('')
   }</tbody></table>`;
 }
 $('chartsTableBtn').addEventListener('click', () => {
   const open = $('chartTable').classList.toggle('hidden') === false;
   $('chartsTableBtn').textContent = open ? 'График' : 'Таблица';
   // таблица занимает место графиков
-  document.querySelectorAll('#chartsCard .chart-block').forEach((b) => b.classList.toggle('hidden', open));
+  $('chartsBody').classList.toggle('hidden', open);
   if (!open) renderCharts();
 });
+
+// Окно «Что показывать»: до трёх показателей, остальные можно добавить вместо них
+function paintMetricList() {
+  const cur = chosenMetrics();
+  $('metricList').innerHTML = METRIC_ORDER.map((k) => {
+    const on = cur.includes(k);
+    const full = !on && cur.length >= 3;
+    return `<button type="button" class="metric-row${on ? ' on' : ''}${full ? ' off' : ''}" data-k="${k}"><span class="metric-check">${on ? '✓' : ''}</span><span class="metric-name">${esc(METRICS[k].title)}</span></button>`;
+  }).join('');
+  $('metricList').querySelectorAll('.metric-row').forEach((b) => b.addEventListener('click', () => {
+    let list = chosenMetrics();
+    const k = b.dataset.k;
+    if (list.includes(k)) { if (list.length <= 1) { haptic('warning'); return; } list = list.filter((x) => x !== k); }
+    else { if (list.length >= 3) { haptic('warning'); return; } list.push(k); }
+    saveMetrics(list); paintMetricList(); renderCharts(); haptic('select');
+  }));
+}
+$('chartsEditBtn').addEventListener('click', () => { paintMetricList(); $('chartsSheet').classList.remove('hidden'); });
+const closeChartsSheet = () => $('chartsSheet').classList.add('hidden');
+$('metricClose').addEventListener('click', closeChartsSheet);
+$('chartsSheet').addEventListener('click', (e) => { if (e.target === $('chartsSheet')) closeChartsSheet(); });
+$('metricReset').addEventListener('click', () => { try { localStorage.removeItem('forma_charts'); } catch (e) { /* ладно */ } paintMetricList(); renderCharts(); haptic('success'); });
 
 // =====================================================================
 //  ФАЙЛ С ЧАСОВ (Garmin .zip / .FIT, а также .GPX и .TCX)
