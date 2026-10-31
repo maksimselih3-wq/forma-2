@@ -141,7 +141,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=99" />
+<link rel="stylesheet" href="style.css?v=100" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -645,6 +645,17 @@
       </ol>
       <div class="muted watch-note">Fom сам разложит круги: разминка, отрезки с временем, отдых, заминка и пульс. Останется добавить самочувствие и RPE. Файлы .GPX и .TCX (Strava, Coros, Polar) тоже подходят.</div>
       <button type="button" class="sheet-btn muted-btn" id="watchHelpClose">Понятно</button>
+    </div>
+  </div>
+
+  <!-- Настройка графиков «Разбора» -->
+  <div id="chartsSheet" class="sheet-backdrop hidden">
+    <div class="sheet repeat-sheet">
+      <div class="sheet-title">Что показывать в разборе</div>
+      <div class="muted center repeat-hint">Выбери до трёх показателей. Fom тоже будет опираться на них в разборе.</div>
+      <div id="metricList"></div>
+      <button type="button" class="sheet-btn" id="metricReset">Подобрать под мою дисциплину</button>
+      <button type="button" class="sheet-btn muted-btn" id="metricClose">Готово</button>
     </div>
   </div>
 
@@ -1445,21 +1456,12 @@
     <section class="card charts-card" id="chartsCard">
       <div class="charts-head">
         <div class="eyebrow">Динамика · 8 недель</div>
-        <button type="button" class="gift-rules-btn" id="chartsTableBtn">Таблица</button>
+        <span class="charts-btns">
+          <button type="button" class="gift-rules-btn" id="chartsEditBtn">Настроить</button>
+          <button type="button" class="gift-rules-btn" id="chartsTableBtn">Таблица</button>
+        </span>
       </div>
-      <div class="chart-block">
-        <div class="chart-title">Беговой объём, км <span class="muted">· примерно</span></div>
-        <div class="chart" id="chartKm"></div>
-      </div>
-      <div class="chart-block">
-        <div class="chart-title">Тренировок в неделю</div>
-        <div class="chart" id="chartCount"></div>
-      </div>
-      <div class="chart-block">
-        <div class="chart-title">Самочувствие и нагрузка, среднее за неделю
-          <span class="chart-legend-inline"><i class="key key-feel"></i>самоч. <i class="key key-rpe"></i>RPE</span></div>
-        <div class="chart" id="chartFeel"></div>
-      </div>
+      <div id="chartsBody"></div>
       <div class="chart-table hidden" id="chartTable"></div>
       <div class="chart-tip hidden" id="chartTip"></div>
     </section>
@@ -1635,7 +1637,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=114';
+      s.src = 'app.js?v=115';
       document.body.appendChild(s);
     });
   </script>
