@@ -306,34 +306,50 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .slider-top { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: var(--muted); }
 .slider-top b { color: var(--text); font-family: var(--font-head); font-size: 14px; }
 input[type="range"] {
+  --track: linear-gradient(90deg, #ff5a4f, #ffc14d 50%, var(--lime));
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #ff5a4f, #ffc14d 50%, var(--lime));
+  height: 24px;            /* высота «дорожки» для пальца; сама линия — 6 px по центру */
+  margin: 0;
+  padding: 0;
+  background: transparent;
   outline: none;
 }
 /* самочувствие: плохо (красный) → отлично (зелёный) */
-input[type="range"].range-good { background: linear-gradient(90deg, #ff5a4f, #ffc14d 50%, var(--lime)); }
+input[type="range"].range-good { --track: linear-gradient(90deg, #ff5a4f, #ffc14d 50%, var(--lime)); }
 /* нагрузка: легко (зелёный) → на пределе (красный) */
-input[type="range"].range-load { background: linear-gradient(90deg, var(--lime), #ffc14d 50%, #ff5a4f); }
+input[type="range"].range-load { --track: linear-gradient(90deg, var(--lime), #ffc14d 50%, #ff5a4f); }
 .slider-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 6px; }
 .slider-hint { font-size: 12px; margin-top: 6px; }
+/* линия и бегунок описаны отдельно, чтобы бегунок точно стоял посередине линии (в Safari иначе съезжает вниз) */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--track);
+}
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--track);
+}
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 22px; height: 22px;
+  margin-top: -8px;        /* (6 − 22) / 2: центр бегунка — на середине линии */
   border-radius: 50%;
   background: #fff;
   border: 3px solid var(--bg);
   box-shadow: 0 0 0 1px rgba(var(--ink), 0.3);
   cursor: pointer;
+  box-sizing: border-box;
 }
 input[type="range"]::-moz-range-thumb {
-  width: 18px; height: 18px;
+  width: 22px; height: 22px;
   border-radius: 50%;
   background: #fff;
   border: 3px solid var(--bg);
+  box-sizing: border-box;
 }
 
 /* ---------- Умный ввод ---------- */
@@ -1026,7 +1042,7 @@ button.hero-sport { cursor: pointer; }
   pointer-events: none;
 }
 .crop-zoom-row { display: flex; align-items: center; gap: 10px; margin: 14px 4px 6px; color: var(--muted); font-weight: 800; }
-.crop-zoom { flex: 1; background: rgba(255, 255, 255, 0.15) !important; }
+.crop-zoom { flex: 1; --track: rgba(255, 255, 255, 0.15) !important; }
 .crop-hint { text-align: center; font-size: 12px; margin-bottom: 4px; }
 .crop-save { background: var(--grad-lime); color: #0b0d10; border-color: transparent; }
 .crop-save:disabled { opacity: 0.6; }
@@ -2572,3 +2588,21 @@ html.lite .screen-in, html.lite .tab-in { animation: none !important; }
 html.lite .dock-tabs.moving .dock-thumb::before { animation: none; }
 html.lite .dock-tabs .dock-thumb { transition-duration: 0.25s; }
 html.lite .card { box-shadow: none; }
+
+
+/* ---------- «Разбор»: настройка графиков ---------- */
+.charts-btns { display: inline-flex; gap: 6px; }
+.insights-one #chartsBody { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.insights-one #chartsBody.hidden { display: none; }
+.metric-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 12px 12px; margin-bottom: 8px; border-radius: 14px;
+  background: var(--input); border: 1px solid var(--border); color: var(--text); font-size: 15px;
+}
+.metric-row.on { border-color: rgba(180, 245, 60, 0.55); background: rgba(180, 245, 60, 0.08); }
+.metric-row.off { opacity: 0.45; }
+.metric-check {
+  flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-strong);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #0b0d10;
+}
+.metric-row.on .metric-check { background: var(--lime); border-color: var(--lime); }
