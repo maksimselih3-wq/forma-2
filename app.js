@@ -1,12 +1,12 @@
 // Где живёт приложение:
-//  - на GitHub Pages (или открыт файлом) — ходим напрямую на сервер Railway;
-//  - на своём домене (российский сервер) — всё через тот же адрес: сервер сам перешлёт /api на Railway.
+//  - на GitHub Pages (или открыт файлом) - ходим напрямую на сервер Railway;
+//  - на своём домене (российский сервер) - всё через тот же адрес: сервер сам перешлёт /api на Railway.
 //    Так приложение открывается в России без VPN и прокси.
-// Нативное приложение (Capacitor: Google Play / App Store): страницы лежат внутри приложения, сервер — всегда Railway
+// Нативное приложение (Capacitor: Google Play / App Store): страницы лежат внутри приложения, сервер - всегда Railway
 const NATIVE = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
 const SELF_HOSTED = !/github\.io$/.test(location.hostname) && location.protocol !== 'file:' && !NATIVE;
 // Два адреса сервера: прямой (Railway) и зеркало на своём домене (проходит без VPN в России).
-// Приложение само выбирает тот, что отвечает, и запоминает выбор; если один пропал — переключается на другой.
+// Приложение само выбирает тот, что отвечает, и запоминает выбор; если один пропал - переключается на другой.
 const API_DIRECT = 'https://forma-production-9c7a.up.railway.app';
 const API_MIRROR = 'https://gang.forma2ko5.online';
 let API_BASE = SELF_HOSTED ? '' : API_DIRECT;
@@ -33,14 +33,14 @@ if (!SELF_HOSTED) {
       list.forEach((b) => probe(b, ms).then((good) => { API_BASE = good; remember(); ok(); }, () => { if (++fails === list.length) ok(); }));
     });
   };
-  // первый запуск (адрес ещё не выбирали) — ждём проверку, но не дольше 7 секунд; дальше — проверяем в фоне
+  // первый запуск (адрес ещё не выбирали) - ждём проверку, но не дольше 7 секунд; дальше - проверяем в фоне
   apiReady = saved ? (pick(8000), Promise.resolve()) : pick(7000);
   window.__switchApi = () => { API_BASE = alt(); remember(); };
 }
 
 const tg = window.Telegram?.WebApp;
 
-// Вход вне Telegram (сайт на главном экране телефона): вместо подписи Telegram — личный ключ сессии
+// Вход вне Telegram (сайт на главном экране телефона): вместо подписи Telegram - личный ключ сессии
 const SESSION_KEY = 'forma_session';
 function getSession() { try { return localStorage.getItem(SESSION_KEY) || ''; } catch (e) { return ''; } }
 function setSession(v) { try { if (v) localStorage.setItem(SESSION_KEY, v); else { localStorage.removeItem(SESSION_KEY); localStorage.removeItem('forma_boot'); localStorage.removeItem('forma_social'); } } catch (e) { /* нет хранилища */ } }
@@ -54,7 +54,7 @@ const OUTSIDE_TELEGRAM = !tg?.initData;
 if (OUTSIDE_TELEGRAM) document.documentElement.classList.add('web-app');
 
 // Автообновление: Telegram иногда держит старую версию страницы в кэше.
-// При запуске смотрим свежий index.html — если там версия новее, один раз перезагружаемся на неё.
+// При запуске смотрим свежий index.html - если там версия новее, один раз перезагружаемся на неё.
 (function checkFreshVersion() {
   try {
     const me = document.querySelector('script[src*="app.js"]');
@@ -67,14 +67,14 @@ if (OUTSIDE_TELEGRAM) document.documentElement.classList.add('web-app');
         if (!fresh || fresh <= cur) return;
         let tried = null;
         try { tried = sessionStorage.getItem('forma_reload_v'); } catch (e) { /* нет хранилища */ }
-        if (tried === String(fresh)) return; // уже пробовали — не зацикливаемся
+        if (tried === String(fresh)) return; // уже пробовали - не зацикливаемся
         try { sessionStorage.setItem('forma_reload_v', String(fresh)); } catch (e) { /* ничего */ }
         const url = new URL(window.location.href);
-        url.searchParams.set('v', String(fresh)); // другой адрес — кэш не подсунет старую страницу
+        url.searchParams.set('v', String(fresh)); // другой адрес - кэш не подсунет старую страницу
         window.location.replace(url.toString()); // хэш с данными Telegram сохраняется
       })
       .catch(() => {});
-  } catch (e) { /* не страшно — просто работаем на текущей версии */ }
+  } catch (e) { /* не страшно - просто работаем на текущей версии */ }
 })();
 
 // ---------- Тема: тёмная / светлая / как в Telegram ----------
@@ -104,7 +104,7 @@ if (tg) {
   tg.ready();
   tg.expand();
   // шапка и фон Telegram в цвет приложения (если версия Telegram это умеет)
-  // цвета шапки Telegram задаёт applyTheme() ниже — под выбранную тему
+  // цвета шапки Telegram задаёт applyTheme() ниже - под выбранную тему
 }
 
 let currentUser = null;
@@ -114,10 +114,10 @@ let justSavedDate = null; // дата, которую только что сох
 let myWorkouts = [];
 let workoutsByDate = {}; // 'ГГГГ-ММ-ДД' -> список записей дня (основная + вторая тренировка)
 
-// Номер тренировки, которую сейчас заполняем на главной: 1 — основная, 2 — вторая за день
+// Номер тренировки, которую сейчас заполняем на главной: 1 - основная, 2 - вторая за день
 let entrySession = 1;
-// Новые записи — только за сегодня и вчера (так серия остаётся честной)
-let MAX_BACKFILL_DAYS = 7; // сколько дней назад можно заполнить запись: сервер присылает число в user.backfill_days (новичок — 7 дней, потом 1)
+// Новые записи - только за сегодня и вчера (так серия остаётся честной)
+let MAX_BACKFILL_DAYS = 7; // сколько дней назад можно заполнить запись: сервер присылает число в user.backfill_days (новичок - 7 дней, потом 1)
 
 // Дата, за которую сейчас заполняется форма на главном экране
 let entryDate = null;
@@ -187,12 +187,12 @@ function hydrateIcons(root = document) {
 function scaleColor(v, reverse = false) {
   const t = (Math.min(Math.max(v, 1), 10) - 1) / 9;
   const hue = Math.round((reverse ? 1 - t : t) * 110);
-  // в светлой теме цвет темнее — иначе жёлтые цифры не читаются на белом
+  // в светлой теме цвет темнее - иначе жёлтые цифры не читаются на белом
   const light = document.documentElement.dataset.theme === 'light';
   return `hsl(${hue}, ${light ? '80%, 38%' : '85%, 60%'})`;
 }
 
-// Фирменная синяя галочка — только у этих аккаунтов (username без @, маленькими буквами)
+// Фирменная синяя галочка - только у этих аккаунтов (username без @, маленькими буквами)
 const VERIFIED_USERNAMES = ['maksimshelikh'];
 const VERIFIED_BADGE =
   '<svg class="verified" viewBox="0 0 24 24" aria-label="Подтверждённый аккаунт"><path fill="#2AABEE" d="M12 1.5l2.4 1.9 3-.4 1.1 2.8 2.8 1.1-.4 3 1.9 2.4-1.9 2.4.4 3-2.8 1.1-1.1 2.8-3-.4L12 22.5l-2.4-1.9-3 .4-1.1-2.8-2.8-1.1.4-3L1.2 12l1.9-2.4-.4-3 2.8-1.1 1.1-2.8 3 .4z"/><path d="M7.6 12.4l3 3 5.9-6.1" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -206,7 +206,7 @@ const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', '�
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 function nowRoundedTime(shiftMin = 0) { const d = new Date(Date.now() + shiftMin * 60000); const m = Math.round(d.getMinutes() / 5) * 5; d.setMinutes(m, 0, 0); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
-// Сколько дней назад была дата 'ГГГГ-ММ-ДД' (0 — сегодня)
+// Сколько дней назад была дата 'ГГГГ-ММ-ДД' (0 - сегодня)
 function daysAgo(dateStr) {
   const t = Date.parse(localDateStr() + 'T00:00:00Z'), d = Date.parse(String(dateStr).slice(0, 10) + 'T00:00:00Z');
   return Number.isFinite(d) ? Math.round((t - d) / 86400000) : 9999;
@@ -277,7 +277,7 @@ function api(path, options = {}) {
 }
 
 async function apiRaw(path, options = {}) {
-  // не ждём сервер бесконечно: если связи нет (например, сайт заблокирован), через 20 секунд — ошибка,
+  // не ждём сервер бесконечно: если связи нет (например, сайт заблокирован), через 20 секунд - ошибка,
   // и приложение покажет понятное сообщение вместо вечной заставки
   const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
   const timer = ctrl ? setTimeout(() => ctrl.abort(), options.timeout || 20000) : null;
@@ -311,8 +311,8 @@ async function apiRaw(path, options = {}) {
     if (timer) clearTimeout(timer);
   }
   if (res.status === 401 && OUTSIDE_TELEGRAM && getSession() && !path.startsWith('/api/webauth')) {
-    setSession(''); // ключ устарел или отозван — входим заново
-    try { showLogin('Сессия закончилась — войди ещё раз.'); } catch (e) { /* экран входа ещё не готов */ }
+    setSession(''); // ключ устарел или отозван - входим заново
+    try { showLogin('Сессия закончилась - войди ещё раз.'); } catch (e) { /* экран входа ещё не готов */ }
   }
   if (!res.ok) {
     let data = null;
@@ -329,7 +329,7 @@ const ALL_SCREENS = ['mainScreen', 'profileScreen', 'friendsScreen', 'friendProf
 // какая кнопка нижней панели подсвечивается на «вложенных» экранах
 const NAV_PARENT = { friendProfileScreen: 'friendsScreen', groupScreen: 'friendsScreen', memberScreen: 'friendsScreen', settingsScreen: 'profileScreen', healthScreen: 'profileScreen', giftsScreen: 'profileScreen', runScreen: 'friendsScreen' };
 const TAB_SCREENS = ['mainScreen', 'chatScreen', 'insightsScreen', 'friendsScreen', 'profileScreen'];
-const tabHistory = []; // какие вкладки открывались — чтобы жест «назад» вёл туда, откуда пришёл
+const tabHistory = []; // какие вкладки открывались - чтобы жест «назад» вёл туда, откуда пришёл
 function showScreen(targetId) {
   if (TAB_SCREENS.includes(targetId) && tabHistory[tabHistory.length - 1] !== targetId) {
     tabHistory.push(targetId);
@@ -351,7 +351,7 @@ function showScreen(targetId) {
 }
 
 // =====================================================================
-//  ФОРМА ЗАПИСИ — одна и та же для «новой записи» и «редактирования»
+//  ФОРМА ЗАПИСИ - одна и та же для «новой записи» и «редактирования»
 // =====================================================================
 // ---------- Дистанция: можно писать «10 км» ----------
 // «400» → 400, «10 км» → 10000, «1,5 км» → 1500, «10k» → 10000
@@ -415,7 +415,7 @@ const COMP_DISCIPLINES = ['60 м', '100 м', '200 м', '400 м', '800 м', '1500
   '60 м с/б', '100 м с/б', '110 м с/б', '400 м с/б', '3000 м с/п', 'Полумарафон', 'Марафон',
   'Длина', 'Тройной', 'Высота', 'Шест', 'Ядро', 'Диск', 'Копьё', 'Молот'];
 
-// Прыжки и метания — «больше = лучше» (метры), бег — «меньше = лучше» (время)
+// Прыжки и метания - «больше = лучше» (метры), бег - «меньше = лучше» (время)
 const FIELD_EVENT_RE = /прыж|длин|тройн|высот|шест|ядр|диск|копь|молот|метан|толк/i;
 function higherIsBetter(discipline) { return FIELD_EVENT_RE.test(discipline || ''); }
 // «10.95» → 10.95, «1:58.4» → 118.4, «7,12 м» → 7.12
@@ -431,7 +431,7 @@ function disciplineKey(d) {
   return String(d || '').toLowerCase().replace(/метр(ов|а)?/g, 'м').replace(/\s+/g, '').replace(/ё/g, 'е');
 }
 // Лучший результат в каждой дисциплине (по моим записям)
-// Рекорды, внесённые вручную (без записи старта), — в том же виде, что и записи-старты
+// Рекорды, внесённые вручную (без записи старта), - в том же виде, что и записи-старты
 let myManualRecords = [];
 function manualAsWorkouts() {
   return myManualRecords.map((r) => ({
@@ -452,7 +452,7 @@ function bestResults(list = [...myWorkouts, ...manualAsWorkouts()]) {
   });
   return best;
 }
-// Этот старт — личный рекорд? (лучше всех прошлых стартов в этой дисциплине; первый старт тоже рекорд)
+// Этот старт - личный рекорд? (лучше всех прошлых стартов в этой дисциплине; первый старт тоже рекорд)
 function isPersonalBest(w) {
   const c = w?.competition;
   if (!c?.discipline || !c?.result) return false;
@@ -464,7 +464,7 @@ function isPersonalBest(w) {
 }
 function competitionLine(c) {
   if (!c) return '';
-  return [c.name, [c.discipline, c.result].filter(Boolean).join(' — '), c.place ? `${c.place} место` : ''].filter(Boolean).join(' · ');
+  return [c.name, [c.discipline, c.result].filter(Boolean).join(' - '), c.place ? `${c.place} место` : ''].filter(Boolean).join(' · ');
 }
 function entryKindLabel(w) {
   if (w.type === 'rest') return 'Отдых';
@@ -529,7 +529,7 @@ const DISC_PROFILES = {
     ],
   },
   walk: {
-    smart: 'Например: разминка 2 км, ходьба 8×1000 м по 4:35 отдых 2 мин, техника 4×200 м, заминка 1 км. Судейская ошибка — «потеря контакта» на финише.',
+    smart: 'Например: разминка 2 км, ходьба 8×1000 м по 4:35 отдых 2 мин, техника 4×200 м, заминка 1 км. Судейская ошибка - «потеря контакта» на финише.',
     warmup: 'Например: 2 км ходьбы в лёгком темпе, суставная, техника',
     runTitle: 'Работа на дорожке', runHint: 'метры, км или время · повторы · время · отдых', runPh: ["м / км / 1'", 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
     exTitle: 'ОФП и сила', exPh: 'Упражнение (присед, пресс, махи...)',
@@ -542,7 +542,7 @@ const DISC_PROFILES = {
   jumps: {
     smart: 'Например: разминка 15 мин, ускорения 4×30 м, длина с 12 шагов 6 попыток лучший 6,48, прыжки в глубину 4×5, присед 5×3 90 кг. Отталкивание лучше.',
     warmup: 'Например: 10 мин трусцой, суставная, СБУ, ускорения 4×30 м',
-    tech: true, techTitle: 'Прыжки — попытки', techHint: 'вид · попытки · результат · планка / разбег', techPh: ['Вид: длина, тройной, высота, шест', 'Попыток', 'Лучший, м', 'Планка / разбег'], addTech: '+ Добавить прыжок',
+    tech: true, techTitle: 'Прыжки - попытки', techHint: 'вид · попытки · результат · планка / разбег', techPh: ['Вид: длина, тройной, высота, шест', 'Попыток', 'Лучший, м', 'Планка / разбег'], addTech: '+ Добавить прыжок',
     runTitle: 'Разбег и скорость', runHint: 'отрезок, м · повторы · время · отдых', runPh: ['м (20, 30, 60)', 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
     exTitle: 'Прыжковая работа, сила и ОФП', exPh: 'Упражнение (прыжки в глубину, присед, рывок...)',
     templates: [
@@ -556,7 +556,7 @@ const DISC_PROFILES = {
   throws: {
     smart: 'Например: разминка 15 мин, копьё 800 г 8 бросков лучший 54,2, ядро набивное 5×6, рывок 5×3 70 кг, пресс. Техника последнего шага лучше.',
     warmup: 'Например: 10 мин трусцой, суставная, СБУ, ускорения 4×30 м',
-    tech: true, techTitle: 'Метания — броски', techHint: 'снаряд · броски · лучший результат · вес снаряда', techPh: ['Снаряд: копьё, ядро, диск, молот', 'Бросков', 'Лучший, м', 'Вес снаряда'], addTech: '+ Добавить снаряд',
+    tech: true, techTitle: 'Метания - броски', techHint: 'снаряд · броски · лучший результат · вес снаряда', techPh: ['Снаряд: копьё, ядро, диск, молот', 'Бросков', 'Лучший, м', 'Вес снаряда'], addTech: '+ Добавить снаряд',
     runTitle: 'Ускорения и бег', runHint: 'отрезок, м · повторы · время · отдых', runPh: ['м (20, 30, 60)', 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
     exTitle: 'Сила и ОФП', exPh: 'Упражнение (рывок, жим, присед, броски мяча...)',
     templates: [
@@ -570,7 +570,7 @@ const DISC_PROFILES = {
   combined: {
     smart: 'Например: день скорости: 60 м 5× и 150 м 3×, потом высота 12 попыток лучший 1,82, ядро 6 бросков, ОФП. Копьё лучше, высота хуже.',
     warmup: 'Например: 10 мин трусцой, суставная, СБУ, ускорения',
-    tech: true, techTitle: 'Технические виды — попытки', techHint: 'вид · попытки · результат · снаряд / планка', techPh: ['Вид: длина, высота, ядро, копьё...', 'Попыток', 'Лучший', 'Снаряд / планка'], addTech: '+ Добавить вид',
+    tech: true, techTitle: 'Технические виды - попытки', techHint: 'вид · попытки · результат · снаряд / планка', techPh: ['Вид: длина, высота, ядро, копьё...', 'Попыток', 'Лучший', 'Снаряд / планка'], addTech: '+ Добавить вид',
     runTitle: 'Бег и скорость', runHint: 'метры или время · повторы · время · отдых', runPh: ["м / км / 1'", 'Кол-во', 'Время', 'Отдых'], addSet: '+ Добавить отрезок',
     exTitle: 'Сила и ОФП', exPh: 'Упражнение (присед, рывок, пресс...)',
     templates: [
@@ -600,7 +600,7 @@ function myProfile() { return DISC_PROFILES[disciplineGroup(currentUser?.discipl
 const FORM_TEMPLATE = `
   <section class="card smart-card">
     <div class="card-label">${ico('sparkle')}Умный ввод</div>
-    <div class="card-hint smart-hint">Опиши тренировку своими словами — Fom сам разложит всё по полям ниже.</div>
+    <div class="card-hint smart-hint">Опиши тренировку своими словами - Fom сам разложит всё по полям ниже.</div>
     <textarea data-f="smartText" rows="4" placeholder="Например: разминка 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, присед 5×5 80 кг, пульс ср 150 макс 182, в паузах до 110. Было тяжело."></textarea>
     <button type="button" class="smart-btn" data-f="smartBtn">Разложить по полям</button>
     <div class="status-msg" data-f="smartStatus"></div>
@@ -625,7 +625,7 @@ const FORM_TEMPLATE = `
       <label class="hr-field"><span>Результат</span><input type="text" data-f="compResult" maxlength="20" inputmode="decimal" placeholder="10.95" /></label>
       <label class="hr-field"><span>Место <i class="optional">необяз.</i></span><input type="number" data-f="compPlace" inputmode="numeric" min="1" max="9999" placeholder="—" /></label>
     </div>
-    <div class="muted hr-hint">Бег — в секундах или мин:сек (1:58.4), прыжки и метания — в метрах (7.12). Лучший результат в каждой дисциплине попадёт в «Рекорды» профиля.</div>
+    <div class="muted hr-hint">Бег - в секундах или мин:сек (1:58.4), прыжки и метания - в метрах (7.12). Лучший результат в каждой дисциплине попадёт в «Рекорды» профиля.</div>
   </section>
 
   <div data-f="trainingFields">
@@ -677,7 +677,7 @@ const FORM_TEMPLATE = `
         <div class="slider-top"><span>Нагрузка (RPE)</span><b data-f="rpeNum"><span data-f="rpeVal">5</span>/10</b></div>
         <input type="range" class="range-load" data-f="rpe" min="0" max="10" value="5" />
         <div class="slider-scale"><span>очень легко</span><span>на пределе</span></div>
-        <div class="muted slider-hint">RPE — насколько тяжело далась тренировка по твоим ощущениям.</div>
+        <div class="muted slider-hint">RPE - насколько тяжело далась тренировка по твоим ощущениям.</div>
       </div>
     </section>
 
@@ -720,7 +720,7 @@ const FORM_TEMPLATE = `
           <span>Я на сборе</span>
         </label>
       </div>
-      <div class="muted hr-hint" data-f="placeHint">Выбери город из подсказки — высота подставится сама. Для стадиона в горах можно поправить её вручную.</div>
+      <div class="muted hr-hint" data-f="placeHint">Выбери город из подсказки - высота подставится сама. Для стадиона в горах можно поправить её вручную.</div>
     </section>
 
     <section class="card opt-card hidden" data-f="pulseCard">
@@ -730,7 +730,7 @@ const FORM_TEMPLATE = `
         <label class="hr-field"><span>Макс.</span><input type="number" inputmode="numeric" data-f="hrMax" min="30" max="250" placeholder="—" /></label>
         <label class="hr-field"><span>Мин. в паузах</span><input type="number" inputmode="numeric" data-f="hrMin" min="30" max="250" placeholder="—" /></label>
       </div>
-      <div class="muted hr-hint">Мин. в паузах — насколько низко пульс опускался в отдыхе между отрезками. Чем ниже, тем лучше восстановление.</div>
+      <div class="muted hr-hint">Мин. в паузах - насколько низко пульс опускался в отдыхе между отрезками. Чем ниже, тем лучше восстановление.</div>
     </section>
   </div>
 
@@ -739,7 +739,7 @@ const FORM_TEMPLATE = `
     <textarea data-f="notes" rows="2" placeholder="Как прошло, что заметил..."></textarea>
     <div class="vis-block" data-f="kmBlock">
       <div class="vis-label">Общий объём за тренировку, км</div>
-      <input type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" data-f="totalKm" maxlength="14" placeholder="Необязательно — иначе посчитаю по записи">
+      <input type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" data-f="totalKm" maxlength="14" placeholder="Необязательно - иначе посчитаю по записи">
     </div>
     <div class="vis-block">
       <div class="vis-label">Кто видит запись</div>
@@ -814,7 +814,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   }));
 
   // --- место тренировки: название, координаты, высота, сбор ---
-  let placeGeo = null; // { lat, lon } — если место выбрано из подсказки или «где я сейчас»
+  let placeGeo = null; // { lat, lon } - если место выбрано из подсказки или «где я сейчас»
   let placeTimer = null, placeSeq = 0;
   function placeData() {
     const alt = parseInt(f('placeAlt').value, 10);
@@ -899,10 +899,10 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
         if (place.elevation != null && place.elevation >= 1000) f('placeCamp').checked = true;
         hint.textContent = old;
         paintPlace();
-      } catch (err) { hint.textContent = err.data?.error || 'Не получилось определить место — впиши его сам.'; }
+      } catch (err) { hint.textContent = err.data?.error || 'Не получилось определить место - впиши его сам.'; }
     };
-    const fail = () => { hint.textContent = 'Нет доступа к геопозиции — впиши место сам или разреши доступ в настройках.'; };
-    // в Telegram — через его геолокацию (если есть), иначе через браузер
+    const fail = () => { hint.textContent = 'Нет доступа к геопозиции - впиши место сам или разреши доступ в настройках.'; };
+    // в Telegram - через его геолокацию (если есть), иначе через браузер
     const lm = tg?.LocationManager;
     if (lm && typeof lm.init === 'function' && typeof lm.getLocation === 'function') {
       try {
@@ -911,7 +911,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
           lm.getLocation((loc) => (loc ? done(loc.latitude, loc.longitude) : fail()));
         });
         return;
-      } catch (e) { /* ниже — браузер */ }
+      } catch (e) { /* ниже - браузер */ }
     }
     browserGeo();
     function browserGeo() {
@@ -921,7 +921,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   }
   paintPlace();
 
-  // кто видит запись: private — только я, public — все друзья, custom — выбранные друзья (visTo — их id)
+  // кто видит запись: private - только я, public - все друзья, custom - выбранные друзья (visTo - их id)
   let vis = 'private';
   let visTo = [];
 
@@ -1090,10 +1090,10 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   registerFormProfile(syncProfile);
 
   // --- ползунки ---
-  // цвет цифры: самочувствие — чем выше, тем зеленее; нагрузка — чем выше, тем краснее
+  // цвет цифры: самочувствие - чем выше, тем зеленее; нагрузка - чем выше, тем краснее
   function paintSlider(k) {
     const v = Number(f(k).value);
-    // 0 — «не оцениваю»: шкала 0–10, чтобы 5 стояла ровно посередине
+    // 0 - «не оцениваю»: шкала 0–10, чтобы 5 стояла ровно посередине
     f(k + 'Val').textContent = v || '—';
     f(k + 'Num').style.color = v ? scaleColor(v, k === 'rpe') : '';
   }
@@ -1136,7 +1136,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
   }
 
   // --- файл с часов: читаем в телефоне → сводку кругов отдаём Fom → он раскладывает по полям ---
-  // Кнопка «С часов» пока скрыта (выгрузка из Garmin слишком неудобна) — код оставлен на будущее
+  // Кнопка «С часов» пока скрыта (выгрузка из Garmin слишком неудобна) - код оставлен на будущее
   if (f('watchBtn')) f('watchHelp').addEventListener('click', openWatchHelp);
   if (f('watchBtn')) f('watchBtn').addEventListener('click', () => f('watchFile').click());
   if (f('watchFile')) f('watchFile').addEventListener('change', async (e) => {
@@ -1152,14 +1152,14 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       const { parsed } = await api('/api/workouts/parse', { method: 'POST', body: JSON.stringify({ text: w.text, source: 'watch' }), timeout: 60000 });
       applyParsed({ ...parsed, type: 'training' });
       setType(mode === 'competition' ? 'competition' : 'training');
-      // пульс берём прямо из файла — он точнее
+      // пульс берём прямо из файла - он точнее
       if (w.hrAvg) f('hrAvg').value = w.hrAvg;
       if (w.hrMax) f('hrMax').value = w.hrMax;
       if (w.hrMin) f('hrMin').value = w.hrMin;
       growAll(root);
       const d = getDate();
       status.textContent = 'Готово! Проверь поля и добавь самочувствие и RPE.' +
-        (w.date && d && w.date !== d ? ` Внимание: файл от ${formatDayMonth(w.date)}, а запись — за ${formatDayMonth(d)}.` : '');
+        (w.date && d && w.date !== d ? ` Внимание: файл от ${formatDayMonth(w.date)}, а запись - за ${formatDayMonth(d)}.` : '');
       haptic('success');
     } catch (err) {
       console.error(err);
@@ -1238,7 +1238,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
         type,
         warmup: f('warmup').value,
         cooldown: f('cooldown').value,
-        // у дня отдыха оценок нет — только заметка
+        // у дня отдыха оценок нет - только заметка
         feeling: type === 'training' ? Number(f('feeling').value) : null,
         rpe: type === 'training' ? Number(f('rpe').value) : null,
         notes: f('notes').value,
@@ -1248,7 +1248,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
         start_time: startTime,
         end_time: endTime,
         ...(type === 'training' ? placeData() : { place: null, altitude_m: null, camp: false }),
-        // в поле «метры» можно написать время («1'», «30"») — тогда это отрезок по времени
+        // в поле «метры» можно написать время («1'», «30"») - тогда это отрезок по времени
         sets: type === 'training' ? sets.map((x) => {
           const dur = looksLikeDuration(x.distance_m) ? parseDuration(x.distance_m) : null;
           return { ...x, duration_s: dur, distance_m: dur ? null : parseDistance(x.distance_m) };
@@ -1300,7 +1300,7 @@ function readBootCache() {
   try {
     const c = JSON.parse(localStorage.getItem('forma_boot') || 'null');
     if (c && c.who === bootWho() && c.user && c.user.consent_at && Array.isArray(c.workouts)) return c;
-  } catch (e) { /* нет кэша — не страшно */ }
+  } catch (e) { /* нет кэша - не страшно */ }
   return null;
 }
 function writeBootCache() {
@@ -1308,14 +1308,14 @@ function writeBootCache() {
     if (!currentUser || !currentUser.consent_at) return;
     const s = JSON.stringify({ who: bootWho(), user: currentUser, workouts: myWorkouts, streak: { current: currentUser.current_streak, longest: currentUser.longest_streak }, t: Date.now() });
     if (s.length < 1500000) localStorage.setItem('forma_boot', s);
-  } catch (e) { /* место закончилось — пропускаем */ }
+  } catch (e) { /* место закончилось - пропускаем */ }
 }
 
 // ---------- Инициализация ----------
 async function init() {
   setEntryDate(localDateStr());
   showScreen('mainScreen');
-  // открыли вне Telegram и ещё не входили — сначала вход
+  // открыли вне Telegram и ещё не входили - сначала вход
   if (OUTSIDE_TELEGRAM && !getSession()) { hideSplash(); showLogin(); return; }
   // Уже заходили: рисуем главный экран из сохранённых данных сразу, не дожидаясь сервера
   const boot = readBootCache();
@@ -1332,7 +1332,7 @@ async function init() {
     } catch (e) { console.warn('Boot cache skipped', e); }
   }
   try {
-    // start_param — если приложение открыли по ссылке-приглашению
+    // start_param - если приложение открыли по ссылке-приглашению
     const { user } = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ start_param: tg?.initDataUnsafe?.start_param || '' }) });
     currentUser = user;
     MAX_BACKFILL_DAYS = Number(user.backfill_days) || 1;
@@ -1355,7 +1355,7 @@ async function init() {
     writeBootCache();
     renderEntryState();
     loadSocialCache();
-    setTimeout(prefetchSocial, 1200); // друзья и лента подгружаются заранее — вкладка откроется сразу
+    setTimeout(prefetchSocial, 1200); // друзья и лента подгружаются заранее - вкладка откроется сразу
     loadGiveaway();
     loadAthleteProfile();
     loadMorning();
@@ -1364,9 +1364,9 @@ async function init() {
     loadGoals();
     // достижения: через пару секунд, когда подгрузятся анкета и утренние отметки
     setTimeout(() => { achievementsReady = true; renderAchievements(); }, 2500);
-    // новичку — короткое знакомство с приложением
+    // новичку - короткое знакомство с приложением
     if (!myWorkouts.length && !tourStorage()) setTimeout(openTour, 1500);
-    // открыли по ссылке-приглашению в группу — предложим вступить
+    // открыли по ссылке-приглашению в группу - предложим вступить
     const joinCode = pendingJoinCode();
     if (joinCode) setTimeout(() => joinGroupFlow(joinCode), 1700);
     // открыли по кнопке «Открыть пробежку» из бота (?run=12)
@@ -1381,7 +1381,7 @@ async function init() {
         icon: 'warn',
         title: 'Нет связи с Forma',
         text: err.network
-          ? 'Сервер не отвечает. Проверь интернет. В России без VPN приложение пока может не открываться — включи VPN и попробуй снова.'
+          ? 'Сервер не отвечает. Проверь интернет. В России без VPN приложение пока может не открываться - включи VPN и попробуй снова.'
           : 'Сервер ответил ошибкой. Попробуй ещё раз через минуту.',
         ok: 'Повторить',
         cancel: 'Закрыть',
@@ -1407,7 +1407,7 @@ function ingestWorkouts(workouts, streak) {
   updateStats();
 }
 
-// pre — уже загруженный ответ /api/workouts (при быстром старте), иначе запрашиваем сами
+// pre - уже загруженный ответ /api/workouts (при быстром старте), иначе запрашиваем сами
 async function loadMyWorkouts(pre) {
   const { workouts, streak } = pre && pre.workouts ? pre : await api('/api/workouts');
   ingestWorkouts(workouts, streak);
@@ -1443,7 +1443,7 @@ function updateStats() {
   $('profileStreak').textContent = cur;
   $('profileMonth').textContent = last30;
   $('profileTotal').textContent = total;
-  // рекорд серии — не отдельной плиткой, а маленькой меткой в профиле
+  // рекорд серии - не отдельной плиткой, а маленькой меткой в профиле
   const pno = currentUser?.pioneer_no;
   $('profilePioneer').innerHTML = pno ? `${ico('rocket')} Первопроходец №${pno}` : '';
   $('profilePioneer').classList.toggle('hidden', !pno);
@@ -1529,7 +1529,7 @@ function renderEntryState() {
   $('doneTitle').innerHTML = ico('check') + esc(
     justSavedDate === entryDate ? `Запись за ${label} сохранена` : `За ${label} запись уже есть`);
 
-  // каждая запись дня — отдельный блок со своими кнопками
+  // каждая запись дня - отдельный блок со своими кнопками
   const box = $('doneList');
   box.innerHTML = '';
   list.forEach((w) => {
@@ -1552,7 +1552,7 @@ function renderEntryState() {
     box.appendChild(block);
   });
 
-  // вторую тренировку можно добавить, если первая — тренировка и второй ещё нет
+  // вторую тренировку можно добавить, если первая - тренировка и второй ещё нет
   const canAdd = list.length === 1 && list[0].type === 'training';
   $('doneAddBtn').classList.toggle('hidden', !canAdd);
 }
@@ -1575,8 +1575,8 @@ $('entryBackBtn')?.addEventListener('click', () => {
 
 
 // ---------- Fom проверяет беговой объём после сохранения ----------
-// Fom сам считает километры записи и сверяет с тем, что вписал человек. Совпало — «подтвердил»;
-// не совпало — предлагает исправить (одно нажатие), ничего не меняя без согласия.
+// Fom сам считает километры записи и сверяет с тем, что вписал человек. Совпало - «подтвердил»;
+// не совпало - предлагает исправить (одно нажатие), ничего не меняя без согласия.
 let volToastTimer = null;
 function hideVolToast() {
   clearTimeout(volToastTimer);
@@ -1611,7 +1611,7 @@ async function fomVolumeCheck(id) {
       try { await loadMyWorkouts(); refreshAfterWorkoutChange?.(); } catch (e) { /* не страшно */ }
     };
     if (v.status === 'match') {
-      showVolToast(`Fom проверил объём: <b>${fmtNum(v.user_km)} км</b> — сходится ✓${parts}`);
+      showVolToast(`Fom проверил объём: <b>${fmtNum(v.user_km)} км</b> - сходится ✓${parts}`);
     } else if (v.status === 'counted') {
       showVolToast(`Fom посчитал объём: <b>${fmtNum(v.fom_km)} км</b> ✓${parts}`);
     } else if (v.status === 'differs') {
@@ -1628,7 +1628,7 @@ async function fomVolumeCheck(id) {
   } catch (e) { console.warn('Volume check skipped', e); }
 }
 
-// Отзыв Fom пишется на сервере в фоне — забираем, когда будет готов, и показываем в карточке записи
+// Отзыв Fom пишется на сервере в фоне - забираем, когда будет готов, и показываем в карточке записи
 async function waitFeedback(id, { fresh = false } = {}) {
   if (!id) return;
   try {
@@ -1661,10 +1661,10 @@ $('saveBtn').addEventListener('click', async () => {
     const result = await api('/api/workouts', { method: 'POST', body: JSON.stringify(payload), timeout: 60000 });
     applyStreak(result.streak);
 
-    // обновляем список записей — из него рисуется карточка «сохранено», календарь и цифры
+    // обновляем список записей - из него рисуется карточка «сохранено», календарь и цифры
     try {
       if (payload.type === 'rest' && result.workout) {
-        // день отдыха: сервер уже прислал всю запись — показываем сразу, а полный список обновим в фоне
+        // день отдыха: сервер уже прислал всю запись - показываем сразу, а полный список обновим в фоне
         const nw = { ...result.workout, date: normDate(result.workout.date) };
         const all = [nw, ...myWorkouts.filter((x) => x.id !== nw.id)].sort((a, b) => b.date.localeCompare(a.date) || (a.session || 1) - (b.session || 1));
         ingestWorkouts(all, result.streak);
@@ -1682,7 +1682,7 @@ $('saveBtn').addEventListener('click', async () => {
     if (savedW && isPersonalBest(savedW)) {
       haptic('heavy');
       setTimeout(() => haptic('success'), 180);
-      showDialog({ icon: 'trophy', title: 'Личный рекорд! 🎉', text: `${savedW.competition.discipline} — ${savedW.competition.result}. Так держать!`, ok: 'Ура!' });
+      showDialog({ icon: 'trophy', title: 'Личный рекорд! 🎉', text: `${savedW.competition.discipline} - ${savedW.competition.result}. Так держать!`, ok: 'Ура!' });
     } else {
       haptic('success');
     }
@@ -1693,7 +1693,7 @@ $('saveBtn').addEventListener('click', async () => {
     justSavedDate = entryDate;
     entrySession = 1;
     setTimeout(renderAchievements, 900); // вдруг открылось новое достижение
-    loadGiveaway(); // серия могла вырасти — обновим статус розыгрышей
+    loadGiveaway(); // серия могла вырасти - обновим статус розыгрышей
     mainForm.reset();
     renderEntryState();
     window.scrollTo(0, 0);
@@ -1723,7 +1723,7 @@ async function loadProfileScreen() {
   renderAchievements();
   renderStarts();
 
-  // число друзей — метка в профиле, по нажатию открывается список друзей
+  // число друзей - метка в профиле, по нажатию открывается список друзей
   api('/api/friends')
     .then(({ friends }) => {
       $('profileFriends').innerHTML = friendsLabel(friends.length);
@@ -1732,7 +1732,7 @@ async function loadProfileScreen() {
     .catch((err) => console.error('Friends count failed', err));
 
   try {
-    if (Date.now() - lastWorkoutsAt > 20000) await loadMyWorkouts(); // свежие записи уже есть — не качаем заново
+    if (Date.now() - lastWorkoutsAt > 20000) await loadMyWorkouts(); // свежие записи уже есть - не качаем заново
     renderCalendar();
     renderHistory();
     renderRecords();
@@ -1753,7 +1753,7 @@ function renderCalendar() {
   const grid = $('calGrid');
   grid.innerHTML = '';
 
-  const offset = (new Date(y, m, 1).getDay() + 6) % 7; // понедельник — первый день недели
+  const offset = (new Date(y, m, 1).getDay() + 6) % 7; // понедельник - первый день недели
   const daysInMonth = new Date(y, m + 1, 0).getDate();
 
   for (let i = 0; i < offset; i++) {
@@ -1791,7 +1791,7 @@ function renderCalendar() {
         if (w) {
           openEditScreen(w.id, 'profileScreen');
         } else if (ds >= addDays(today, -MAX_BACKFILL_DAYS)) {
-          setEntryDate(ds); // пустой день — форма новой записи на эту дату
+          setEntryDate(ds); // пустой день - форма новой записи на эту дату
           showScreen('mainScreen');
         } else {
           showDialog({ icon: 'calendar', title: MAX_BACKFILL_DAYS > 1 ? 'Слишком давно' : 'Только сегодня и вчера', text: MAX_BACKFILL_DAYS > 1 ? `Новую запись можно добавить не раньше чем за ${MAX_BACKFILL_DAYS} дней назад. Уже сделанные записи можно открыть и поправить.` : 'Новую запись можно добавить только за сегодня или за вчера. Уже сделанные записи можно открыть и поправить.' });
@@ -1804,10 +1804,10 @@ function renderCalendar() {
   $('calSummary').textContent =
     trainings + rests === 0
       ? 'В этом месяце записей пока нет.'
-      : `За месяц: тренировок — ${trainings}, дней отдыха — ${rests}.`;
+      : `За месяц: тренировок - ${trainings}, дней отдыха - ${rests}.`;
 }
 
-// Список «Последние записи» убран — всё есть в календаре. Функция осталась на случай, если вернём.
+// Список «Последние записи» убран - всё есть в календаре. Функция осталась на случай, если вернём.
 function renderHistory() {
   const list = $('historyList');
   if (!list) return;
@@ -1847,7 +1847,7 @@ $('calNext').addEventListener('click', () => {
 });
 
 function openProfile() {
-  calMonth = new Date(); // при каждом открытии — текущий месяц
+  calMonth = new Date(); // при каждом открытии - текущий месяц
   showScreen('profileScreen');
   loadProfileScreen();
 }
@@ -1877,7 +1877,7 @@ $('photoResetBtn').addEventListener('click', async () => {
 });
 
 // ---------- Наше окно-сообщение (вместо системного alert / confirm) ----------
-// showDialog({ icon, title, text, ok, cancel, danger }) → Promise: true — нажали «ок», false — отмена
+// showDialog({ icon, title, text, ok, cancel, danger }) → Promise: true - нажали «ок», false - отмена
 let dialogResolve = null;
 function showDialog({ icon = '', title = '', text = '', ok = 'Понятно', cancel = '', danger = false } = {}) {
   if (dialogResolve) dialogResolve(false); // предыдущее окно закрываем
@@ -1924,12 +1924,12 @@ function closeDialog() { if (dialogResolve) { const r = dialogResolve; dialogRes
 const REACTIONS = ['🔥', '👏', '💪', '🚀'];
 
 // ---------- Вибрация (отклик телефона на нажатия и жесты) ----------
-// kind: 'light' | 'medium' | 'heavy' | 'soft' | 'rigid' — толчок;
-//       'success' | 'warning' | 'error' — «уведомление»; 'select' — лёгкий щелчок выбора.
+// kind: 'light' | 'medium' | 'heavy' | 'soft' | 'rigid' - толчок;
+//       'success' | 'warning' | 'error' - «уведомление»; 'select' - лёгкий щелчок выбора.
 let lastHaptic = 0;
 function haptic(kind = 'light') {
   const now = Date.now();
-  if (now - lastHaptic < 35) return; // две вибрации подряд от одного нажатия — не нужно
+  if (now - lastHaptic < 35) return; // две вибрации подряд от одного нажатия - не нужно
   lastHaptic = now;
   try {
     const h = tg?.HapticFeedback;
@@ -1960,7 +1960,7 @@ function friendsLabel(n) {
   return `${ico('people')} ${n} друзей`;
 }
 
-// Имя полностью: имя + фамилия из Telegram (если фамилии нет — только имя, если и его нет — @username)
+// Имя полностью: имя + фамилия из Telegram (если фамилии нет - только имя, если и его нет - @username)
 function personName(u) {
   const full = [u?.first_name, u?.last_name].filter(Boolean).join(' ');
   return full || (u?.username ? '@' + u.username : 'Спортсмен');
@@ -1971,7 +1971,7 @@ function nameHtml(u) {
   return esc(personName(u)) + (isVerified(u?.username) ? VERIFIED_BADGE : '');
 }
 
-// Ссылка на фото человека (своё — сразу, друга — через сервер с проверкой, что вы друзья)
+// Ссылка на фото человека (своё - сразу, друга - через сервер с проверкой, что вы друзья)
 function avatarSrc(u) {
   if (!u) return '';
   if (currentUser && u.id === currentUser.id) return getAvatarUrl();
@@ -1979,7 +1979,7 @@ function avatarSrc(u) {
   return `${API_BASE}/api/friends/avatar/${u.id}?v=${u.avatar_v}&auth=${encodeURIComponent(authParam())}`;
 }
 
-// Кружок с фото; если фото нет или не загрузилось — первая буква имени
+// Кружок с фото; если фото нет или не загрузилось - первая буква имени
 function avatarHtml(u, extra = '') {
   const letter = esc(personName(u).replace('@', '').slice(0, 1).toUpperCase());
   const src = avatarSrc(u);
@@ -2006,7 +2006,7 @@ function buildWorkoutCard(w, { showAuthor = true } = {}) {
   // RPE и самочувствие показываем цветными значками, поэтому в тексте их не повторяем
   const lines = buildDetailLines(w).filter((l) => !l.startsWith('Самочувствие') && !l.startsWith('RPE'));
   const chips = [];
-  // личный рекорд на старте — заметный значок, чтобы друзья сразу видели и ставили 🔥
+  // личный рекорд на старте - заметный значок, чтобы друзья сразу видели и ставили 🔥
   if (w.competition && (w.is_pb || (isMine && isPersonalBest(w)))) chips.push(`<span class="wk-chip pb-chip">${ico('trophy')} Личный рекорд</span>`);
   if (w.rpe && w.type !== 'rest') chips.push(`<span class="wk-chip" style="color:${scaleColor(w.rpe, true)}">RPE ${esc(w.rpe)}</span>`);
   if (w.feeling && w.type !== 'rest') chips.push(`<span class="wk-chip" style="color:${scaleColor(w.feeling)}">😊 ${esc(w.feeling)}/10</span>`);
@@ -2242,7 +2242,7 @@ function liquidThumb(apply) {
   };
 }
 
-// Бегунок можно взять пальцем и перетащить к нужной вкладке — отпустил, и он «примагничивается»
+// Бегунок можно взять пальцем и перетащить к нужной вкладке - отпустил, и он «примагничивается»
 let dockDragged = false;
 (function initDock() {
   const dock = $('friendsTabs');
@@ -2305,7 +2305,7 @@ function paintFeedItems(workouts, { reset = false } = {}) {
       <div class="card empty-feed">
         <div class="empty-feed-ico">👟</div>
         <div class="empty-feed-title">Лента пока пустая</div>
-        <div class="muted">Здесь появляются открытые тренировки — твои и друзей. Включи «Показывать друзьям» в записи, а друзей добавь во вкладке «Друзья».</div>
+        <div class="muted">Здесь появляются открытые тренировки - твои и друзей. Включи «Показывать друзьям» в записи, а друзей добавь во вкладке «Друзья».</div>
       </div>`;
   }
 }
@@ -2381,13 +2381,13 @@ function loadSocialCache() {
     if (!c || c.who !== socialWho()) return;
     if (!friendsScreenCache && c.friends) friendsScreenCache = { requests: c.requests || [], friends: c.friends, sig: JSON.stringify([c.requests || [], c.friends]) };
     if (!feedCache && c.feed) feedCache = { workouts: c.feed, sig: JSON.stringify(c.feed) };
-  } catch (e) { /* нет кэша — не страшно */ }
+  } catch (e) { /* нет кэша - не страшно */ }
 }
 function saveSocialCache() {
   try {
     const s = JSON.stringify({ who: socialWho(), requests: friendsScreenCache?.requests || [], friends: friendsScreenCache?.friends || null, feed: (feedCache?.workouts || []).slice(0, 15), t: Date.now() });
     if (s.length < 600000) localStorage.setItem('forma_social', s);
-  } catch (e) { /* место закончилось — пропускаем */ }
+  } catch (e) { /* место закончилось - пропускаем */ }
 }
 // фото друзей и авторов ленты скачиваем заранее, чтобы в списках они уже были на месте
 const warmedAva = new Set();
@@ -2410,8 +2410,8 @@ async function prefetchSocial() {
     lastSocialAt = Date.now();
     saveSocialCache();
     warmAvatars([...friends, ...feed.workouts.map((w) => w.author)]);
-    friends.slice(0, 3).forEach((f, i) => setTimeout(() => warmFriendProfile(f.id), 6000 + i * 1500)); // профили первых друзей — заранее
-  } catch (e) { /* не страшно — загрузится при открытии */ }
+    friends.slice(0, 3).forEach((f, i) => setTimeout(() => warmFriendProfile(f.id), 6000 + i * 1500)); // профили первых друзей - заранее
+  } catch (e) { /* не страшно - загрузится при открытии */ }
 }
 
 // ---------- Список друзей и заявки ----------
@@ -2466,7 +2466,7 @@ function renderFriendsList({ requests, friends }) {
     const friendsList = $('friendsList');
     friendsList.innerHTML = '';
     if (friends.length === 0) {
-      friendsList.innerHTML = '<div class="empty-hint">Пока нет друзей — добавь кого-нибудь по username выше.</div>';
+      friendsList.innerHTML = '<div class="empty-hint">Пока нет друзей - добавь кого-нибудь по username выше.</div>';
     } else {
       friends.forEach((fr) => {
         const btn = document.createElement('button');
@@ -2525,12 +2525,12 @@ async function openFriendProfile(userId, returnTo) {
     $('fpName').textContent = '';
     $('fpHeadName').textContent = '';
     $('fpCalGrid').innerHTML = '';
-    previewFriendProfile(userId); // имя, фото и серия уже известны из списка друзей — показываем сразу
+    previewFriendProfile(userId); // имя, фото и серия уже известны из списка друзей - показываем сразу
   }
   try {
     const data = await api(`/api/friends/${userId}/profile`);
     const sig = JSON.stringify(data);
-    if (fpCurrentId !== userId) { fpCache[userId] = { data, sig }; return; } // успел открыть другого — только запомним
+    if (fpCurrentId !== userId) { fpCache[userId] = { data, sig }; return; } // успел открыть другого - только запомним
     if (cached && cached.sig === sig) return;
     fpCache[userId] = { data, sig };
     paintFriendProfile(data);
@@ -2597,8 +2597,8 @@ function paintFriendProfile(data) {
     hero.classList.toggle('no-photo', !src);
 
     $('fpCalHelp').textContent = u.share_calendar === false && !isMe
-      ? 'Отмечены только открытые тренировки. Нажми на день — покажем её.'
-      : 'Нажми на отмеченный день — покажем тренировку. Закрытые дни видны без подробностей.';
+      ? 'Отмечены только открытые тренировки. Нажми на день - покажем её.'
+      : 'Нажми на отмеченный день - покажем тренировку. Закрытые дни видны без подробностей.';
 
     renderFpCalendar();
     renderFpRecords(fpData.records, isMe, u);
@@ -2621,11 +2621,11 @@ function renderFpRecords(records, isMe, u) {
   const list = Array.isArray(records) ? records.slice() : [];
   const order = (d) => { const i = COMP_DISCIPLINES.findIndex((x) => disciplineKey(x) === disciplineKey(d)); return i < 0 ? 999 : i; };
   list.sort((a, b) => order(a.discipline) - order(b.discipline));
-  // у друга без рекордов (или если он их скрыл) блок не показываем; себе — показываем с подсказкой
+  // у друга без рекордов (или если он их скрыл) блок не показываем; себе - показываем с подсказкой
   card.classList.toggle('hidden', !isMe && !list.length);
   if (!list.length) {
     box.innerHTML = `<div class="muted records-empty">${isMe
-      ? (u.show_records === false ? 'Ты скрыл рекорды — друзья их не видят. Включить можно в «Приватности».' : 'Отметь «Старт» в записи — лучший результат в каждой дисциплине увидят друзья.')
+      ? (u.show_records === false ? 'Ты скрыл рекорды - друзья их не видят. Включить можно в «Приватности».' : 'Отметь «Старт» в записи - лучший результат в каждой дисциплине увидят друзья.')
       : ''}</div>`;
     return;
   }
@@ -2636,7 +2636,7 @@ function renderFpRecords(records, isMe, u) {
         <b class="record-res">${esc(r.result)}</b>
         <span class="record-sub">${esc(formatDayMonth(r.date))}${r.name ? ' · ' + esc(r.name) : ''}</span>
       </span>
-    </div>`).join('') + (isMe && u.show_records === false ? '<div class="muted records-empty">Сейчас друзья их не видят — включить можно в «Приватности».</div>' : '');
+    </div>`).join('') + (isMe && u.show_records === false ? '<div class="muted records-empty">Сейчас друзья их не видят - включить можно в «Приватности».</div>' : '');
 }
 
 function renderFpCalendar() {
@@ -2684,7 +2684,7 @@ function renderFpCalendar() {
     if (ds > today) cell.classList.add('future');
 
     if (day?.public && day.ids.length) {
-      // нажал на открытый день — показываем тренировку прямо в окошке (даже если она старая и её нет в списке ниже)
+      // нажал на открытый день - показываем тренировку прямо в окошке (даже если она старая и её нет в списке ниже)
       cell.addEventListener('click', () => openFriendDay(ds, day.ids));
     } else {
       cell.disabled = true;
@@ -2696,7 +2696,7 @@ function renderFpCalendar() {
   $('fpCalSummary').textContent = trainings
     ? `Тренировок за месяц: ${trainings}`
     : hidden
-      ? `У ${fu.first_name || fu.username || 'друга'} календарь скрыт от друзей — видны только тренировки, которые открыты для тебя.`
+      ? `У ${fu.first_name || fu.username || 'друга'} календарь скрыт от друзей - видны только тренировки, которые открыты для тебя.`
       : 'В этом месяце тренировок не видно.';
   $('fpCalSummary').classList.toggle('cal-hidden-note', !trainings && hidden);
 }
@@ -2712,7 +2712,7 @@ async function openFriendDay(dateStr, ids) {
     try {
       const { workout } = await api(`/api/friends/workouts/${id}`);
       cards.push(buildWorkoutCard({ ...workout, date: normDate(workout.date) }, { showAuthor: false }));
-    } catch (err) { /* закрытая или удалённая — пропускаем */ }
+    } catch (err) { /* закрытая или удалённая - пропускаем */ }
   }
   list.innerHTML = cards.length ? '' : '<div class="empty-hint">Эту тренировку сейчас не открыть.</div>';
   cards.forEach((c) => list.appendChild(c));
@@ -2739,7 +2739,7 @@ $('fpBackBtn').addEventListener('click', () => {
 
 $('fpRemoveBtn').addEventListener('click', async () => {
   if (!fpData) return;
-  if (!(await confirmAsk({ icon: 'people', title: 'Удалить из друзей?', text: `${personName(fpData.user)} больше не будет видеть твою ленту, а ты — его.`, ok: 'Удалить', danger: true }))) return;
+  if (!(await confirmAsk({ icon: 'people', title: 'Удалить из друзей?', text: `${personName(fpData.user)} больше не будет видеть твою ленту, а ты - его.`, ok: 'Удалить', danger: true }))) return;
   try {
     await api(`/api/friends/${fpData.user.id}`, { method: 'DELETE' });
     showScreen('friendsScreen');
@@ -2791,7 +2791,7 @@ $('safetyBlockBtn').addEventListener('click', async () => {
     await api('/api/safety/block', { method: 'POST', body: JSON.stringify({ user_id: ctx.userId }) });
     if (!$('friendProfileScreen').classList.contains('hidden')) { showScreen('friendsScreen'); }
     try { loadFeedTab(); } catch (e) { /* лента обновится при следующем открытии */ }
-    showDialog({ icon: 'lock', title: 'Заблокировано', text: 'Готово. Список заблокированных — в настройках.' });
+    showDialog({ icon: 'lock', title: 'Заблокировано', text: 'Готово. Список заблокированных - в настройках.' });
   } catch (e) { showDialog({ icon: 'warn', title: 'Не получилось', text: 'Попробуй ещё раз чуть позже.' }); }
 });
 $('fpSafetyBtn').addEventListener('click', () => {
@@ -2920,7 +2920,7 @@ $('refreshInsightBtn').addEventListener('click', loadInsight);
 
 
 // ---------- Чат с Fom ----------
-let chatHistory = []; // { role: 'user'|'assistant', content } — хранится только пока открыто приложение
+let chatHistory = []; // { role: 'user'|'assistant', content } - хранится только пока открыто приложение
 
 function renderMarkdownBold(text) {
   // Простой рендер **жирного** текста без сторонних библиотек
@@ -2932,7 +2932,7 @@ function renderChatMessages() {
   container.innerHTML = '';
   if (chatHistory.length === 0) {
     container.innerHTML =
-      '<div class="chat-empty">Привет! Я Fom, твой помощник 👋<br />Спроси про свои тренировки — например, «сколько я бегал на этой неделе?» или «не перегружаюсь ли я?»</div>';
+      '<div class="chat-empty">Привет! Я Fom, твой помощник 👋<br />Спроси про свои тренировки - например, «сколько я бегал на этой неделе?» или «не перегружаюсь ли я?»</div>';
     return;
   }
   chatHistory.forEach((msg) => {
@@ -2971,13 +2971,13 @@ async function sendChatMessage() {
   } catch (err) {
     console.error('Chat failed', err);
     if (err.data?.left === 0) {
-      chatHistory.pop(); // сообщение не ушло — вернём текст в поле
+      chatHistory.pop(); // сообщение не ушло - вернём текст в поле
       input.value = message;
       growChatInput();
       renderChatLimit(0);
       chatHistory.push({ role: 'assistant', content: err.data.error });
     } else {
-      chatHistory.pop(); // сообщение не ушло — вернём текст в поле
+      chatHistory.pop(); // сообщение не ушло - вернём текст в поле
       input.value = message;
       growChatInput();
       chatHistory.push({ role: 'assistant', content: err.data?.ai_down ? err.data.error : 'Ошибка связи с сервером. Попробуй ещё раз.' });
@@ -2993,7 +2993,7 @@ function renderChatLimit(left) {
   el.classList.remove('hidden');
   el.classList.toggle('empty', left === 0);
   el.textContent = left === 0
-    ? 'Сообщения на сегодня закончились — Fom снова ответит завтра'
+    ? 'Сообщения на сегодня закончились - Fom снова ответит завтра'
     : `Осталось сообщений сегодня: ${left}`;
 }
 async function loadChatLimit() {
@@ -3009,8 +3009,8 @@ $('chatSendBtn').addEventListener('click', sendChatMessage);
 // Кнопка отправки не забирает фокус у поля: клавиатура остаётся открытой, экран не прыгает
 // и нажатие не «теряется» (как в мессенджерах)
 $('chatSendBtn').addEventListener('mousedown', (e) => e.preventDefault());
-// Поле растёт вниз по мере текста (до ~5 строк, дальше прокрутка) — как в мессенджерах.
-// На компьютере Enter отправляет, Shift+Enter — новая строка; на телефоне Enter — новая строка, отправка — кнопкой.
+// Поле растёт вниз по мере текста (до ~5 строк, дальше прокрутка) - как в мессенджерах.
+// На компьютере Enter отправляет, Shift+Enter - новая строка; на телефоне Enter - новая строка, отправка - кнопкой.
 function growChatInput() {
   const el = $('chatInput');
   el.style.height = 'auto';
@@ -3027,7 +3027,7 @@ $('chatInput').addEventListener('keydown', (e) => {
   }
 });
 
-// ---------- Кнопка «+» внизу — новая запись ----------
+// ---------- Кнопка «+» внизу - новая запись ----------
 $('homeBtn').addEventListener('click', () => {
   showScreen('mainScreen');
   renderEntryState();
@@ -3085,15 +3085,15 @@ function buildDetailLines(w) {
 
 function buildShareText(w) {
   const lines = [];
-  lines.push(w.type === 'rest' ? '😴 День отдыха' : w.competition ? (isPersonalBest(w) ? '🏆 Старт — личный рекорд!' : '🏆 Старт') : w.session > 1 ? '🏃 Вторая тренировка' : '🏃 Тренировка');
+  lines.push(w.type === 'rest' ? '😴 День отдыха' : w.competition ? (isPersonalBest(w) ? '🏆 Старт - личный рекорд!' : '🏆 Старт') : w.session > 1 ? '🏃 Вторая тренировка' : '🏃 Тренировка');
   lines.push(`📅 ${formatWithWeekday(normDate(w.date))}`);
   lines.push(...buildDetailLines(w));
-  // ссылка на бота — Telegram сделает её кликабельной, друг сразу откроет Forma
+  // ссылка на бота - Telegram сделает её кликабельной, друг сразу откроет Forma
   lines.push('', '— записано в Forma 👉 t.me/forma2ko5_bot');
   return lines.join('\n');
 }
 
-// «Поделиться» открывает окно с карточкой для сторис; текстом — отдельная кнопка там же
+// «Поделиться» открывает окно с карточкой для сторис; текстом - отдельная кнопка там же
 function shareWorkout(w) { openShareSheet(w); }
 
 function shareWorkoutText(w) {
@@ -3148,7 +3148,7 @@ async function openEditScreen(workoutId, returnTo = 'profileScreen') {
     $('editStatusMsg').textContent = '';
     renderEditSocial(workout);
 
-    // если за день две тренировки — переключатель между ними
+    // если за день две тренировки - переключатель между ними
     const sameDay = workoutsByDate[workout.date] || [];
     const sw = $('editSessionSwitch');
     sw.innerHTML = '';
@@ -3174,7 +3174,7 @@ function leaveEditScreen() {
   else renderEntryState();
 }
 
-// Список записей поменялся — перерисовываем то, что видно (главная, профиль), чтобы нигде не остался старый отзыв
+// Список записей поменялся - перерисовываем то, что видно (главная, профиль), чтобы нигде не остался старый отзыв
 function refreshAfterWorkoutChange() {
   try { renderEntryState(); } catch (e) { /* главная ещё не готова */ }
   try { if (!$('profileScreen').classList.contains('hidden')) loadProfileScreen(); } catch (e) { /* ничего */ }
@@ -3192,13 +3192,13 @@ $('editFbRefresh').addEventListener('click', async () => {
     try { await loadMyWorkouts(); refreshAfterWorkoutChange(); } catch (e) { console.error(e); }
   } catch (err) {
     $('editFeedbackText').textContent = currentEditWorkout.ai_feedback || '';
-    $('editStatusMsg').textContent = err.data?.error || 'Не получилось — попробуй ещё раз.';
+    $('editStatusMsg').textContent = err.data?.error || 'Не получилось - попробуй ещё раз.';
   } finally {
     btn.disabled = false;
   }
 });
 
-// Отзыв Fom на экране редактирования — после изменений он обновляется
+// Отзыв Fom на экране редактирования - после изменений он обновляется
 function renderEditFeedback(w, fresh = false) {
   const box = $('editFeedback');
   box.classList.toggle('hidden', !(w && w.type === 'training' && w.ai_feedback));
@@ -3228,7 +3228,7 @@ $('editSaveBtn').addEventListener('click', async () => {
     const updatedFb = st === 'updated' || (!st && result.workout.ai_feedback && result.workout.ai_feedback !== oldFeedback);
     statusEl.textContent = st === 'pending' ? 'Сохранено ✓ Fom пишет новый отзыв…'
       : updatedFb ? 'Сохранено ✓ Fom обновил отзыв'
-      : st === 'failed' ? 'Сохранено ✓ Fom не успел обновить отзыв — нажми «Обновить отзыв»'
+      : st === 'failed' ? 'Сохранено ✓ Fom не успел обновить отзыв - нажми «Обновить отзыв»'
       : 'Сохранено ✓';
     if (st === 'pending') waitFeedback(currentEditWorkout.id, { fresh: true });
     renderEditFeedback(currentEditWorkout, updatedFb);
@@ -3271,7 +3271,7 @@ const crop = { img: null, url: '', w: 0, h: 0, view: 0, base: 1, zoom: 1, x: 0, 
 
 function cropScale() { return crop.base * crop.zoom; }
 
-// Не даём фото «уехать» — окно всегда полностью закрыто картинкой
+// Не даём фото «уехать» - окно всегда полностью закрыто картинкой
 function cropClamp() {
   const s = cropScale();
   crop.x = Math.min(0, Math.max(crop.view - crop.w * s, crop.x));
@@ -3405,7 +3405,7 @@ $('photoInput').addEventListener('change', (e) => {
 });
 
 // ---------- Компактная шапка профиля при прокрутке ----------
-// Листаешь профиль вниз — большое фото уезжает, а сверху появляется полоска:
+// Листаешь профиль вниз - большое фото уезжает, а сверху появляется полоска:
 // имя и цифры слева, маленький кружок с фото справа.
 function miniHeadSource() {
   const screen = document.querySelector('.screen:not(.hidden)')?.id;
@@ -3432,7 +3432,7 @@ function miniHeadSource() {
 
 let miniHeadKey = '';
 // Логотип Forma при прокрутке профиля втягивается в остров iPhone: уезжает к центру, вытягивается и тает.
-// Значения не прыгают вслед за пальцем, а догоняют его с плавным замедлением (пружина) — движение «жидкое».
+// Значения не прыгают вслед за пальцем, а догоняют его с плавным замедлением (пружина) - движение «жидкое».
 const smooth01 = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
 let miniTarget = 0, miniCur = 0, miniRaf = 0;
 function applyMini(p) {
@@ -3466,7 +3466,7 @@ function setLogoP(t) {
   const tb = document.querySelector('.topbar');
   const tbH = tb ? tb.offsetHeight : 56;
   const dx = window.innerWidth / 2 - (logo.offsetLeft + logo.offsetWidth / 2);
-  const dy = -(inset / 2 + tbH / 2);              // центр острова — примерно посередине выреза
+  const dy = -(inset / 2 + tbH / 2);              // центр острова - примерно посередине выреза
   const go = Math.pow(t, 1.7);                     // к острову ускоряется, как будто его втягивает
   const sx = 1 - 0.86 * Math.pow(t, 1.4);          // сужается
   const sy = 1 + 0.55 * Math.sin(Math.PI * Math.min(1, t * 1.05)) - 0.6 * Math.pow(t, 3); // вытягивается вверх и в конце тает
@@ -3484,7 +3484,7 @@ function updateMiniHead() {
   }
   document.body.classList.add('mini-screen');
   const rect = src.hero.getBoundingClientRect();
-  // 0 — фото целиком на экране, 1 — фото уехало наверх (растянуто на 200 пикселей прокрутки — медленно и плавно)
+  // 0 - фото целиком на экране, 1 - фото уехало наверх (растянуто на 200 пикселей прокрутки - медленно и плавно)
   const p = Math.min(1, Math.max(0, (180 - rect.bottom) / 200));
   setMiniTarget(p);
   $('miniAva').style.transform = `scale(${0.5 + p * 0.5})`;
@@ -3500,7 +3500,7 @@ function updateMiniHead() {
 window.addEventListener('scroll', updateMiniHead, { passive: true });
 
 // «Магнит»: если прокрутка остановилась посреди растягивания логотипа,
-// меньше половины пути — откатываем назад, половина и больше — докатываем до островка.
+// меньше половины пути - откатываем назад, половина и больше - докатываем до островка.
 (function initMiniSnap() {
   let timer = null, touching = false;
   const arm = () => { clearTimeout(timer); timer = setTimeout(snap, 140); };
@@ -3563,7 +3563,7 @@ function goBack() {
   if (screen === 'memberScreen') return $('memberBackBtn').click();
   if (screen === 'groupScreen') return $('groupBackBtn').click();
   if (screen === 'friendProfileScreen') return $('fpBackBtn').click();
-  // обычные вкладки: возвращаемся на предыдущую, а если её нет — на главную
+  // обычные вкладки: возвращаемся на предыдущую, а если её нет - на главную
   tabHistory.pop();
   const prev = tabHistory.pop() || 'mainScreen';
   if (prev === screen) return;
@@ -3636,8 +3636,8 @@ window.addEventListener('wheel', (e) => {
   if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) * 1.2) return;   // обычная прокрутка вверх-вниз
   if (e.target.closest?.(PAD_SKIP)) return;                     // там своя горизонтальная прокрутка
   clearTimeout(pad.timer);
-  pad.timer = setTimeout(() => { pad.locked = false; padReset(); }, 220); // палец отпустили — сброс
-  if (pad.locked) return; // уже сработало — ждём конца жеста
+  pad.timer = setTimeout(() => { pad.locked = false; padReset(); }, 220); // палец отпустили - сброс
+  if (pad.locked) return; // уже сработало - ждём конца жеста
   pad.sum = Math.max(0, pad.sum - e.deltaX); // пальцы вправо → deltaX отрицательный
   const p = Math.min(1, pad.sum / PAD_NEED);
   padArrow(p);
@@ -3649,7 +3649,7 @@ window.addEventListener('wheel', (e) => {
   }
 }, { passive: true });
 
-// Клавиши: Esc закрывает окно или шторку, Cmd/Ctrl + [ и Alt + ← — «назад».
+// Клавиши: Esc закрывает окно или шторку, Cmd/Ctrl + [ и Alt + ← - «назад».
 // Боковая кнопка мыши «назад» тоже работает.
 document.addEventListener('keydown', (e) => {
   const typing = e.target.matches?.('input, textarea');
@@ -3664,7 +3664,7 @@ window.addEventListener('mouseup', (e) => {
   if (e.button === 3) { e.preventDefault(); goBack(); }
 });
 
-// ---------- Дисциплина в профиле (Forma — только для лёгкой атлетики) ----------
+// ---------- Дисциплина в профиле (Forma - только для лёгкой атлетики) ----------
 // Вид спорта всегда «Лёгкая атлетика», человек выбирает только свою дисциплину.
 const ATHLETICS = ['🏃', 'Лёгкая атлетика'];
 const DISCIPLINE_CHIPS = ['Спринт', 'Барьерный бег', 'Средние дистанции', 'Длинные дистанции', 'Прыжки', 'Метания', 'Многоборье', 'Спортивная ходьба'];
@@ -3811,8 +3811,8 @@ function winnerName(w) {
   return [w.first_name, w.last_name].filter(Boolean).join(' ') || (w.username ? '@' + w.username : 'Спортсмен');
 }
 
-// Какие подарки могут выпасть — крутятся в «барабане» на карточке розыгрыша
-// Неделя — простые подарки и недорогие коллекционные; месяц — крутые, включая коллекционные (NFT) подарки Telegram
+// Какие подарки могут выпасть - крутятся в «барабане» на карточке розыгрыша
+// Неделя - простые подарки и недорогие коллекционные; месяц - крутые, включая коллекционные (NFT) подарки Telegram
 const GIFT_POOL = {
   week: [['🧸', 'Мишка'], ['💝', 'Сердце'], ['🎁', 'Подарок'], ['🌹', 'Роза'],
     ['🍭', 'Lol Pop'], ['🍬', 'Candy Cane'], ['📅', 'Desk Calendar'], ['🍜', 'Instant Ramen'],
@@ -3823,9 +3823,9 @@ const GIFT_POOL = {
 };
 const giftSlotIndex = { week: 0, month: 0 };
 
-// Настоящие картинки коллекционных подарков — с Fragment (официальная площадка Telegram).
+// Настоящие картинки коллекционных подарков - с Fragment (официальная площадка Telegram).
 // Адрес картинки коллекции: название маленькими буквами без пробелов и знаков («Khabib's Papakha» → khabibspapakha).
-// У обычных подарков (мишка, торт…) публичных картинок нет — для них остаётся значок.
+// У обычных подарков (мишка, торт…) публичных картинок нет - для них остаётся значок.
 const GIFT_IMAGE_NAMES = new Set(['Lol Pop', 'Candy Cane', 'Desk Calendar', 'Instant Ramen', 'Whip Cupcake',
   'B-Day Candle', 'Jester Hat', 'Snow Mittens', 'Swag Bag', 'Snoop Cigar', 'Snoop Dogg', 'Westside Sign',
   'Low Rider', 'Mask', "Khabib's Papakha"]);
@@ -3880,7 +3880,7 @@ function spinSlot(slot, fast = false) {
   if (nameEl) nameEl.textContent = name;
 }
 
-// Нажал на барабан — он быстро прокручивается и останавливается на случайном подарке
+// Нажал на барабан - он быстро прокручивается и останавливается на случайном подарке
 function spinSlotFast(slot) {
   if (slot.dataset.spinning) return;
   slot.dataset.spinning = '1';
@@ -3928,7 +3928,7 @@ function renderGiveaway() {
       ${g.eligible
         ? `<div class="gift-status ok">${ico('check')} Ты участвуешь</div>`
         : `<div class="gift-bar"><i style="width:${progress}%"></i></div>
-           <div class="gift-status">Ещё ${esc(g.need_days)} дн. честной серии — и ты в игре</div>`}`;
+           <div class="gift-status">Ещё ${esc(g.need_days)} дн. честной серии - и ты в игре</div>`}`;
     row.querySelector('.gift-slot').addEventListener('click', (e) => spinSlotFast(e.currentTarget));
     rows.appendChild(row);
   });
@@ -3992,7 +3992,7 @@ function renderAthleteSummary() {
   const filled = parts.length || p.records || p.goal || p.injuries;
   $('athleteSummary').innerHTML = filled
     ? [esc(parts.join(' · ')), p.goal ? `${ico('target')} ${esc(p.goal)}` : ''].filter(Boolean).join('<br>')
-    : 'Рост, вес, возраст, стаж и цели — чтобы Fom понимал, с кем имеет дело.';
+    : 'Рост, вес, возраст, стаж и цели - чтобы Fom понимал, с кем имеет дело.';
   $('athleteEditBtn').textContent = filled ? 'Изменить' : 'Заполнить';
 }
 
@@ -4069,25 +4069,25 @@ $('afSaveBtn').addEventListener('click', async () => {
 // =====================================================================
 //  КЛАВИАТУРА, ПОЛЯ ВВОДА, ЗУМ
 // =====================================================================
-// Пока печатаешь — нижняя панель прячется, чтобы не висела над клавиатурой
+// Пока печатаешь - нижняя панель прячется, чтобы не висела над клавиатурой
 const TYPING_SEL = 'textarea, input:not([type=checkbox]):not([type=range]):not([type=radio]):not([type=file]):not([type=date])';
 function updateKeyboardState() {
   const a = document.activeElement;
   const typing = !!a && !!a.matches && a.matches(TYPING_SEL);
   document.body.classList.toggle('kb-open', typing);
   if (typing && document.body.classList.contains('chat-open')) {
-    // в чате держим окно прижатым к верху, а сообщения — прокрученными вниз
+    // в чате держим окно прижатым к верху, а сообщения - прокрученными вниз
     setTimeout(() => { window.scrollTo(0, 0); $('chatMessages').scrollTop = $('chatMessages').scrollHeight; }, 60);
   }
 }
-// «Готово» в шапке чата и тап по переписке сворачивают клавиатуру — иначе выйти можно было только свайпом
+// «Готово» в шапке чата и тап по переписке сворачивают клавиатуру - иначе выйти можно было только свайпом
 $('chatKbHide').addEventListener('click', () => { document.activeElement?.blur?.(); setTimeout(updateKeyboardState, 60); });
 $('chatKbHide').addEventListener('mousedown', (e) => e.preventDefault());
 $('chatMessages').addEventListener('click', () => { if (document.activeElement?.id === 'chatInput') document.activeElement.blur(); });
 document.addEventListener('focusin', updateKeyboardState);
 document.addEventListener('focusout', () => setTimeout(updateKeyboardState, 60));
 
-// Реальная видимая высота экрана (без клавиатуры) — для чата
+// Реальная видимая высота экрана (без клавиатуры) - для чата
 function updateAppHeight() {
   const h = window.visualViewport?.height || window.innerHeight;
   document.documentElement.style.setProperty('--app-h', `${Math.round(h)}px`);
@@ -4109,7 +4109,7 @@ function autoGrow(el) {
 }
 function growAll(root) { root.querySelectorAll('textarea').forEach(autoGrow); }
 
-// Пишешь в конце длинного текста — страница сама подкручивается, чтобы строка была видна
+// Пишешь в конце длинного текста - страница сама подкручивается, чтобы строка была видна
 function keepCaretVisible(el) {
   if (el.selectionEnd !== el.value.length) return;
   const vv = window.visualViewport;
@@ -4137,15 +4137,15 @@ const TOUR_SLIDES = [
   { art: '<span class="tour-logo">Forma<span class="logo-dot"></span></span>', title: 'Привет! Это Forma',
     text: 'Дневник тренировок с помощником Fom. Покажу за 20 секунд, как тут всё устроено.' },
   { icon: 'sparkle', title: 'Запись за минуту',
-    text: 'Нажми «+» внизу и заполни поля. Или просто опиши тренировку своими словами в «Умном вводе» — Fom сам разложит всё по полям.' },
-  { art: '<span class="fom-badge tour-fom">F</span>', title: 'Fom — твой помощник',
-    text: 'После тренировки Fom даёт короткий отзыв: объём, темп, пульс, восстановление. В «Разборе» — итоги недели и месяца, во вкладке Fom — чат.' },
+    text: 'Нажми «+» внизу и заполни поля. Или просто опиши тренировку своими словами в «Умном вводе» - Fom сам разложит всё по полям.' },
+  { art: '<span class="fom-badge tour-fom">F</span>', title: 'Fom - твой помощник',
+    text: 'После тренировки Fom даёт короткий отзыв: объём, темп, пульс, восстановление. В «Разборе» - итоги недели и месяца, во вкладке Fom - чат.' },
   { icon: 'flame', title: 'Держи серию',
-    text: 'Каждый записанный день — тренировка или отдых — продлевает серию. Записывать можно за сегодня и вчера (в первую неделю после регистрации — за любой из последних 7 дней). За серию от 7 дней — розыгрыши подарков.' },
+    text: 'Каждый записанный день - тренировка или отдых - продлевает серию. Записывать можно за сегодня и вчера (в первую неделю после регистрации - за любой из последних 7 дней). За серию от 7 дней - розыгрыши подарков.' },
   { icon: 'people', title: 'Друзья',
-    text: 'Добавляй друзей по @username, смотри их открытые тренировки, ставь реакции. Что показывать друзьям — решаешь ты.' },
+    text: 'Добавляй друзей по @username, смотри их открытые тренировки, ставь реакции. Что показывать друзьям - решаешь ты.' },
   { icon: 'lock', title: 'Расскажи о себе',
-    text: 'Укажи свою дисциплину и заполни анкету в профиле — так Fom поймёт, с кем имеет дело. Анкету видишь только ты и Fom.', extra: true },
+    text: 'Укажи свою дисциплину и заполни анкету в профиле - так Fom поймёт, с кем имеет дело. Анкету видишь только ты и Fom.', extra: true },
 ];
 let tourIndex = 0;
 
@@ -4227,7 +4227,7 @@ function refreshHomeButton() {
 }
 $('addHomeBtn').addEventListener('click', () => {
   if (tg?.addToHomeScreen && tg.isVersionAtLeast?.('8.0')) { try { tg.addToHomeScreen(); haptic(); return; } catch (e) { /* ниже подсказка */ } }
-  alertMsg('Обнови Telegram до последней версии — и здесь появится системное окно. Пока можно открыть меню ⋯ в правом верхнем углу приложения и выбрать «Добавить на главный экран».');
+  alertMsg('Обнови Telegram до последней версии - и здесь появится системное окно. Пока можно открыть меню ⋯ в правом верхнем углу приложения и выбрать «Добавить на главный экран».');
 });
 
 // Удалить все мои данные (два подтверждения: действие необратимо)
@@ -4255,13 +4255,13 @@ function paintStrava() {
   $('stravaSyncBtn').classList.toggle('hidden', !s.connected);
   $('stravaDisconnectBtn').classList.toggle('hidden', !s.connected);
   $('stravaHint').textContent = s.connected
-    ? 'Strava подключена. Новые тренировки сами попадают в дневник (видны только тебе) — останется их дополнить. Уже сделанные записи не меняются.'
-    : 'Подключи Strava — тренировки с часов сами появятся в дневнике. Останется дополнить: самочувствие, заметки, отрезки.';
+    ? 'Strava подключена. Новые тренировки сами попадают в дневник (видны только тебе) - останется их дополнить. Уже сделанные записи не меняются.'
+    : 'Подключи Strava - тренировки с часов сами появятся в дневнике. Останется дополнить: самочувствие, заметки, отрезки.';
 }
 async function loadStrava() {
   try { stravaState = await api('/api/strava/status'); paintStrava(); } catch (e) { /* не страшно */ }
 }
-// После перехода в Strava человек возвращается в приложение — проверяем статус, пока не подключится
+// После перехода в Strava человек возвращается в приложение - проверяем статус, пока не подключится
 function watchStravaConnect() {
   clearInterval(stravaWatch);
   let n = 0;
@@ -4291,7 +4291,7 @@ $('stravaSyncBtn').addEventListener('click', async () => {
     await loadMyWorkouts();
     try { renderEntryState(); } catch (e) { /* не страшно */ }
     haptic('success');
-    alertMsg(r.created || r.linked ? `Готово: добавлено тренировок — ${(r.created || 0) + (r.linked || 0)}.` : 'Новых тренировок в Strava нет.');
+    alertMsg(r.created || r.linked ? `Готово: добавлено тренировок - ${(r.created || 0) + (r.linked || 0)}.` : 'Новых тренировок в Strava нет.');
   } catch (err) { alertMsg(err.data?.error || 'Не получилось обновить. Попробуй чуть позже.'); }
   finally { btn.disabled = false; }
 });
@@ -4303,11 +4303,11 @@ $('stravaDisconnectBtn').addEventListener('click', async () => {
     haptic('success');
   } catch (err) { alertMsg(err.data?.error || 'Не получилось отключить. Попробуй ещё раз.'); }
 });
-// вернулся в приложение (например, из Strava) — обновим статус и записи
+// вернулся в приложение (например, из Strava) - обновим статус и записи
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible' || !currentUser) return;
   if (!$('settingsScreen').classList.contains('hidden')) loadStrava();
-  // форму записи не трогаем: человек может быть посреди заполнения — календарь и статистика обновятся
+  // форму записи не трогаем: человек может быть посреди заполнения - календарь и статистика обновятся
   loadMyWorkouts().catch(() => {});
 });
 
@@ -4330,8 +4330,8 @@ $('reminderToggle').addEventListener('change', async (e) => {
 // =====================================================================
 //  ВИБРАЦИЯ НА НАЖАТИЯ И ЖЕСТЫ
 // =====================================================================
-// Переключатели, фишки, вкладки, дни календаря — лёгкий «щелчок выбора»,
-// обычные кнопки — лёгкий толчок, кнопка «+» — чуть сильнее.
+// Переключатели, фишки, вкладки, дни календаря - лёгкий «щелчок выбора»,
+// обычные кнопки - лёгкий толчок, кнопка «+» - чуть сильнее.
 document.addEventListener('click', (e) => {
   const el = e.target.closest('button, .cal-cell, .history-item, .toggle-row, a');
   if (!el || el.disabled) return;
@@ -4340,12 +4340,12 @@ document.addEventListener('click', (e) => {
   haptic('light');
 }); // «всплытие»: особая вибрация кнопки (реакция, барабан) срабатывает первой
 
-// Ползунки самочувствия и нагрузки — щелчок на каждом делении
+// Ползунки самочувствия и нагрузки - щелчок на каждом делении
 document.addEventListener('input', (e) => {
   if (e.target.matches('input[type="range"]') && !e.target.classList.contains('crop-zoom')) haptic('select');
 });
 
-// Поддержка — чат с автором в Telegram
+// Поддержка - чат с автором в Telegram
 const SUPPORT_USERNAME = 'w_m9ik';
 $('supportBtn').addEventListener('click', () => {
   const url = `https://t.me/${SUPPORT_USERNAME}`;
@@ -4354,7 +4354,7 @@ $('supportBtn').addEventListener('click', () => {
 });
 
 // =====================================================================
-//  КОМУ ПОКАЗАТЬ ТРЕНИРОВКУ — выбор друзей
+//  КОМУ ПОКАЗАТЬ ТРЕНИРОВКУ - выбор друзей
 // =====================================================================
 let friendsListCache = null;
 let friendsListAt = 0;
@@ -4377,7 +4377,7 @@ async function openFriendPicker(selected, onDone) {
     $('friendPickSave').textContent = chosen.size ? `Готово · ${chosen.size}` : 'Готово';
   };
   if (!friends.length) {
-    list.innerHTML = '<div class="muted center friend-pick-empty">Пока нет друзей. Добавь их во вкладке «Друзья» — и сможешь открывать тренировки только им.</div>';
+    list.innerHTML = '<div class="muted center friend-pick-empty">Пока нет друзей. Добавь их во вкладке «Друзья» - и сможешь открывать тренировки только им.</div>';
   } else {
     list.innerHTML = '';
     friends.forEach((fr) => {
@@ -4412,7 +4412,7 @@ function renderRecords() {
   const order = (d) => { const i = COMP_DISCIPLINES.findIndex((x) => disciplineKey(x) === disciplineKey(d)); return i < 0 ? 999 : i; };
   best.sort((a, b) => order(a.w.competition.discipline) - order(b.w.competition.discipline));
   if (!best.length) {
-    box.innerHTML = '<div class="muted records-empty">Нажми «＋ Добавить» и внеси свои лучшие результаты — или отметь «Старт» в записи, и рекорд появится здесь сам.</div>';
+    box.innerHTML = '<div class="muted records-empty">Нажми «＋ Добавить» и внеси свои лучшие результаты - или отметь «Старт» в записи, и рекорд появится здесь сам.</div>';
     return;
   }
   box.innerHTML = '';
@@ -4432,7 +4432,7 @@ function renderRecords() {
       <span class="history-arrow">${w.manual ? '✕' : '›'}</span>`;
     row.addEventListener('click', async () => {
       if (!w.manual) return openEditScreen(w.id, 'profileScreen');
-      if (!(await confirmAsk({ icon: 'trash', title: 'Удалить рекорд?', text: `${c.discipline} — ${c.result}`, ok: 'Удалить', danger: true }))) return;
+      if (!(await confirmAsk({ icon: 'trash', title: 'Удалить рекорд?', text: `${c.discipline} - ${c.result}`, ok: 'Удалить', danger: true }))) return;
       try {
         await api(`/api/auth/records/${w.manual_id}`, { method: 'DELETE' });
         myManualRecords = myManualRecords.filter((r) => r.id !== w.manual_id);
@@ -4453,7 +4453,7 @@ function openRepeatSheet(cb) {
   const items = myWorkouts
     .filter((w) => w.type === 'training' && ((w.sets || []).length || (w.exercises || []).length || w.warmup))
     .slice(0, 8);
-  list.innerHTML = items.length ? '' : '<div class="empty-hint">Пока нет прошлых тренировок — запиши первую 🙂</div>';
+  list.innerHTML = items.length ? '' : '<div class="empty-hint">Пока нет прошлых тренировок - запиши первую 🙂</div>';
   items.forEach((w) => {
     const row = document.createElement('button');
     row.type = 'button';
@@ -4489,7 +4489,7 @@ const CHART_COLORS = { km: '#b4f53c', count: '#9b6bff', feel: '#5ea818', rpe: '#
 const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
 // Беговой объём записи в км: отрезки (метры × кол-во) + «N км»/«N м» в разминке и заминке + дистанция старта
-// (на сервере для Fom — точно такая же формула, backend/src/ai.js)
+// (на сервере для Fom - точно такая же формула, backend/src/ai.js)
 // Метры из текста: «кросс 12 км», «3000 м», «3 000м», «ускорения 5×100 м», «6 по 400 м»
 // (темп «3:40/км», «4:00 км» и минуты «мин» не считаются)
 function textMeters(text) {
@@ -4508,7 +4508,7 @@ function textMeters(text) {
   return m;
 }
 // Самое большое расстояние в тексте («12 км, с вставками, 4 раза по 1 км…» → 12 км): так читаем заметки,
-// где пишут общий километраж и сразу разбивку — складывать их нельзя (двойной счёт). Формула та же, что на сервере (ai.js).
+// где пишут общий километраж и сразу разбивку - складывать их нельзя (двойной счёт). Формула та же, что на сервере (ai.js).
 function textMaxMeters(text) {
   const t = String(text || '').replace(/(\d)[\s\u00a0](\d{3})(?!\d)/g, '$1$2');
   const re = /(^|[^\d:.,])(?:(\d{1,2})\s*(?:[x×х*]|по)\s*)?(\d+(?:[.,]\d+)?)\s*(км|km|м|m)(?![a-zа-яё])(?!\s*\/\s*[чсh])/gi;
@@ -4542,7 +4542,7 @@ function volumeKm(w) {
   m += textMeters([w.warmup, w.cooldown].filter(Boolean).join('\n'));
   // старт: дистанция из дисциплины («5000 м», «10 км»)
   if (w.competition && w.competition.discipline) m += textMeters(w.competition.discipline);
-  // километраж только в заметках («12 км, с вставками…») — берём его; и в полях, и в заметках — большее (без двойного счёта)
+  // километраж только в заметках («12 км, с вставками…») - берём его; и в полях, и в заметках - большее (без двойного счёта)
   m = Math.max(m, textMaxMeters(w.notes));
   return m / 1000;
 }
@@ -4552,7 +4552,7 @@ const numOf = (v) => { const n = parseFloat(String(v ?? '').replace(',', '.')); 
 const isTechEx = (e) => e && e.kind === 'tech';
 function attemptsOf(w) { return (Array.isArray(w.exercises) ? w.exercises : []).filter(isTechEx).reduce((a, e) => a + Math.floor(numOf(e.sets)), 0); }
 function ofpSetsOf(w) { return (Array.isArray(w.exercises) ? w.exercises : []).filter((e) => !isTechEx(e)).reduce((a, e) => a + (Math.floor(numOf(e.sets)) || (e.name ? 1 : 0)), 0); }
-function tonnageOf(w) { // т: подходы × повторы × вес (только там, где вес — число)
+function tonnageOf(w) { // т: подходы × повторы × вес (только там, где вес - число)
   return (Array.isArray(w.exercises) ? w.exercises : []).filter((e) => !isTechEx(e)).reduce((a, e) => a + (Math.floor(numOf(e.sets)) || 1) * repsCount(e.reps) * numOf(e.weight), 0) / 1000;
 }
 function fastMetersOf(w) { // метры скоростных отрезков (до 400 м)
@@ -4580,7 +4580,7 @@ function weekStats() {
       ofp: sum(ofpSetsOf, 0),
       tonn: sum(tonnageOf, 1),
       rest: list.filter((w) => w.type === 'rest').length,
-      // оценки — только по тренировкам (у дня отдыха оценок нет)
+      // оценки - только по тренировкам (у дня отдыха оценок нет)
       feel: avg(tr.map((w) => Number(w.feeling)).filter((v) => v > 0)),
       rpe: avg(tr.map((w) => Number(w.rpe)).filter((v) => v > 0)),
     });
@@ -4636,11 +4636,11 @@ function chartFrame(el, weeks, max, ticks, drawMarks, tipText) {
   el.onpointerleave = (e) => { if (e.pointerType === 'mouse') hideChartTip(); };
 }
 
-// Столбики одной серии; подпись — только у самого большого и у текущей недели
+// Столбики одной серии; подпись - только у самого большого и у текущей недели
 function barChart(el, weeks, key, color, unit, whole = false) {
   const vals = weeks.map((w) => w[key] || 0);
   const maxV = Math.max(...vals);
-  // счётные показатели (тренировки, попытки…) — шкала из целых чисел: 0, 1, 2 …
+  // счётные показатели (тренировки, попытки…) - шкала из целых чисел: 0, 1, 2 …
   const max = whole && maxV <= 10 ? Math.max(2, 2 * Math.ceil((maxV * 1.1) / 2)) : niceMax(maxV * 1.1);
   const ticks = [0, max / 2, max].map((t) => Math.round(t * 10) / 10);
   const iMax = vals.indexOf(maxV);
@@ -4793,13 +4793,13 @@ $('metricReset').addEventListener('click', () => { try { localStorage.removeItem
 // =====================================================================
 //  ФАЙЛ С ЧАСОВ (Garmin .zip / .FIT, а также .GPX и .TCX)
 // =====================================================================
-// Файл читается прямо в телефоне — на сервер уходит только короткая сводка по кругам,
+// Файл читается прямо в телефоне - на сервер уходит только короткая сводка по кругам,
 // а Fom раскладывает её по полям формы (разминка, отрезки, отдых, заминка, пульс).
 
-// ---------- ZIP (Garmin «Экспорт оригинала» отдаёт .zip, внутри — .fit) ----------
+// ---------- ZIP (Garmin «Экспорт оригинала» отдаёт .zip, внутри - .fit) ----------
 async function unzipFirst(buf, wanted = /\.(fit|gpx|tcx)$/i) {
   const dv = new DataView(buf);
-  // конец центрального каталога — ищем с конца файла
+  // конец центрального каталога - ищем с конца файла
   let eocd = -1;
   for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 66000); i--) {
     if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
@@ -4822,7 +4822,7 @@ async function unzipFirst(buf, wanted = /\.(fit|gpx|tcx)$/i) {
     const data = new Uint8Array(buf, start, compSize);
     if (method === 0) return { name, buf: data.slice().buffer };
     if (method === 8) {
-      if (typeof DecompressionStream === 'undefined') throw new Error('Телефон не умеет открывать .zip — распакуй архив и выбери .fit');
+      if (typeof DecompressionStream === 'undefined') throw new Error('Телефон не умеет открывать .zip - распакуй архив и выбери .fit');
       const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
       return { name, buf: await new Response(stream).arrayBuffer() };
     }
@@ -4958,7 +4958,7 @@ function parseXmlWorkout(text) {
       if (hr && time) out.records.push({ t: Date.parse(time.textContent) / 1000 - FIT_EPOCH, hr: num(hr, 'Value') });
     });
   } else {
-    // GPX: только точки — сами режем на отрезки по 1 км
+    // GPX: только точки - сами режем на отрезки по 1 км
     const pts = byTag(doc, 'trkpt').map((tp) => ({
       lat: Number(tp.getAttribute('lat')), lon: Number(tp.getAttribute('lon')),
       t: Date.parse(byTag(tp, 'time')[0]?.textContent) / 1000 - FIT_EPOCH,
@@ -5095,7 +5095,7 @@ function moveNavIndicator(targetId) {
 }
 
 // Нижнюю панель можно вести пальцем: бегунок едет за пальцем, иконка под ним подсвечивается,
-// отпустил — открылась та вкладка, над которой остановился. Обычные нажатия работают как раньше.
+// отпустил - открылась та вкладка, над которой остановился. Обычные нажатия работают как раньше.
 (function navDrag() {
   const nav = document.querySelector('.bottom-nav');
   const ind = $('navIndicator');
@@ -5146,7 +5146,7 @@ function moveNavIndicator(targetId) {
     if (commit && target && target.dataset.screen !== (NAV_PARENT[current] || current)) {
       target.click();                       // те же действия, что и при обычном нажатии
     } else {
-      moveNavIndicator(current);            // остался на месте — бегунок возвращается
+      moveNavIndicator(current);            // остался на месте - бегунок возвращается
     }
     blockClickUntil = Date.now() + 400;
   };
@@ -5308,7 +5308,7 @@ async function drawStoryCard(w) {
   ctx.fillText(label, X + 32, 348);
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
 
-  // главное — крупно
+  // главное - крупно
   const hero = storyHero(w);
   let y = 560;
   if (hero.kind === 'comp') {
@@ -5430,7 +5430,7 @@ async function drawStoryCard(w) {
   const linkW = ctx.measureText(BOT_LINK).width;
   ctx.textAlign = 'left';
   ctx.font = `600 34px ${BODY}`; ctx.fillStyle = '#8b93a7';
-  // подпись слева — самая длинная, какая влезает рядом со ссылкой
+  // подпись слева - самая длинная, какая влезает рядом со ссылкой
   const tag = ['Дневник тренировок с Fom', 'Дневник тренировок', 'Записано в Forma']
     .find((t) => ctx.measureText(t).width + linkW + 40 <= CW) || '';
   ctx.fillText(tag, X, 1836);
@@ -5455,7 +5455,7 @@ async function openShareSheet(w) {
     $('shareStatus').textContent = '';
   } catch (err) {
     console.error(err);
-    $('shareStatus').textContent = 'Не получилось нарисовать карточку — можно отправить текстом.';
+    $('shareStatus').textContent = 'Не получилось нарисовать карточку - можно отправить текстом.';
   }
 }
 function closeShareSheet() {
@@ -5468,14 +5468,14 @@ function closeShareSheet() {
 }
 
 // Окно «Поделиться» ведёт себя как жидкое: следует за пальцем с лёгкой «резинкой», чуть сужается и растягивается,
-// фон темнеет и светлеет плавно, а после отпускания окно пружинит — либо уезжает вниз, либо мягко возвращается.
+// фон темнеет и светлеет плавно, а после отпускания окно пружинит - либо уезжает вниз, либо мягко возвращается.
 // Пока окно открыто, страница под ним не двигается.
 (function initShareSwipe() {
   const back = $('shareSheet');
   const sheet = back.querySelector('.sheet');
   let y0 = 0, t0 = 0, drag = false, tracking = false;
   let x = 0, v = 0, target = 0, raf = 0, last = 0, closing = false;
-  let samples = []; // последние положения пальца — по ним считаем скорость смаха
+  let samples = []; // последние положения пальца - по ним считаем скорость смаха
 
   const H = () => sheet.offsetHeight + 40;
   function paint() {
@@ -5489,7 +5489,7 @@ function closeShareSheet() {
   }
   function loop(ts) {
     const dt = Math.min(0.032, (ts - last) / 1000 || 0.016); last = ts;
-    // пружина: чем дальше от цели — тем сильнее тянет, трение гасит колебания
+    // пружина: чем дальше от цели - тем сильнее тянет, трение гасит колебания
     const stiff = closing ? 300 : 240, damp = closing ? 30 : 22;
     const a = -stiff * (x - target) - damp * v;
     v += a * dt; x += v * dt;
@@ -5535,7 +5535,7 @@ function closeShareSheet() {
     if (!tracking) return;
     if (d <= 0 && !drag) return;
     drag = true;
-    // вверх — сопротивление «резинки», вниз — за пальцем
+    // вверх - сопротивление «резинки», вниз - за пальцем
     x = d >= 0 ? d : -Math.sqrt(-d) * 2.2;
     samples.push([performance.now(), x]); if (samples.length > 6) samples.shift();
     v = 0; paint();
@@ -5560,7 +5560,7 @@ function closeShareSheet() {
   back.addEventListener('touchcancel', end);
 })();
 
-// Картинку кладём на сервер — Telegram берёт её по ссылке
+// Картинку кладём на сервер - Telegram берёт её по ссылке
 async function uploadStoryImage() {
   if (shareState.url) return shareState.url;
   const res = await fetch(API_BASE + '/api/bot/story', {
@@ -5594,7 +5594,7 @@ $('shareSaveBtn').addEventListener('click', async () => {
   if (!shareState.blob) return;
   const fileName = `forma-${shareState.w.date}.jpg`;
   try {
-    // 1) системное «Поделиться» с картинкой — сразу в Instagram, Галерею и т.д.
+    // 1) системное «Поделиться» с картинкой - сразу в Instagram, Галерею и т.д.
     const file = new File([shareState.blob], fileName, { type: 'image/jpeg' });
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({ files: [file] });
@@ -5663,7 +5663,7 @@ function renderMorning() {
     const bits = [t.sleep_h != null && `сон ${fmtNum(t.sleep_h)} ч`, t.mood && MOOD_EMOJI[t.mood], t.rest_hr && `пульс ${t.rest_hr}`].filter(Boolean);
     const jump = restHrJump();
     $('morningDone').innerHTML = `<div class="morning-sum">${ico('check')} ${esc(bits.join(' · '))}</div>` +
-      (jump >= 5 ? `<div class="morning-warn">${ico('warn')} Пульс покоя на ${jump} выше обычного — прислушайся к себе и скажи тренеру, если что-то не так.</div>` : '');
+      (jump >= 5 ? `<div class="morning-warn">${ico('warn')} Пульс покоя на ${jump} выше обычного - прислушайся к себе и скажи тренеру, если что-то не так.</div>` : '');
   } else {
     $('mSleep').querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', Number(c.dataset.v) === mDraft.sleep));
     $('mMood').querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', Number(c.dataset.v) === mDraft.mood));
@@ -5709,7 +5709,7 @@ function daysLabel(n) {
 
 
 // =====================================================================
-//  ЦЕЛИ НА МЕСЯЦ — Fom видит их и следит за прогрессом
+//  ЦЕЛИ НА МЕСЯЦ - Fom видит их и следит за прогрессом
 // =====================================================================
 let myGoals = [];
 let myWeightKg = null;
@@ -5745,7 +5745,7 @@ function goalProgress(g) {
       done = higherIsBetter(g.discipline) ? best.value >= tv : best.value <= tv;
       frac = done ? 1 : Math.max(0, Math.min(0.95, higherIsBetter(g.discipline) ? best.value / tv : tv / best.value));
     }
-    return { title: `${g.discipline} — ${g.target}`, now: best ? `лучший: ${best.w.competition.result}${done ? ' — цель взята! 🏆' : ''}` : 'рекорда пока нет', frac, icon: 'trophy' };
+    return { title: `${g.discipline} - ${g.target}`, now: best ? `лучший: ${best.w.competition.result}${done ? ' - цель взята! 🏆' : ''}` : 'рекорда пока нет', frac, icon: 'trophy' };
   }
   if (g.kind === 'weight') {
     const start = g.start_num, target = g.target_num, now = myWeightKg;
@@ -5900,7 +5900,7 @@ async function loadStarts() {
 }
 
 function renderStarts() {
-  // отсчёт на главной — ближайший старт в пределах 90 дней
+  // отсчёт на главной - ближайший старт в пределах 90 дней
   const next = plannedStarts.find((s) => daysUntil(s.date) >= 0);
   const cd = $('countdownCard');
   if (next && daysUntil(next.date) <= 90) {
@@ -5920,7 +5920,7 @@ function renderStarts() {
   // список в профиле
   const box = $('startsList');
   if (!plannedStarts.length) {
-    box.innerHTML = '<div class="muted records-empty">Добавь соревнования, к которым готовишься, — на главной появится обратный отсчёт, а Fom будет учитывать их в разборах.</div>';
+    box.innerHTML = '<div class="muted records-empty">Добавь соревнования, к которым готовишься, - на главной появится обратный отсчёт, а Fom будет учитывать их в разборах.</div>';
     return;
   }
   box.innerHTML = '';
@@ -6027,10 +6027,10 @@ function renderChallenges() {
     </div>`;
   }).join('');
   card.classList.remove('hidden');
-  // все три выполнены — поздравляем один раз за неделю
+  // все три выполнены - поздравляем один раз за неделю
   if (rows.every((r) => r.cur >= r.goal) && lsGet('forma_challenge_done') !== monday) {
     lsSet('forma_challenge_done', monday);
-    setTimeout(() => showDialog({ icon: 'target', title: 'Челлендж недели выполнен! 🎉', text: 'Все три цели закрыты. Мощная неделя — так держать!', ok: 'Ура!' }), 600);
+    setTimeout(() => showDialog({ icon: 'target', title: 'Челлендж недели выполнен! 🎉', text: 'Все три цели закрыты. Мощная неделя - так держать!', ok: 'Ура!' }), 600);
   }
 }
 
@@ -6089,7 +6089,7 @@ function renderAchievements() {
   const list = achievementList();
   const done = list.filter((a) => a.cur >= a.goal);
   $('achievementsCount').textContent = `· ${done.length} из ${list.length}`;
-  // полученные — первыми; в свёрнутом виде видна одна строка
+  // полученные - первыми; в свёрнутом виде видна одна строка
   const sorted = [...list].sort((a, b) => (b.cur >= b.goal) - (a.cur >= a.goal));
   const shown = achOpen ? sorted : sorted.slice(0, 3);
   $('achToggle').textContent = achOpen ? 'Свернуть' : `Все ${list.length}`;
@@ -6101,7 +6101,7 @@ function renderAchievements() {
       <span class="ach-desc">${ok ? esc(a.desc) : a.goal > 1 ? `${Math.min(a.cur, a.goal)}/${a.goal}` : esc(a.desc)}</span>
     </div>`;
   }).join('');
-  // новое достижение — поздравляем (при первом запуске просто запоминаем, что уже есть)
+  // новое достижение - поздравляем (при первом запуске просто запоминаем, что уже есть)
   if (!achievementsReady) return;
   let seen = [];
   try { seen = JSON.parse(lsGet('forma_ach') || 'null'); } catch (e) {}
@@ -6112,12 +6112,12 @@ function renderAchievements() {
   if (fresh.length) {
     const a = fresh[0];
     haptic('success');
-    setTimeout(() => showDialog({ icon: a.icon, title: `Новое достижение: ${a.title}!`, text: a.desc[0].toUpperCase() + a.desc.slice(1) + ' — есть! 🎉', ok: 'Круто!' }), 700);
+    setTimeout(() => showDialog({ icon: a.icon, title: `Новое достижение: ${a.title}!`, text: a.desc[0].toUpperCase() + a.desc.slice(1) + ' - есть! 🎉', ok: 'Круто!' }), 700);
   }
 }
 
 // =====================================================================
-//  ВЫГРУЗКА ДНЕВНИКА (таблица CSV — открывается в Excel и Google Таблицах)
+//  ВЫГРУЗКА ДНЕВНИКА (таблица CSV - открывается в Excel и Google Таблицах)
 // =====================================================================
 function diaryCsv() {
   const q = (v) => {
@@ -6136,7 +6136,7 @@ function diaryCsv() {
 }
 
 $('exportBtn').addEventListener('click', async () => {
-  if (!myWorkouts.length) return alertMsg('Пока нечего выгружать — записей нет.');
+  if (!myWorkouts.length) return alertMsg('Пока нечего выгружать - записей нет.');
   const csv = diaryCsv();
   const name = `forma-${localDateStr()}.csv`;
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -6192,10 +6192,10 @@ async function loadGroupsTab() {
   const i = inviteInfo;
   $('inviteStats').innerHTML = i.invited
     ? `Пришли по твоей ссылке: <b>${i.invited}</b> · засчитано: <b>${i.qualified}</b> · бонус: <b>+${i.bonus} ${i.bonus === 1 ? 'билет' : 'билета'}</b>`
-    : 'Пока никто не пришёл по твоей ссылке — отправь её друзьям 👇';
+    : 'Пока никто не пришёл по твоей ссылке - отправь её друзьям 👇';
   // группы
   if (!myGroups.length) {
-    list.innerHTML = '<div class="empty-hint">Ты пока не в группе. Создай свою — для команды или как тренер, или вступи по коду от тренера.</div>';
+    list.innerHTML = '<div class="empty-hint">Ты пока не в группе. Создай свою - для команды или как тренер, или вступи по коду от тренера.</div>';
     return;
   }
   list.innerHTML = '';
@@ -6247,10 +6247,10 @@ async function openGroup(id) {
   $('groupKind').textContent = g.coach_mode ? (g.is_coach ? 'Тренерская группа · ты тренер' : 'Тренерская группа') : 'Команда';
   $('groupCoachNote').classList.toggle('hidden', !g.coach_mode);
   $('groupCoachNote').textContent = g.is_coach
-    ? 'Ты видишь все записи участников, включая закрытые. Нажми на спортсмена — откроется его дневник.'
+    ? 'Ты видишь все записи участников, включая закрытые. Нажми на спортсмена - откроется его дневник.'
     : 'Тренер группы видит все твои записи и может их комментировать. Друзьям по-прежнему видны только открытые.';
   $('groupLeaveBtn').textContent = g.is_owner ? 'Удалить группу' : 'Выйти из группы';
-  // кабинет — только тренеру; открываем его первым, когда тренер заходит в группу
+  // кабинет - только тренеру; открываем его первым, когда тренер заходит в группу
   $('groupTabs').querySelector('[data-gtab="coach"]').classList.toggle('hidden', !g.is_coach);
   $('groupTabs').classList.toggle('seg-3', !!g.is_coach);
   if (g.is_coach && coachGroupId !== g.id) groupTab = 'coach';
@@ -6260,7 +6260,7 @@ async function openGroup(id) {
   loadGroupTask(g.id);
 }
 
-// Задание от тренера (последнее за 7 дней) — видят все участники группы
+// Задание от тренера (последнее за 7 дней) - видят все участники группы
 async function loadGroupTask(gid) {
   $('groupTask').classList.add('hidden');
   try {
@@ -6269,7 +6269,7 @@ async function loadGroupTask(gid) {
     $('groupTaskText').textContent = task.text;
     $('groupTaskAt').textContent = '· ' + relativeDateLabel(task.at.slice(0, 10)) + ', ' + task.at.slice(11, 16);
     $('groupTask').classList.remove('hidden');
-  } catch (e) { /* нет задания — ничего не показываем */ }
+  } catch (e) { /* нет задания - ничего не показываем */ }
 }
 
 function setGroupTab(tab) {
@@ -6306,7 +6306,7 @@ function renderGroupRating() {
   });
   const hint = document.createElement('div');
   hint.className = 'muted rank-hint';
-  hint.textContent = 'Рейтинг — по тренировкам с понедельника, потом по километрам отрезков. Серия — дни подряд.';
+  hint.textContent = 'Рейтинг - по тренировкам с понедельника, потом по километрам отрезков. Серия - дни подряд.';
   box.appendChild(hint);
 }
 
@@ -6326,7 +6326,7 @@ $('groupInviteBtn').addEventListener('click', () => {
   const g = currentGroup?.group;
   if (!g) return;
   shareLink(g.link, g.coach_mode
-    ? `Вступай в мою тренерскую группу «${g.name}» в Forma — буду видеть твой дневник и комментировать тренировки 💪 Код: ${g.invite_code}`
+    ? `Вступай в мою тренерскую группу «${g.name}» в Forma - буду видеть твой дневник и комментировать тренировки 💪 Код: ${g.invite_code}`
     : `Вступай в нашу группу «${g.name}» в Forma 🔥 Общая лента и рейтинг недели. Код: ${g.invite_code}`);
 });
 $('groupBackBtn').addEventListener('click', () => { showScreen('friendsScreen'); setFriendsTab('groups'); });
@@ -6422,7 +6422,7 @@ function renderCoachList() {
     box.innerHTML = '<div class="empty-hint">В группе пока нет спортсменов. Нажми «Пригласить в группу» и отправь ссылку.</div>';
     return;
   }
-  box.innerHTML = list.length ? '' : `<div class="empty-hint">${coachFilter === 'need' ? 'Сейчас всё ровно — никому не нужно особое внимание 👌' : 'Никто сейчас не на сборе.'}</div>`;
+  box.innerHTML = list.length ? '' : `<div class="empty-hint">${coachFilter === 'need' ? 'Сейчас всё ровно - никому не нужно особое внимание 👌' : 'Никто сейчас не на сборе.'}</div>`;
   list.forEach((a) => {
     const row = document.createElement('button');
     row.type = 'button';
@@ -6458,7 +6458,7 @@ async function loadCoachDigest(fresh) {
     const { text } = await api(`/api/coach/groups/${g.id}/digest${fresh ? '?fresh=1' : ''}`, { timeout: 60000 });
     $('coachDigestText').textContent = text;
   } catch (err) {
-    $('coachDigestText').textContent = err.data?.error || 'Не получилось — попробуй ещё раз.';
+    $('coachDigestText').textContent = err.data?.error || 'Не получилось - попробуй ещё раз.';
   } finally {
     $('coachDigestRefresh').disabled = false;
   }
@@ -6482,7 +6482,7 @@ $('coachTaskSend').addEventListener('click', async () => {
     $('coachTaskSheet').classList.add('hidden');
     haptic('success');
     loadGroupTask(g.id);
-    alertMsg(`Задание отправлено: ${r.delivered} из ${r.total}.` + (r.delivered < r.total ? ' Кто-то не открывал бота — увидит задание в группе.' : ''));
+    alertMsg(`Задание отправлено: ${r.delivered} из ${r.total}.` + (r.delivered < r.total ? ' Кто-то не открывал бота - увидит задание в группе.' : ''));
   } catch (err) {
     alertMsg(err.data?.error || 'Не получилось отправить.');
   } finally {
@@ -6524,7 +6524,7 @@ async function loadMemberCoach(m) {
 }
 function paintMcMsgs(list) {
   $('mcMsgs').innerHTML = (list || []).length
-    ? 'Отправлено: ' + list.slice(0, 3).map((x) => `<div>· ${esc(relativeDateLabel(x.at.slice(0, 10)))} ${x.at.slice(11, 16)} — ${esc(x.text.length > 80 ? x.text.slice(0, 78) + '…' : x.text)}</div>`).join('')
+    ? 'Отправлено: ' + list.slice(0, 3).map((x) => `<div>· ${esc(relativeDateLabel(x.at.slice(0, 10)))} ${x.at.slice(11, 16)} - ${esc(x.text.length > 80 ? x.text.slice(0, 78) + '…' : x.text)}</div>`).join('')
     : '';
 }
 $('mcFomBtn').addEventListener('click', async () => {
@@ -6538,7 +6538,7 @@ $('mcFomBtn').addEventListener('click', async () => {
     $('mcFomText').classList.remove('muted');
     $('mcFomBtn').textContent = 'Обновить вывод';
   } catch (err) {
-    $('mcFomText').textContent = err.data?.error || 'Не получилось — попробуй ещё раз.';
+    $('mcFomText').textContent = err.data?.error || 'Не получилось - попробуй ещё раз.';
   } finally {
     $('mcFomBtn').disabled = false;
   }
@@ -6565,7 +6565,7 @@ let gcKind = 'team';
 function paintGcKind() {
   $('gcKind').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.kind === gcKind));
   $('gcHint').textContent = gcKind === 'coach'
-    ? 'Ты — тренер: увидишь ВСЕ записи спортсменов (и закрытые), сможешь комментировать. Спортсмены узнают об этом при вступлении.'
+    ? 'Ты - тренер: увидишь ВСЕ записи спортсменов (и закрытые), сможешь комментировать. Спортсмены узнают об этом при вступлении.'
     : 'Команда: общая лента открытых тренировок и рейтинг недели. Закрытые записи никто не видит.';
 }
 $('gcKind').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => { gcKind = b.dataset.kind; paintGcKind(); }));
@@ -6592,11 +6592,11 @@ $('gjSave').addEventListener('click', () => {
   joinGroupFlow(code);
 });
 
-// Показать, что за группа, и спросить — вступать ли
+// Показать, что за группа, и спросить - вступать ли
 async function joinGroupFlow(code) {
   let g;
   try { g = (await api(`/api/friends/groups/preview/${encodeURIComponent(code)}`)).group; } catch (err) {
-    return alertMsg(err.data?.error || 'Группа не найдена — проверь код');
+    return alertMsg(err.data?.error || 'Группа не найдена - проверь код');
   }
   if (g.joined) { return openGroup(g.id); }
   const owner = [g.owner_first_name, g.owner_last_name].filter(Boolean).join(' ') || (g.owner_username ? '@' + g.owner_username : 'тренер');
@@ -6618,7 +6618,7 @@ async function joinGroupFlow(code) {
 
 
 // =====================================================================
-//  СОВМЕСТНЫЕ ПРОБЕЖКИ — поиск напарников в своём городе
+//  СОВМЕСТНЫЕ ПРОБЕЖКИ - поиск напарников в своём городе
 // =====================================================================
 const POPULAR_CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Екатеринбург', 'Новосибирск', 'Краснодар',
   'Нижний Новгород', 'Самара', 'Ростов-на-Дону', 'Сочи', 'Минск', 'Алматы'];
@@ -6658,7 +6658,7 @@ function renderRunsTab() {
   if (!runsCity) { list.innerHTML = ''; return; }
   if (!runs.length) {
     const other = (runsData.cities || []).filter((c) => c.city.toLowerCase() !== runsCity.toLowerCase()).slice(0, 4);
-    list.innerHTML = `<div class="empty-hint runs-empty">В городе ${esc(runsCity)} пока никто не зовёт на пробежку.<br>Будь первым — нажми «Позвать на пробежку» 🏃
+    list.innerHTML = `<div class="empty-hint runs-empty">В городе ${esc(runsCity)} пока никто не зовёт на пробежку.<br>Будь первым - нажми «Позвать на пробежку» 🏃
       ${other.length ? `<div class="runs-other">Сейчас бегают: ${other.map((c) => `<button type="button" class="chip" data-city="${esc(c.city)}">${esc(c.city)} · ${c.n}</button>`).join(' ')}</div>` : ''}</div>`;
     list.querySelectorAll('[data-city]').forEach((b) => b.addEventListener('click', () => loadRunsTab(b.dataset.city)));
     return;
@@ -6742,7 +6742,7 @@ function openRunSheet() {
   $('rnPlace').value = ''; $('rnDesc').value = '';
   rnMax = '';
   $('rnDayChips').querySelectorAll('.rn-day[data-day]').forEach((c) => { c.querySelector('span').textContent = rnDayShort(addDays(today, +c.dataset.day)); });
-  // третья плашка — день недели («Среда»), чтобы влезало
+  // третья плашка - день недели («Среда»), чтобы влезало
   const d2 = parseDateStr(addDays(today, 2));
   $('rnDay2').textContent = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'][d2.getDay()];
   paintRunSheet();
@@ -6774,7 +6774,7 @@ function paintRunSheet() {
 $('rnDayChips').querySelectorAll('.rn-day[data-day]').forEach((c) => c.addEventListener('click', () => { $('rnDate').value = addDays(localDateStr(), +c.dataset.day); paintRunSheet(); }));
 $('rnTimeChips').querySelectorAll('.rn-time[data-time]').forEach((c) => c.addEventListener('click', () => { $('rnTime').value = c.dataset.time; paintRunSheet(); }));
 $('rnMaxChips').querySelectorAll('.rn-time').forEach((c) => c.addEventListener('click', () => { rnMax = c.dataset.max; paintRunSheet(); }));
-// «Другой день» — системный календарь (он открывается везде)
+// «Другой день» - системный календарь (он открывается везде)
 {
   const input = $('rnDate');
   input.addEventListener('change', paintRunSheet);
@@ -6783,7 +6783,7 @@ $('rnMaxChips').querySelectorAll('.rn-time').forEach((c) => c.addEventListener('
     if (e.target !== input) { try { input.showPicker(); } catch (err) { input.focus(); } }
   });
 }
-// «Другое» время — свой выбор часов и минут (на Mac системный выбор времени не открывается)
+// «Другое» время - свой выбор часов и минут (на Mac системный выбор времени не открывается)
 let tpH = 7, tpM = 0;
 const tp2 = (n) => String(n).padStart(2, '0');
 function paintTimePicker() {
@@ -6954,7 +6954,7 @@ $('runBackBtn').addEventListener('click', () => {
 });
 $('runReportBtn').addEventListener('click', async () => {
   if (!currentRun) return;
-  if (!(await confirmAsk({ icon: 'warn', title: 'Пожаловаться на пробежку?', text: 'Если здесь спам, реклама или что-то неприличное — я проверю и удалю.', ok: 'Пожаловаться', danger: true }))) return;
+  if (!(await confirmAsk({ icon: 'warn', title: 'Пожаловаться на пробежку?', text: 'Если здесь спам, реклама или что-то неприличное - я проверю и удалю.', ok: 'Пожаловаться', danger: true }))) return;
   try { await api(`/api/partners/${currentRun.run.id}/report`, { method: 'POST', body: JSON.stringify({ reason: 'жалоба из приложения' }) }); alertMsg('Спасибо! Жалоба отправлена.'); }
   catch (err) { alertMsg('Не удалось отправить жалобу.'); }
 });
@@ -7038,7 +7038,7 @@ async function checkLogin() {
       loginStatus(r.status === 'denied' ? 'Вход отклонён в Telegram.' : 'Время ссылки вышло. Нажми кнопку ещё раз.', 'error');
       prepareLogin(true);
     }
-  } catch (e) { /* связь моргнула — спросим снова через 2 секунды */ }
+  } catch (e) { /* связь моргнула - спросим снова через 2 секунды */ }
 }
 
 function showLogin(msg) {
@@ -7047,7 +7047,7 @@ function showLogin(msg) {
   $('loginScreen').classList.remove('hidden');
   $('loginRetryBtn').classList.add('hidden');
   $('loginAlt').classList.add('hidden');
-  // iPhone: у сайта в Safari и у иконки на главном экране разное хранилище — входить нужно уже в установленном
+  // iPhone: у сайта в Safari и у иконки на главном экране разное хранилище - входить нужно уже в установленном
   const needInstall = IS_IOS && !IS_STANDALONE && !NATIVE; // в приложении из магазина ставить на экран не нужно
   $('loginInstall').classList.toggle('hidden', !needInstall);
   $('loginTgBtn').classList.toggle('hidden', needInstall);
@@ -7057,7 +7057,7 @@ function showLogin(msg) {
 }
 
 // Прямая ссылка на бота (tg://): из установленного приложения iPhone обычная ссылка t.me открывает Telegram,
-// но не доводит до бота. Обычную ссылку оставляем запасной — под кнопкой.
+// но не доводит до бота. Обычную ссылку оставляем запасной - под кнопкой.
 function tgDeepLink(link) {
   const m = /t\.me\/([A-Za-z0-9_]+)\?start=([A-Za-z0-9_]+)/.exec(link || '');
   return m ? `tg://resolve?domain=${m[1]}&start=${m[2]}` : link;
@@ -7070,15 +7070,15 @@ $('loginTgBtn').addEventListener('click', () => {
   window.location.href = tgDeepLink(loginLink);
 });
 $('loginRetryBtn').addEventListener('click', () => { $('loginRetryBtn').classList.add('hidden'); loginStatus(''); prepareLogin(true); });
-// вернулись в приложение — обновляем друзей и ленту в фоне, если данным больше минуты
+// вернулись в приложение - обновляем друзей и ленту в фоне, если данным больше минуты
 document.addEventListener('visibilitychange', () => { if (!document.hidden && currentUser && Date.now() - lastSocialAt > 60000) prefetchSocial(); });
-// вернулись в приложение из Telegram — сразу спрашиваем, подтвердил ли вход
+// вернулись в приложение из Telegram - сразу спрашиваем, подтвердил ли вход
 document.addEventListener('visibilitychange', () => { if (!document.hidden && loginPoll) checkLogin(); });
 
 
 // ---------- Вход по почте и паролю (когда Telegram не открывается) ----------
 let mailRegister = false;
-let mailForgot = 0; // 0 — обычный вход, 1 — попросили код, 2 — код отправлен, ждём код и новый пароль
+let mailForgot = 0; // 0 - обычный вход, 1 - попросили код, 2 - код отправлен, ждём код и новый пароль
 function mailUi() {
   $('loginName').classList.toggle('hidden', !mailRegister);
   $('loginCode').classList.toggle('hidden', mailForgot !== 2);
@@ -7179,11 +7179,11 @@ if (OUTSIDE_TELEGRAM) {
 if (NATIVE) {
   const P = window.Capacitor.Plugins || {};
   document.documentElement.classList.add('native');
-  // белая системная полоса над клавиатурой iPhone («стрелки и галочка») — в приложении её можно скрыть
+  // белая системная полоса над клавиатурой iPhone («стрелки и галочка») - в приложении её можно скрыть
   try { P.Keyboard?.setAccessoryBarVisible?.({ isVisible: false }); } catch (e) { /* нет плагина */ }
   // тёмный экран: светлый текст в строке состояния
   try { P.StatusBar?.setStyle?.({ style: 'DARK' }); P.StatusBar?.setBackgroundColor?.({ color: '#0A0C11' }); } catch (e) { /* iOS не умеет цвет */ }
-  // внешние ссылки: Telegram открываем самим Telegram, остальное — во встроенном браузере
+  // внешние ссылки: Telegram открываем самим Telegram, остальное - во встроенном браузере
   const openInPage = window.open.bind(window);
   window.open = (url, target, features) => {
     const u = String(url || '');
@@ -7192,7 +7192,7 @@ if (NATIVE) {
     if (/^https?:/.test(u) && P.Browser?.open) { P.Browser.open({ url: u }); return null; }
     return openInPage(url, target, features);
   };
-  // кнопка «Назад» на Android: так же, как жест «назад» в приложении; на главной — выход
+  // кнопка «Назад» на Android: так же, как жест «назад» в приложении; на главной - выход
   try {
     P.App?.addListener?.('backButton', () => {
       const overlay = dialogOpen() || [...document.querySelectorAll('[id$="Sheet"]')].some((el) => !el.classList.contains('hidden'));
@@ -7214,7 +7214,7 @@ function updateTopInset() {
     probe.remove();
     document.documentElement.style.setProperty('--top-inset', px + 'px');
     document.documentElement.classList.toggle('has-top-inset', px > 0);
-  } catch (e) { /* без размытия верха — не страшно */ }
+  } catch (e) { /* без размытия верха - не страшно */ }
 }
 updateTopInset();
 window.addEventListener('resize', updateTopInset);
@@ -7233,7 +7233,7 @@ function updateScrolledFlag() {
 let lastStk = -1;
 window.addEventListener('scroll', updateScrolledFlag, { passive: true });
 
-// «Привязь» шапки: если отпустили палец, когда она сжата наполовину, — доезжает до края (0 или 60)
+// «Привязь» шапки: если отпустили палец, когда она сжата наполовину, - доезжает до края (0 или 60)
 (function initStackSnap() {
   let timer = null, touching = false;
   const arm = () => { clearTimeout(timer); timer = setTimeout(snap, 120); };
@@ -7254,10 +7254,10 @@ window.addEventListener('scroll', updateScrolledFlag, { passive: true });
   window.addEventListener('touchcancel', up, { passive: true });
 })();
 
-// Резиновые края: у верха и низа любого прокручиваемого места можно оттянуть содержимое — всё тяжелее,
-// но можно тянуть долго, перекладывая пальцы, не отрывая от экрана. Отпустил — плавно пружинит назад.
+// Резиновые края: у верха и низа любого прокручиваемого места можно оттянуть содержимое - всё тяжелее,
+// но можно тянуть долго, перекладывая пальцы, не отрывая от экрана. Отпустил - плавно пружинит назад.
 (function initRubber() {
-  if (document.documentElement.classList.contains('lite')) return; // на слабых телефонах — обычная прокрутка
+  if (document.documentElement.classList.contains('lite')) return; // на слабых телефонах - обычная прокрутка
   const MAXPULL = 170, SOFT = 300;
   let sc = null, ok = false, active = null, lastY = 0, lastX = 0, raw = 0, mode = 0, dir = null, items = [], off = 0, raf = 0;
   const findScroller = (t) => {
@@ -7285,7 +7285,7 @@ window.addEventListener('scroll', updateScrolledFlag, { passive: true });
   const stop = () => { cancelAnimationFrame(raf); raf = 0; };
   document.addEventListener('touchstart', (e) => {
     if (document.documentElement.classList.contains('sheet-open')) return;
-    if (mode && items.length) { // добавился ещё палец во время оттягивания — продолжаем без рывка
+    if (mode && items.length) { // добавился ещё палец во время оттягивания - продолжаем без рывка
       active = e.changedTouches[0].identifier; lastY = e.changedTouches[0].clientY; lastX = e.changedTouches[0].clientX; return;
     }
     stop();
@@ -7317,7 +7317,7 @@ window.addEventListener('scroll', updateScrolledFlag, { passive: true });
     apply(mode * MAXPULL * (1 - Math.exp(-raw / SOFT)));
   }, { passive: false });
   const release = (e) => {
-    if (e.touches && e.touches.length) { // один палец убрали, другой остался — тянем им
+    if (e.touches && e.touches.length) { // один палец убрали, другой остался - тянем им
       const r = e.touches[0]; active = r.identifier; lastY = r.clientY; lastX = r.clientX; return;
     }
     if (!items.length) return;
@@ -7365,14 +7365,14 @@ function syncStack() {
 }
 window.addEventListener('resize', syncStack);
 // Размытие нарастает к краю экрана без видимых границ: слои лежат друг на друге, все прижаты к краю, но
-// достают на разную глубину. Длинные слои слабые (они задевают всю зону), короткие — сильнее (только у самого края).
+// достают на разную глубину. Длинные слои слабые (они задевают всю зону), короткие - сильнее (только у самого края).
 // Размытия складываются, поэтому сила плавно растёт к краю, а у каждого слоя граница почти не заметна.
 const fadeLayers = [];
 function buildFade(id, fromBottom, { layers, minBlur, maxBlur }) {
   const box = document.getElementById(id);
   if (!box) return;
   for (let j = 0; j < layers; j++) {
-    const t = layers > 1 ? j / (layers - 1) : 0;      // 0 — самый длинный и слабый слой, 1 — самый короткий и сильный
+    const t = layers > 1 ? j / (layers - 1) : 0;      // 0 - самый длинный и слабый слой, 1 - самый короткий и сильный
     const reach = Math.pow(1 - j / layers, 1.25);      // доля зоны, которую слой покрывает
     const blur = minBlur + (maxBlur - minBlur) * Math.pow(t, 1.3);
     const el = document.createElement('i');
@@ -7390,7 +7390,7 @@ if (!LITE()) {
 }
 let fadeFlip = false;
 function paintFade() {
-  // 0.01px разницы — незаметно глазу, но заставляет iOS заново нарисовать размытие
+  // 0.01px разницы - незаметно глазу, но заставляет iOS заново нарисовать размытие
   fadeFlip = !fadeFlip;
   const d = fadeFlip ? 0.01 : 0;
   for (const el of fadeLayers) {
@@ -7517,7 +7517,7 @@ function renderFood() {
     + coachTile(s.protein, t.protein ? `белок · ориентир ${t.protein[0]}–${t.protein[1]}` : 'белок, г', low(s.protein, t.protein) ? 'warn' : '')
     + coachTile(s.carbs, t.carbs ? `углеводы · ${t.carbs[0]}–${t.carbs[1]}` : 'углеводы, г', low(s.carbs, t.carbs) ? 'warn' : '');
   const box = $('foodList');
-  box.innerHTML = d.meals.length ? '' : '<div class="empty-hint">За этот день еды пока нет. Сфоткай тарелку — Fom прикинет калории и белок.</div>';
+  box.innerHTML = d.meals.length ? '' : '<div class="empty-hint">За этот день еды пока нет. Сфоткай тарелку - Fom прикинет калории и белок.</div>';
   d.meals.forEach((m) => {
     const row = document.createElement('div');
     row.className = 'meal-row';
@@ -7534,7 +7534,7 @@ function renderFood() {
     });
     box.appendChild(row);
   });
-  $('foodFomText').textContent = d.fom || (d.meals.length ? 'Нажми — Fom посмотрит, хватает ли энергии и белка под нагрузку и твои цели.' : 'Сфотографируй, что ешь за день, — Fom сравнит с нагрузкой и твоими целями: хватает ли энергии и белка.');
+  $('foodFomText').textContent = d.fom || (d.meals.length ? 'Нажми - Fom посмотрит, хватает ли энергии и белка под нагрузку и твои цели.' : 'Сфотографируй, что ешь за день, - Fom сравнит с нагрузкой и твоими целями: хватает ли энергии и белка.');
   $('foodFomText').classList.toggle('muted', !d.fom);
   $('foodFomBtn').disabled = !d.meals.length;
   $('foodFomBtn').textContent = d.fom ? 'Спросить ещё раз' : 'Как я поел?';
@@ -7551,7 +7551,7 @@ $('foodFomBtn').addEventListener('click', async () => {
     $('foodFomText').classList.remove('muted');
     $('foodFomBtn').textContent = 'Спросить ещё раз';
   } catch (err) {
-    $('foodFomText').textContent = err.data?.error || 'Не получилось — попробуй ещё раз.';
+    $('foodFomText').textContent = err.data?.error || 'Не получилось - попробуй ещё раз.';
   } finally {
     $('foodFomBtn').disabled = false;
   }
@@ -7577,7 +7577,7 @@ function fillMeal(p) {
   $('mealC').value = p.carbs ?? 0;
   mealDraft.items = p.items || [];
   $('mealItems').textContent = (p.items || []).map((x) => `${x.name}${x.grams ? ` ~${x.grams} г` : ''}`).join(' · ')
-    + (p.note ? `\n${p.note}` : '') + (p.confidence === 'low' ? '\nОценка очень примерная — поправь цифры, если знаешь точнее.' : '');
+    + (p.note ? `\n${p.note}` : '') + (p.confidence === 'low' ? '\nОценка очень примерная - поправь цифры, если знаешь точнее.' : '');
   $('mealFields').classList.remove('hidden');
   $('mealSave').disabled = false;
 }
@@ -7589,7 +7589,7 @@ async function estimateMeal(body) {
     $('mealStatus').textContent = 'Проверь цифры и сохрани 👇';
     fillMeal(p);
   } catch (err) {
-    $('mealStatus').textContent = err.data?.error || 'Не получилось оценить — впиши цифры сам.';
+    $('mealStatus').textContent = err.data?.error || 'Не получилось оценить - впиши цифры сам.';
     fillMeal({ title: body.text || 'Приём пищи', kcal: '', protein: '', fat: '', carbs: '' });
   }
 }
@@ -7654,7 +7654,7 @@ async function loadBlood() {
     box.innerHTML = `<div class="empty-hint">${esc(err.data?.error || 'Не удалось загрузить.')}</div>`;
     return;
   }
-  box.innerHTML = bloodTests.length ? '' : '<div class="empty-hint">Анализов пока нет. Сфоткай бланк или загрузи PDF из лаборатории — Fom сам перенесёт показатели.</div>';
+  box.innerHTML = bloodTests.length ? '' : '<div class="empty-hint">Анализов пока нет. Сфоткай бланк или загрузи PDF из лаборатории - Fom сам перенесёт показатели.</div>';
   bloodTests.forEach((t) => {
     const row = document.createElement('button');
     row.type = 'button';
@@ -7714,18 +7714,18 @@ $('bloodFile').addEventListener('change', async (e) => {
   if (!file) return;
   $('bloodStatus').textContent = 'Fom читает бланк… это может занять до минуты';
   try {
-    // PDF из лаборатории отправляем как есть, картинку — сжимаем
+    // PDF из лаборатории отправляем как есть, картинку - сжимаем
     const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
-    if (isPdf && file.size > 6 * 1024 * 1024) throw new Error('PDF больше 6 МБ — сфоткай бланк или сохрани страницу с анализом отдельно');
+    if (isPdf && file.size > 6 * 1024 * 1024) throw new Error('PDF больше 6 МБ - сфоткай бланк или сохрани страницу с анализом отдельно');
     const image = isPdf ? await fileToDataUrl(file, 'application/pdf') : await fileToJpeg(file, 1800, 0.85);
     const p = await api('/api/health/blood/scan', { method: 'POST', body: JSON.stringify({ image }), timeout: 90000 });
-    if (!p.markers?.length) { $('bloodStatus').textContent = 'Не нашёл показателей на фото — попробуй ровнее или внеси вручную.'; return; }
+    if (!p.markers?.length) { $('bloodStatus').textContent = 'Не нашёл показателей на фото - попробуй ровнее или внеси вручную.'; return; }
     if (p.date) $('bloodDate').value = p.date;
     if (p.lab) $('bloodLab').value = p.lab;
     // пустые строки-заготовки убираем
     [...$('bloodRows').querySelectorAll('.blood-row-edit')].forEach((r) => { if (!r.querySelector('.br-val').value.trim()) r.remove(); });
     addBloodRows(p.markers);
-    $('bloodStatus').textContent = `Нашёл ${p.markers.length} показ. Сверь с бланком — Fom мог ошибиться — и сохрани.`;
+    $('bloodStatus').textContent = `Нашёл ${p.markers.length} показ. Сверь с бланком - Fom мог ошибиться - и сохрани.`;
     haptic('success');
   } catch (err) {
     $('bloodStatus').textContent = err.data?.error || err.message || 'Не получилось прочитать бланк.';
@@ -7752,7 +7752,7 @@ $('bloodSave').addEventListener('click', async () => {
 function openBloodView(t) {
   bloodView = t;
   $('bvTitle').textContent = `🩸 ${formatDayMonth(t.date)} ${t.date.slice(0, 4)}${t.lab ? ' · ' + t.lab : ''}`;
-  // прошлый анализ — для стрелочек «было → стало»
+  // прошлый анализ - для стрелочек «было → стало»
   const prev = bloodTests.filter((x) => x.date < t.date).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
   const key = (s) => String(s || '').toLowerCase().replace(/[^a-zа-яё0-9]/g, '');
   $('bvMarkers').innerHTML = t.markers.map((m) => {
@@ -7786,7 +7786,7 @@ $('bvFomBtn').addEventListener('click', async () => {
     const i = bloodTests.findIndex((x) => x.id === test.id);
     if (i >= 0) bloodTests[i].fom = test.fom;
   } catch (err) {
-    $('bvFom').textContent = err.data?.error || 'Не получилось — попробуй ещё раз.';
+    $('bvFom').textContent = err.data?.error || 'Не получилось - попробуй ещё раз.';
   } finally {
     $('bvFomBtn').disabled = false;
   }
@@ -7798,7 +7798,7 @@ async function loadSupps() {
   box.innerHTML = '<div class="empty-hint">Загружаю…</div>';
   let supps = [];
   try { supps = (await api('/api/health/supps')).supps || []; } catch (e) { box.innerHTML = '<div class="empty-hint">Не удалось загрузить.</div>'; return; }
-  box.innerHTML = supps.length ? '' : '<div class="empty-hint">Список пуст. Добавь, что принимаешь, — Fom будет это учитывать.</div>';
+  box.innerHTML = supps.length ? '' : '<div class="empty-hint">Список пуст. Добавь, что принимаешь, - Fom будет это учитывать.</div>';
   supps.forEach((x) => {
     const row = document.createElement('div');
     row.className = 'supp-row';
@@ -7826,7 +7826,7 @@ $('rusadaBtn').addEventListener('click', () => {
 $('suppAskBtn').addEventListener('click', () => {
   document.querySelector('.bottom-nav [data-screen="chatScreen"]')?.click();
   setTimeout(() => {
-    $('chatInput').value = 'Какие добавки или витамины мне стоит обсудить с врачом или тренером — с учётом моих тренировок, сна и анализов?';
+    $('chatInput').value = 'Какие добавки или витамины мне стоит обсудить с врачом или тренером - с учётом моих тренировок, сна и анализов?';
     $('chatInput').dispatchEvent(new Event('input', { bubbles: true }));
     $('chatInput').focus();
   }, 150);
@@ -7844,7 +7844,7 @@ $('suppAskBtn').addEventListener('click', () => {
       location.reload(); // так проще всего убрать/вернуть все эффекты
     });
   }
-  // если телефон не признан слабым, но при первой прокрутке кадры идут реже ~40 в секунду — включаем лёгкий режим сами
+  // если телефон не признан слабым, но при первой прокрутке кадры идут реже ~40 в секунду - включаем лёгкий режим сами
   let saved = null; try { saved = localStorage.getItem('forma_lite'); } catch (e) { /* ладно */ }
   if (root.classList.contains('lite') || saved === '0' || !/Android/i.test(navigator.userAgent)) return;
   let sampling = false;
