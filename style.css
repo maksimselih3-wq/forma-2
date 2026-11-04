@@ -1,5 +1,5 @@
 /* =====================================================================
-   Forma — тёмный стиль: глубокий фон, стеклянные карточки,
+   Forma - тёмный стиль: глубокий фон, стеклянные карточки,
    неоново-салатовый акцент, широкий шрифт Unbounded для заголовков
    ===================================================================== */
 :root {
@@ -14,7 +14,7 @@
   --muted: #8b93a7;
   --lime: #b4f53c;
   --lime-text: #b4f53c; /* салатовый для текста: в светлой теме темнее, чтобы читался */
-  --ink: 255, 255, 255; /* «стекло» поверх фона: в тёмной теме — белое, в светлой — тёмное */
+  --ink: 255, 255, 255; /* «стекло» поверх фона: в тёмной теме - белое, в светлой - тёмное */
   --lime-2: #6fdc3a;
   --purple: #9b6bff;
   --danger: #ff5a4f;
@@ -203,7 +203,7 @@ textarea, input[type="text"], input[type="number"] {
 }
 textarea:focus, input[type="text"]:focus, input[type="number"]:focus { border-color: rgba(180, 245, 60, 0.55); }
 ::placeholder { color: #5f6778; }
-/* убираем стрелочки у числовых полей — на телефоне они только мешают */
+/* убираем стрелочки у числовых полей - на телефоне они только мешают */
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -310,7 +310,7 @@ input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 24px;            /* высота «дорожки» для пальца; сама линия — 6 px по центру */
+  height: 24px;            /* высота «дорожки» для пальца; сама линия - 6 px по центру */
   margin: 0;
   padding: 0;
   background: transparent;
@@ -336,7 +336,7 @@ input[type="range"]::-moz-range-track {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 22px; height: 22px;
-  margin-top: -8px;        /* (6 − 22) / 2: центр бегунка — на середине линии */
+  margin-top: -8px;        /* (6 − 22) / 2: центр бегунка - на середине линии */
   border-radius: 50%;
   background: #fff;
   border: 3px solid var(--bg);
@@ -515,10 +515,10 @@ input[type="range"]::-moz-range-thumb {
   background-color: var(--card-solid);
   background-size: cover;
   background-position: center;
-  /* тонкая аккуратная рамка тенью — без яркой полосы по краю фото */
+  /* тонкая аккуратная рамка тенью - без яркой полосы по краю фото */
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 18px 40px rgba(0, 0, 0, 0.45);
 }
-/* мягкая «мутность» снизу фото — под именем */
+/* мягкая «мутность» снизу фото - под именем */
 .profile-hero::before {
   content: '';
   position: absolute;
@@ -542,7 +542,7 @@ input[type="range"]::-moz-range-thumb {
   position: absolute; left: 16px; right: 16px; bottom: 16px;
   display: flex; flex-direction: column; align-items: flex-start;
 }
-/* вид спорта — строка над именем */
+/* вид спорта - строка над именем */
 .hero-sport {
   max-width: 100%;
   padding: 0;
@@ -727,7 +727,7 @@ button.hero-sport { cursor: pointer; }
 .chat-section {
   display: flex;
   flex-direction: column;
-  /* высота экрана минус шапка и нижняя панель — строка ввода всегда видна */
+  /* высота экрана минус шапка и нижняя панель - строка ввода всегда видна */
   height: calc(var(--app-h, 100vh) - 64px - var(--nav-space) + 12px - var(--nav-bottom) - env(safe-area-inset-top, 0px));
   padding-bottom: 8px;
 }
@@ -761,7 +761,7 @@ button.hero-sport { cursor: pointer; }
 .chat-bubble.assistant strong { color: var(--lime-text); }
 .chat-bubble.typing { color: var(--muted); }
 
-/* строка ввода — как в мессенджере */
+/* строка ввода - как в мессенджере */
 .chat-input-row { display: flex; align-items: flex-end; gap: 8px; }
 .chat-input-row textarea {
   flex: 1 1 auto; min-width: 0; border-radius: 22px; padding: 11px 18px;
@@ -872,12 +872,12 @@ button.hero-sport { cursor: pointer; }
   line-height: 18px;
 }
 
-/* аватарки: фото поверх буквы (если фото не загрузилось — видна буква) */
+/* аватарки: фото поверх буквы (если фото не загрузилось - видна буква) */
 .friend-ava { position: relative; overflow: hidden; }
 .friend-ava img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .friend-ava.small { width: 30px; height: 30px; font-size: 13px; }
 
-/* список друзей — строки нажимаются */
+/* список друзей - строки нажимаются */
 .friend-item.clickable { width: 100%; text-align: left; color: var(--text); cursor: pointer; font-family: inherit; }
 .friend-item.clickable:active { opacity: 0.75; }
 .friend-sub { display: block; font-weight: 500; font-size: 12px; color: var(--muted); margin-top: 2px; }
@@ -991,7 +991,7 @@ button.hero-sport { cursor: pointer; }
 
 /* ---------- Календарь друга ---------- */
 .cal-cell.readonly:disabled { cursor: default; }
-/* закрытый день: видно, что он был, но без подробностей — с замочком */
+/* закрытый день: видно, что он был, но без подробностей - с замочком */
 .cal-cell.locked { position: relative; }
 .cal-cell.has-training.locked { background: rgba(180, 245, 60, 0.28); color: var(--text); box-shadow: inset 0 0 0 1.5px rgba(180, 245, 60, 0.75); }
 .cal-cell.locked::after {
@@ -1006,7 +1006,7 @@ button.hero-sport { cursor: pointer; }
 .privacy-row { margin-top: 8px; }
 .privacy-hint { font-size: 12px; line-height: 1.4; margin-top: 8px; }
 
-/* метка «рекорд серии» — спокойнее основной */
+/* метка «рекорд серии» - спокойнее основной */
 .tag.tag-soft { border-color: rgba(255, 255, 255, 0.25); color: rgba(255, 255, 255, 0.85); }
 .tag-btn { font-family: inherit; cursor: pointer; }
 .tag-btn:active { opacity: 0.7; }
@@ -1236,7 +1236,7 @@ button.hero-sport { cursor: pointer; }
 /* во второй тренировке нельзя выбрать «Отдых» */
 .second-mode [data-f="typeSwitch"] [data-type="rest"] { display: none; }
 #editFormFields [data-f="repeatBtn"] { display: none; }
-/* в календаре — маленькая метка «×2» на днях с двумя тренировками */
+/* в календаре - маленькая метка «×2» на днях с двумя тренировками */
 .cal-cell.double { position: relative; }
 .cal-cell.double::after {
   content: '×2';
@@ -1302,7 +1302,7 @@ button.hero-sport { cursor: pointer; }
   background: radial-gradient(circle at 50% 35%, rgba(155, 107, 255, 0.3), rgba(var(--ink), 0.03) 70%);
   box-shadow: inset 0 0 14px rgba(155, 107, 255, 0.2), 0 0 18px rgba(155, 107, 255, 0.2);
 }
-/* блик сверху и снизу — как у настоящего барабана */
+/* блик сверху и снизу - как у настоящего барабана */
 .gift-slot::after {
   content: '';
   position: absolute; inset: 0;
@@ -1380,7 +1380,7 @@ button.hero-sport { cursor: pointer; }
 @keyframes dlg-pop-out { to { opacity: 0; transform: scale(0.95); } }
 
 /* =====================================================================
-   Клавиатура открыта: прячем нижнюю панель, чат — на всю высоту
+   Клавиатура открыта: прячем нижнюю панель, чат - на всю высоту
    ===================================================================== */
 .bottom-nav { transition: opacity 0.15s ease, transform 0.15s ease; }
 body.kb-open .bottom-nav { opacity: 0; pointer-events: none; transform: translate(-50%, 24px); visibility: hidden; }
@@ -1506,7 +1506,7 @@ body.chat-open.kb-open { padding-bottom: 0; }
   font-size: 11px; font-weight: 800;
   box-shadow: 0 0 14px rgba(255, 196, 77, 0.45);
 }
-/* день со стартом в календаре — золотая обводка */
+/* день со стартом в календаре - золотая обводка */
 .cal-cell.has-comp { box-shadow: inset 0 0 0 2px #ffc44d, 0 0 12px rgba(255, 196, 77, 0.35); }
 
 .records-empty { font-size: 13px; line-height: 1.45; }
@@ -1598,7 +1598,7 @@ body.chat-open.kb-open { padding-bottom: 0; }
 /* картинка подарка в барабане */
 .gift-slot-item img { width: 40px; height: 40px; object-fit: contain; pointer-events: none; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4)); }
 
-/* в своём профиле серия и фото уже крупно на экране — в шапке их не дублируем */
+/* в своём профиле серия и фото уже крупно на экране - в шапке их не дублируем */
 .topbar-right { transition: opacity 0.2s ease; }
 body[data-screen="profileScreen"] .topbar-right { opacity: 0; visibility: hidden; pointer-events: none; }
 
@@ -1876,7 +1876,7 @@ button.rank-row { cursor: pointer; }
 .ach.ach-special .ach-title { color: #ffd15a; }
 
 /* =====================================================================
-   Светлая тема — включается в «Настройках» (html[data-theme="light"])
+   Светлая тема - включается в «Настройках» (html[data-theme="light"])
    ===================================================================== */
 html[data-theme="light"] {
   --fade-rgb: 243, 244, 239;
@@ -1921,7 +1921,7 @@ html[data-theme="light"] input, html[data-theme="light"] textarea { color: var(-
 html[data-theme="light"] ::placeholder { color: #9aa1ae; }
 html[data-theme="light"] .vis-picked { background: rgba(180, 245, 60, 0.14); border-color: rgba(79, 125, 11, 0.4); }
 html[data-theme="light"] .friend-pick-row.on { background: rgba(180, 245, 60, 0.16); border-color: rgba(79, 125, 11, 0.45); }
-/* шестерёнка настроек — в левом верхнем углу шапки профиля */
+/* шестерёнка настроек - в левом верхнем углу шапки профиля */
 .photo-btn.settings-btn { right: auto; left: 12px; }
 /* светлая тема: светлые тексты тёмной темы → тёмные */
 html[data-theme="light"] .done-summary,
@@ -1935,7 +1935,7 @@ html[data-theme="light"] .gift-when, html[data-theme="light"] .chat-limit.empty,
 html[data-theme="light"] .cd-num, html[data-theme="light"] .start-left, html[data-theme="light"] .rank-n.top { color: #b7791f; }
 html[data-theme="light"] .coach-tag { color: #6a3fd6; }
 html[data-theme="light"] .mini-head { background: rgba(255, 255, 255, 0.9); box-shadow: 0 10px 30px rgba(20, 24, 34, 0.14); }
-/* шапка профиля в светлой теме — остаётся «фото-карточкой» с тёмным низом, чтобы белый текст читался */
+/* шапка профиля в светлой теме - остаётся «фото-карточкой» с тёмным низом, чтобы белый текст читался */
 html[data-theme="light"] .profile-hero.no-photo {
   background-color: #2a2f3d;
   background-image:
@@ -2006,7 +2006,7 @@ html[data-theme="light"] .watch-btn { color: #6a3fd6; }
 .city-chips { margin-top: 10px; }
 .link-btn { background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .run-author-btn { text-decoration: none; }
-/* поля даты и времени в окнах (старт, рекорд, пробежка) — в стиле остальных полей */
+/* поля даты и времени в окнах (старт, рекорд, пробежка) - в стиле остальных полей */
 input[type="date"], input[type="time"] {
   width: 100%; min-width: 0;
   border: 1px solid var(--border);
@@ -2047,13 +2047,13 @@ html[data-theme="light"] .date-input-wrap input[type="date"] { color-scheme: lig
   color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
-/* системные поля даты и времени спрятаны под «плашками» — нажатие открывает выбор, но выглядят как наши кнопки */
+/* системные поля даты и времени спрятаны под «плашками» - нажатие открывает выбор, но выглядят как наши кнопки */
 .rn-day-other input, .rn-time-own input {
   position: absolute; inset: 0; width: 100%; height: 100%;
   opacity: 0; border: none; padding: 0; margin: 0; cursor: pointer;
   -webkit-appearance: none; appearance: none;
 }
-/* Safari (Telegram на Mac и iPhone): у полей даты своя высота и текст по центру — выравниваем */
+/* Safari (Telegram на Mac и iPhone): у полей даты своя высота и текст по центру - выравниваем */
 .st-date input[type="date"], #rcDate {
   -webkit-appearance: none; appearance: none;
   min-height: 46px; text-align: left; display: block;
@@ -2067,7 +2067,7 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .tp-value { margin-left: 6px; font-family: var(--font-head); color: var(--lime-text); }
 .tp-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 14px; }
 .tp-grid .rn-time { padding: 10px 0; text-align: center; }
-/* тренировка друга за день — окошко */
+/* тренировка друга за день - окошко */
 .day-sheet { max-height: 86vh; overflow-y: auto; }
 .day-sheet .wk-card { margin-bottom: 10px; }
 /* время тренировки в форме */
@@ -2253,7 +2253,7 @@ html[data-theme="light"] .bv-row.low .bv-val em, html[data-theme="light"] .bv-ro
 #editFeedback .ai-box-title { display: flex; align-items: center; gap: 8px; }
 
 /* ---------- Компоновка: главная без лишнего ---------- */
-/* серия и тренировки — одной тонкой строкой, чтобы запись тренировки была сразу видна */
+/* серия и тренировки - одной тонкой строкой, чтобы запись тренировки была сразу видна */
 .stats-row.stats-compact { gap: 6px; margin-bottom: 12px; }
 .stats-row.stats-compact .stat { display: flex;
   flex-direction: row; align-items: center; justify-content: center; gap: 6px;
@@ -2263,7 +2263,7 @@ html[data-theme="light"] .bv-row.low .bv-val em, html[data-theme="light"] .bv-ro
 .stats-row.stats-compact .stat-icon .ico { width: 15px; height: 15px; }
 .stats-row.stats-compact .stat-num { font-size: 18px; line-height: 1; margin: 0; }
 .stats-row.stats-compact .stat-label { font-size: 10px; margin: 0; line-height: 1.15; }
-/* необязательные блоки формы — в кнопки */
+/* необязательные блоки формы - в кнопки */
 .opt-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 2px 14px; }
 .opt-chips-label { font-size: 13px; color: var(--muted); width: 100%; }
 .opt-chip { display: inline-flex; align-items: center; gap: 6px; }
@@ -2330,7 +2330,7 @@ html.web-app body.chat-open.kb-open .chat-section {
   background: var(--bg);   /* сплошной тёмный фон: даже на миг ничего белого не видно */
   z-index: 60;
 }
-/* «стеклянная» панель под клавиатурой не нужна и на iOS мерцает белым — убираем целиком */
+/* «стеклянная» панель под клавиатурой не нужна и на iOS мерцает белым - убираем целиком */
 html.web-app body.kb-open .bottom-nav { display: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 html.web-app, html.web-app body { overscroll-behavior-y: none; }
 
@@ -2338,8 +2338,8 @@ html.web-app, html.web-app body { overscroll-behavior-y: none; }
    Края экрана: контент уходит под время/«остров» сверху и под нижнюю панель снизу, плавно размываясь.
    Верх включается там, где у экрана есть вырез (установленное приложение и приложение из магазина);
    в Telegram и в обычном браузере выреза нет. Нижняя дымка работает везде.
-   Размытие «ступенчатое»: полоса из тонких слоёв, у края — сильное, дальше слабее (слои создаёт app.js).
-   Масок и прозрачности на самих слоях нет — на iPhone размытие с маской после остановки прокрутки пропадало.
+   Размытие «ступенчатое»: полоса из тонких слоёв, у края - сильное, дальше слабее (слои создаёт app.js).
+   Масок и прозрачности на самих слоях нет - на iPhone размытие с маской после остановки прокрутки пропадало.
    ===================================================================== */
 #statusFade, #bottomFade {
   display: none;
@@ -2378,10 +2378,10 @@ body.has-bottom-fade #bottomFade { visibility: visible; }
   background: linear-gradient(0deg, rgba(var(--fade-rgb), 0.22) 0%, rgba(var(--fade-rgb), 0.12) 40%, rgba(var(--fade-rgb), 0.04) 75%, rgba(var(--fade-rgb), 0) 100%);
 }
 
-/* где нижняя панель скрыта или у экрана свой фон — дымка не нужна */
+/* где нижняя панель скрыта или у экрана свой фон - дымка не нужна */
 body.login-open #bottomFade, body.kb-open #bottomFade { display: none; }
 html.web-app body.chat-open.kb-open #statusFade { display: none; }
-body.chat-open #statusFade { display: none; }  /* в чате страница не листается — размывать нечего */
+body.chat-open #statusFade { display: none; }  /* в чате страница не листается - размывать нечего */
 
 /* =====================================================================
    Липкая шапка и вкладки: остаются наверху, при прокрутке «сжимаются»
@@ -2425,7 +2425,7 @@ body.chat-open { overflow: hidden; overscroll-behavior: none; }
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 18px, #000 calc(100% - 14px), transparent 100%);
   mask-image: linear-gradient(180deg, transparent 0, #000 18px, #000 calc(100% - 14px), transparent 100%);
 }
-/* клавиатура открыта: чат на всю видимую высоту, строка ввода — над клавиатурой */
+/* клавиатура открыта: чат на всю видимую высоту, строка ввода - над клавиатурой */
 body.chat-open.kb-open .chat-section {
   top: var(--app-top, 0px);
   bottom: auto;
@@ -2437,7 +2437,7 @@ body.chat-open .chat-input-row { padding-bottom: env(safe-area-inset-bottom, 0px
 body.chat-open.kb-open .chat-input-row { padding-bottom: 0; }
 
 /* =====================================================================
-   «Разбор» — один экран без прокрутки страницы (как чат)
+   «Разбор» - один экран без прокрутки страницы (как чат)
    ===================================================================== */
 body[data-screen="insightsScreen"] { overflow: hidden; overscroll-behavior: none; }
 .insights-one {
