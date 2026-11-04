@@ -26,7 +26,7 @@
 <!-- Заставка: стили прямо здесь, чтобы она появилась мгновенно, ещё до загрузки остального -->
 <script>
   // Страховка от «вечной заставки»: если через 25 секунд приложение так и не запустилось
-  // (нет связи, очень старый телефон, ошибка) — показываем понятный текст и кнопку «Обновить»
+  // (нет связи, очень старый телефон, ошибка) - показываем понятный текст и кнопку «Обновить»
   window.__bootErr = '';
   window.addEventListener('error', function (e) { if (!window.__bootErr) window.__bootErr = (e.message || 'ошибка') + (e.lineno ? ' @' + e.lineno : ''); });
   setTimeout(function () {
@@ -34,7 +34,7 @@
     if (!sp || sp.classList.contains('hide')) return;
     var box = document.createElement('div');
     box.style.cssText = 'position:absolute;left:24px;right:24px;bottom:12%;text-align:center;font:500 15px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;color:#9aa1ae';
-    box.innerHTML = 'Не получается загрузить Forma.<br>Проверь интернет' + (/github\.io$/.test(location.hostname) ? ' — в России без VPN может не открываться' : '') + '.' +
+    box.innerHTML = 'Не получается загрузить Forma.<br>Проверь интернет' + (/github\.io$/.test(location.hostname) ? ' - в России без VPN может не открываться' : '') + '.' +
       '<br><button type="button" style="margin-top:14px;padding:12px 22px;border:none;border-radius:14px;background:#b4f53c;color:#0b0d10;font-weight:800;font-size:15px" onclick="location.reload()">Обновить</button>' +
       (window.__bootErr ? '<div style="margin-top:10px;font-size:11px;opacity:.7">' + String(window.__bootErr).replace(/</g, '&lt;').slice(0, 160) + '</div>' : '');
     sp.appendChild(box);
@@ -76,7 +76,7 @@
     stroke-dasharray: var(--len); stroke-dashoffset: var(--len);
     animation: splash-draw var(--dur) cubic-bezier(0.45, 0, 0.35, 1) var(--delay) forwards;
   }
-  /* мягкий ореол за точкой — как свечение у точки в шапке */
+  /* мягкий ореол за точкой - как свечение у точки в шапке */
   #splash circle.halo {
     fill: #b4f53c;
     opacity: 0;
@@ -117,10 +117,10 @@
     l.onerror = function () { if (!native && !self) { l.onerror = null; l.href = MIRROR + '/api/asset/fonts.css'; } };
     document.head.appendChild(l);
 
-    // скрипт Telegram: сначала основной адрес, при неудаче — запасной; страница ждёт не дольше 3,5 секунды
+    // скрипт Telegram: сначала основной адрес, при неудаче - запасной; страница ждёт не дольше 3,5 секунды
     window.__tgWait = new Promise(function (resolve) {
       if (native || window.Telegram) return resolve();
-      // вне Telegram (браузер, иконка на экране, приложение) скрипт Telegram не нужен — запускаемся сразу, не ждём его
+      // вне Telegram (браузер, иконка на экране, приложение) скрипт Telegram не нужен - запускаемся сразу, не ждём его
       var inTg = /tgWebApp/i.test(location.hash + location.search) || !!window.TelegramWebviewProxy || /Telegram/i.test(navigator.userAgent);
       if (!inTg) return resolve();
       var urls = self ? ['/api/asset/tg.js', 'https://telegram.org/js/telegram-web-app.js']
@@ -141,7 +141,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=100" />
+<link rel="stylesheet" href="style.css?v=101" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -171,7 +171,7 @@
         <ol>
           <li>Нажми «Поделиться» <span class="login-share" aria-hidden="true">⬆︎</span> внизу Safari.</li>
           <li>Выбери «На экран «Домой»» и нажми «Добавить».</li>
-          <li>Открой иконку Forma на главном экране — и войди уже в ней.</li>
+          <li>Открой иконку Forma на главном экране - и войди уже в ней.</li>
         </ol>
         <div class="muted">Так вход сохранится, и приложение будет открываться на весь экран.</div>
       </div>
@@ -190,7 +190,7 @@
         <input type="text" id="loginCode" class="hidden" placeholder="Код из письма (6 цифр)" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
         <button type="button" id="loginForgot" class="ghost-btn wide">Забыл пароль?</button>
         <button type="button" id="loginMailSwitch" class="ghost-btn wide">Нет аккаунта? Создать</button>
-        <div class="muted login-note">Если ты уже пользуешься Forma через Telegram, привяжи почту в настройках — и входи ею на любом устройстве, даже когда Telegram не открывается.</div>
+        <div class="muted login-note">Если ты уже пользуешься Forma через Telegram, привяжи почту в настройках - и входи ею на любом устройстве, даже когда Telegram не открывается.</div>
       </div>
     </div>
   </section>
@@ -205,7 +205,7 @@
     </svg>
   </div>
   <script>
-    // Буквы «пишутся» по очереди: F (три штриха), затем «orma» одним росчерком — всего около секунды
+    // Буквы «пишутся» по очереди: F (три штриха), затем «orma» одним росчерком - всего около секунды
     (function () {
       var timing = [[0, 0.2], [0.18, 0.22], [0.38, 0.1], [0.46, 0.55]];
       document.querySelectorAll('#splash path').forEach(function (p, i) {
@@ -266,13 +266,13 @@
       </div>
     </section>
 
-    <!-- Карточка «запись уже есть / сохранена» — показывается вместо формы -->
+    <!-- Карточка «запись уже есть / сохранена» - показывается вместо формы -->
     <section id="entryDone" class="card done-card hidden">
       <div class="done-title" id="doneTitle">Запись сохранена</div>
       <!-- сюда рисуются все записи дня: основная и вторая тренировка -->
       <div id="doneList"></div>
       <button type="button" id="doneAddBtn" class="add-second-btn hidden">➕ Добавить вторую тренировку</button>
-      <div class="muted done-hint">Новые записи — только за сегодня и вчера. Прошлые можно открыть и поправить в календаре профиля.</div>
+      <div class="muted done-hint">Новые записи - только за сегодня и вчера. Прошлые можно открыть и поправить в календаре профиля.</div>
     </section>
 
     <!-- Форма новой записи (поля рисуются из app.js) -->
@@ -327,13 +327,13 @@
   <section id="profileScreen" class="screen hidden">
     <div class="profile-hero" id="profileHero">
       <div class="profile-hero-shade"></div>
-      <!-- смена фото — маленькая круглая кнопка в углу -->
+      <!-- смена фото - маленькая круглая кнопка в углу -->
       <button type="button" class="photo-btn settings-btn" id="settingsBtn" aria-label="Настройки" title="Настройки"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 8.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.5-2-3.4-2.3.9a7.4 7.4 0 0 0-2.6-1.5L14.1 2.5h-4.2l-.4 2.5a7.4 7.4 0 0 0-2.6 1.5l-2.3-.9-2 3.4 2 1.5a7.6 7.6 0 0 0 0 3l-2 1.5 2 3.4 2.3-.9c.8.7 1.6 1.2 2.6 1.5l.4 2.5h4.2l.4-2.5c1-.3 1.8-.8 2.6-1.5l2.3.9 2-3.4-2-1.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
       <button type="button" class="photo-btn" id="photoBtn" aria-label="Сменить фото" title="Сменить фото">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.6l1.2-1.7c.3-.4.7-.6 1.2-.6h3c.5 0 .9.2 1.2.6L15.9 6h1.6A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5v-8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
       </button>
       <div class="profile-hero-bottom">
-        <!-- дисциплина — строкой над именем, нажми, чтобы изменить -->
+        <!-- дисциплина - строкой над именем, нажми, чтобы изменить -->
         <button type="button" class="hero-sport empty" id="profileSport">＋ Укажи дисциплину</button>
         <div class="profile-name" id="profileName">Спортсмен</div>
         <div class="profile-tags">
@@ -386,7 +386,7 @@
         <span><i class="dot dot-rest"></i> отдых</span>
       </div>
       <div id="calSummary" class="muted cal-summary"></div>
-      <div class="muted cal-help">Нажми на отмеченный день — откроешь запись. Новые записи — только за сегодня и вчера.</div>
+      <div class="muted cal-help">Нажми на отмеченный день - откроешь запись. Новые записи - только за сегодня и вчера.</div>
     </section>
 
     <!-- Цели на месяц: Fom видит их и следит за прогрессом -->
@@ -417,7 +417,7 @@
       <div id="startsList"></div>
     </section>
 
-    <!-- Разделы: здоровье и розыгрыши — чтобы не загромождать профиль -->
+    <!-- Разделы: здоровье и розыгрыши - чтобы не загромождать профиль -->
     <div class="menu-group">
     <button type="button" class="card health-entry" id="healthEntry">
       <span class="health-entry-ico">❤️</span>
@@ -452,7 +452,7 @@
         <div class="card-label"><i data-ico="lock"></i>Анкета для Fom</div>
         <button type="button" class="gift-rules-btn" id="athleteEditBtn">Заполнить</button>
       </div>
-      <div class="athlete-summary" id="athleteSummary">Рост, вес, возраст, стаж и цели — чтобы Fom понимал, с кем имеет дело.</div>
+      <div class="athlete-summary" id="athleteSummary">Рост, вес, возраст, стаж и цели - чтобы Fom понимал, с кем имеет дело.</div>
       <div class="muted athlete-note">Видно только тебе и Fom. Друзья это не видят.</div>
     </section>
 
@@ -501,7 +501,7 @@
       </div>
 
       <div class="card-label af-label">Личные рекорды</div>
-      <textarea id="afRecords" rows="2" maxlength="300" placeholder="Например: 800 м — 1:58, 1500 м — 4:05"></textarea>
+      <textarea id="afRecords" rows="2" maxlength="300" placeholder="Например: 800 м - 1:58, 1500 м - 4:05"></textarea>
       <div class="card-label af-label">Цель на сезон</div>
       <textarea id="afGoal" rows="2" maxlength="300" placeholder="Например: выбежать 800 м из 1:55"></textarea>
       <div class="card-label af-label">Травмы и ограничения</div>
@@ -550,7 +550,7 @@
         <div class="rn-label">Дисциплина</div>
         <div class="comp-chips" id="gDiscChips"></div>
         <input type="text" id="gDisc" maxlength="40" placeholder="Или напиши свою" />
-        <div class="rn-label" style="margin-top:10px">Цель — результат</div>
+        <div class="rn-label" style="margin-top:10px">Цель - результат</div>
         <input type="text" id="gTarget" maxlength="20" placeholder="Например, 1:52,0 или 7,20 м" />
       </div>
       <div class="rn-block goal-f" data-for="weight">
@@ -558,7 +558,7 @@
           <label class="hr-field"><span>Сейчас, кг</span><input type="number" id="gWeightNow" inputmode="decimal" placeholder="70" /></label>
           <label class="hr-field"><span>Цель, кг</span><input type="number" id="gWeightTarget" inputmode="decimal" placeholder="73" /></label>
         </div>
-        <div class="muted run-safety">Fom будет смотреть, как идут тренировки и вес. Питание — бережно, без жёстких диет; вопросы здоровья обсуди с врачом.</div>
+        <div class="muted run-safety">Fom будет смотреть, как идут тренировки и вес. Питание - бережно, без жёстких диет; вопросы здоровья обсуди с врачом.</div>
       </div>
       <div class="rn-block goal-f" data-for="custom">
         <div class="rn-label">Твоя цель</div>
@@ -587,7 +587,7 @@
   <div id="recordSheet" class="sheet-backdrop hidden">
     <div class="sheet start-sheet">
       <div class="sheet-title">🏆 Личный рекорд</div>
-      <div class="muted center rec-hint">Внеси лучший результат — друзья и Fom увидят его сразу, без записи старта.</div>
+      <div class="muted center rec-hint">Внеси лучший результат - друзья и Fom увидят его сразу, без записи старта.</div>
       <div class="card-label comp-sub">Дисциплина</div>
       <div class="comp-chips" id="rcChips"></div>
       <input type="text" id="rcDisc" maxlength="40" placeholder="Или напиши свою" />
@@ -638,9 +638,9 @@
     <div class="sheet watch-sheet">
       <div class="sheet-title">⌚ Тренировка с часов Garmin</div>
       <ol class="watch-steps">
-        <li>Открой <b>connect.garmin.com</b> в браузере — в приложении Garmin Connect кнопки экспорта нет. На айфоне в Safari: «аА» → «Запрос настольного веб-сайта».</li>
+        <li>Открой <b>connect.garmin.com</b> в браузере - в приложении Garmin Connect кнопки экспорта нет. На айфоне в Safari: «аА» → «Запрос настольного веб-сайта».</li>
         <li>«Активности» → нужная тренировка.</li>
-        <li>Шестерёнка ⚙ справа сверху → <b>«Экспорт оригинала»</b>. Скачается файл <b>.zip</b> — распаковывать не нужно.</li>
+        <li>Шестерёнка ⚙ справа сверху → <b>«Экспорт оригинала»</b>. Скачается файл <b>.zip</b> - распаковывать не нужно.</li>
         <li>Вернись сюда, нажми <b>«Загрузить с часов»</b> и выбери этот файл (на айфоне: «Файлы» → «Загрузки»).</li>
       </ol>
       <div class="muted watch-note">Fom сам разложит круги: разминка, отрезки с временем, отдых, заминка и пульс. Останется добавить самочувствие и RPE. Файлы .GPX и .TCX (Strava, Coros, Polar) тоже подходят.</div>
@@ -663,7 +663,7 @@
   <div id="repeatSheet" class="sheet-backdrop hidden">
     <div class="sheet repeat-sheet">
       <div class="sheet-title">Повторить тренировку</div>
-      <div class="muted center repeat-hint">Поля заполнятся как в выбранной тренировке — останется поправить цифры.</div>
+      <div class="muted center repeat-hint">Поля заполнятся как в выбранной тренировке - останется поправить цифры.</div>
       <div id="repeatList"></div>
       <button type="button" class="sheet-btn muted-btn" id="repeatCancelBtn">Отмена</button>
     </div>
@@ -773,18 +773,18 @@
     <div class="sheet gift-sheet">
       <div class="sheet-title"><i data-ico="gift"></i> Розыгрыши Forma</div>
       <div class="gift-rules">
-        <p><b><i data-ico="flame"></i> Каждую неделю</b> — прикольные подарки. Участвуют все, у кого честная серия <b>от 7 дней</b>. Итоги в воскресенье в 20:00 (МСК).</p>
-        <p><b><i data-ico="diamond"></i> Каждый месяц</b> — подарки покруче. Нужна честная серия <b>от 30 дней</b>. Итоги в последний день месяца в 20:00 (МСК).</p>
-        <p><b>Честная серия</b> — дни подряд, где запись сделана в тот же день или не позже следующего. Дни, заполненные задним числом, в розыгрыше не считаются.</p>
-        <p><b>Билеты:</b> чем длиннее серия, тем больше шансов. В неделе — 1 билет за каждые 7 дней (до 5), в месяце — 1 билет за каждые 30 дней (до 3).</p>
+        <p><b><i data-ico="flame"></i> Каждую неделю</b> - прикольные подарки. Участвуют все, у кого честная серия <b>от 7 дней</b>. Итоги в воскресенье в 20:00 (МСК).</p>
+        <p><b><i data-ico="diamond"></i> Каждый месяц</b> - подарки покруче. Нужна честная серия <b>от 30 дней</b>. Итоги в последний день месяца в 20:00 (МСК).</p>
+        <p><b>Честная серия</b> - дни подряд, где запись сделана в тот же день или не позже следующего. Дни, заполненные задним числом, в розыгрыше не считаются.</p>
+        <p><b>Билеты:</b> чем длиннее серия, тем больше шансов. В неделе - 1 билет за каждые 7 дней (до 5), в месяце - 1 билет за каждые 30 дней (до 3).</p>
         <p><b>Бонус за друзей:</b> когда приглашённый тобой друг сделает 3 записи, ты получаешь +1 билет в недельный розыгрыш (до 3 таких билетов). Бонус работает, только если у тебя уже есть серия от 7 дней.</p>
         <p>Победители выбираются случайно, бот напишет им в Telegram, а подарок придёт прямо туда.</p>
         <details class="gift-more">
           <summary>Полные условия</summary>
           <p>Участие бесплатное, ничего покупать и платить не нужно. Розыгрыш не является азартной игрой: исход зависит только от случайного выбора среди участников с честной серией.</p>
-          <p>Организатор — разработчик Forma. Организатор и его аккаунты в розыгрыше не участвуют.</p>
-          <p>Один человек — один аккаунт. Фальшивые записи, накрутка серии, лишние аккаунты и обход правил ведут к исключению из розыгрыша.</p>
-          <p>Призы — подарки (цифровые или простые вещи), на деньги не обмениваются. Если приз требует доставки, организатор попросит адрес только у победителя и использует его лишь для отправки.</p>
+          <p>Организатор - разработчик Forma. Организатор и его аккаунты в розыгрыше не участвуют.</p>
+          <p>Один человек - один аккаунт. Фальшивые записи, накрутка серии, лишние аккаунты и обход правил ведут к исключению из розыгрыша.</p>
+          <p>Призы - подарки (цифровые или простые вещи), на деньги не обмениваются. Если приз требует доставки, организатор попросит адрес только у победителя и использует его лишь для отправки.</p>
           <p>Имя и @username победителей показываются в приложении в разделе «Розыгрыши». Если не хочешь, чтобы тебя показывали, напиши в «Поддержку» до розыгрыша.</p>
           <p>Организатор вправе изменять условия, число призов и сроки: новые условия будут видны здесь до начала следующего розыгрыша.</p>
         </details>
@@ -794,11 +794,11 @@
     </div>
   </div>
 
-  <!-- Выбор дисциплины (Forma — для лёгкой атлетики) -->
+  <!-- Выбор дисциплины (Forma - для лёгкой атлетики) -->
   <div id="sportSheet" class="sheet-backdrop hidden">
     <div class="sheet sport-sheet">
       <div class="sheet-title">🏃 Твоя дисциплина</div>
-      <div class="muted center sport-note">Лёгкая атлетика — выбери направление или напиши точнее.</div>
+      <div class="muted center sport-note">Лёгкая атлетика - выбери направление или напиши точнее.</div>
       <div id="disciplineBlock">
         <div class="discipline-chips" id="disciplineChips"></div>
         <input type="text" id="disciplineInput" maxlength="40" placeholder="Или напиши свою: например, 800 м, 400 м с/б" autocomplete="off" />
@@ -891,7 +891,7 @@
       <div class="muted gift-sub" id="giftStreak"></div>
       <div id="giftRows"></div>
     </section>
-    <div class="muted empty-hint hidden" id="giftsEmpty">Сейчас розыгрышей нет — загляни позже.</div>
+    <div class="muted empty-hint hidden" id="giftsEmpty">Сейчас розыгрышей нет - загляни позже.</div>
   </section>
 
   <!-- ===================== ЗДОРОВЬЕ ===================== -->
@@ -926,10 +926,10 @@
       <div id="foodList"></div>
       <section class="card mc-fom" id="foodFomCard">
         <div class="mc-fom-head"><span class="fom-badge">F</span><b>Fom о питании за день</b></div>
-        <div class="mc-fom-text muted" id="foodFomText">Сфотографируй, что ешь за день, — Fom сравнит с нагрузкой и твоими целями: хватает ли энергии и белка.</div>
+        <div class="mc-fom-text muted" id="foodFomText">Сфотографируй, что ешь за день, - Fom сравнит с нагрузкой и твоими целями: хватает ли энергии и белка.</div>
         <button type="button" class="ghost-btn" id="foodFomBtn">Как я поел?</button>
       </section>
-      <div class="muted health-note">Цифры — примерная оценка по фото, не точный подсчёт. Ориентиры белка и углеводов посчитаны на кг веса под нагрузку дня (вес берём из «Целей» или анкеты).</div>
+      <div class="muted health-note">Цифры - примерная оценка по фото, не точный подсчёт. Ориентиры белка и углеводов посчитаны на кг веса под нагрузку дня (вес берём из «Целей» или анкеты).</div>
     </div>
 
     <!-- Анализы -->
@@ -942,8 +942,8 @@
     <!-- БАДы -->
     <div id="hSupps" class="hidden">
       <section class="card rusada-card">
-        <div class="card-label">🛡️ Сначала — проверка РУСАДА</div>
-        <div class="rusada-text">Любой препарат и добавку перед приёмом проверь в официальном сервисе РУСАДА. Fom подскажет, о чём подумать, но <b>не может гарантировать</b>, что препарат разрешён. БАДы бывают загрязнены запрещёнными веществами — отвечает за это спортсмен. Решение о приёме — с врачом или тренером.</div>
+        <div class="card-label">🛡️ Сначала - проверка РУСАДА</div>
+        <div class="rusada-text">Любой препарат и добавку перед приёмом проверь в официальном сервисе РУСАДА. Fom подскажет, о чём подумать, но <b>не может гарантировать</b>, что препарат разрешён. БАДы бывают загрязнены запрещёнными веществами - отвечает за это спортсмен. Решение о приёме - с врачом или тренером.</div>
         <button type="button" class="ghost-btn" id="rusadaBtn">Проверить на list.rusada.ru ↗</button>
       </section>
       <section class="card">
@@ -978,7 +978,7 @@
         <button type="button" class="seg-btn" data-theme-pick="light">☀️ Светлая</button>
         <button type="button" class="seg-btn" data-theme-pick="auto">Как в Telegram</button>
       </div>
-      <div class="muted privacy-hint">«Как в Telegram» — тема меняется вместе с оформлением Telegram.</div>
+      <div class="muted privacy-hint">«Как в Telegram» - тема меняется вместе с оформлением Telegram.</div>
     </section>
 
     <section class="card">
@@ -988,7 +988,7 @@
         <span class="toggle"></span>
         <span>Лёгкий режим</span>
       </label>
-      <div class="muted privacy-hint">Отключает размытие и часть анимаций — приложение быстрее работает на слабых телефонах. Если у тебя лагает, включи.</div>
+      <div class="muted privacy-hint">Отключает размытие и часть анимаций - приложение быстрее работает на слабых телефонах. Если у тебя лагает, включи.</div>
     </section>
 
     <section class="card">
@@ -1005,7 +1005,7 @@
         <span class="toggle"></span>
         <span>Итоги недели от Fom</span>
       </label>
-      <div class="muted privacy-hint">По воскресеньям в 19:00 — короткий разбор недели.</div>
+      <div class="muted privacy-hint">По воскресеньям в 19:00 - короткий разбор недели.</div>
       <label class="toggle-row privacy-row">
         <input type="checkbox" id="partnersNotifyToggle" checked />
         <span class="toggle"></span>
@@ -1021,19 +1021,19 @@
         <span class="toggle"></span>
         <span>Друзья видят весь мой календарь</span>
       </label>
-      <div class="muted privacy-hint">Друзья видят подробно только тренировки, открытые им («Все друзья» или «Выбрать»). Остальные дни — просто отметкой в календаре. Выключи, и отметки закрытых дней пропадут.</div>
+      <div class="muted privacy-hint">Друзья видят подробно только тренировки, открытые им («Все друзья» или «Выбрать»). Остальные дни - просто отметкой в календаре. Выключи, и отметки закрытых дней пропадут.</div>
       <label class="toggle-row privacy-row">
         <input type="checkbox" id="showRecordsToggle" checked />
         <span class="toggle"></span>
         <span>Друзья видят мои личные рекорды</span>
       </label>
-      <div class="muted privacy-hint">Лучший результат в каждой дисциплине — в твоём профиле у друзей.</div>
+      <div class="muted privacy-hint">Лучший результат в каждой дисциплине - в твоём профиле у друзей.</div>
       <button type="button" class="ghost-btn wide" id="previewProfileBtn"><i data-ico="eye"></i> Как меня видят друзья</button>
     </section>
 
     <section class="card hidden" id="stravaCard">
       <div class="eyebrow">Strava</div>
-      <div class="muted privacy-hint" id="stravaHint">Подключи Strava — тренировки с часов сами появятся в дневнике. Останется дополнить: самочувствие, заметки, отрезки.</div>
+      <div class="muted privacy-hint" id="stravaHint">Подключи Strava - тренировки с часов сами появятся в дневнике. Останется дополнить: самочувствие, заметки, отрезки.</div>
       <button type="button" class="ghost-btn wide strava-btn" id="stravaConnectBtn">Подключить Strava</button>
       <button type="button" class="ghost-btn wide hidden" id="stravaSyncBtn"><i data-ico="sparkle"></i> Обновить сейчас</button>
       <button type="button" class="ghost-btn danger wide hidden" id="stravaDisconnectBtn">Отключить Strava</button>
@@ -1053,7 +1053,7 @@
 
     <section class="card" id="mailCard">
       <div class="eyebrow">Вход без Telegram</div>
-      <div class="muted privacy-hint" id="mailState">Привяжи почту и пароль — и сможешь войти в этот же аккаунт, даже когда Telegram не открывается.</div>
+      <div class="muted privacy-hint" id="mailState">Привяжи почту и пароль - и сможешь войти в этот же аккаунт, даже когда Telegram не открывается.</div>
       <div id="mailForm">
         <input type="email" id="mailEmail" placeholder="Почта" autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" />
         <input type="password" id="mailPass" placeholder="Новый пароль (от 8 символов)" autocomplete="new-password" />
@@ -1082,7 +1082,7 @@
       <div class="support-ico" data-ico="chat"></div>
       <div class="support-main">
         <div class="support-title">Поддержка</div>
-        <div class="muted">Нашёл ошибку или есть идея? Пиши — отвечу лично.</div>
+        <div class="muted">Нашёл ошибку или есть идея? Пиши - отвечу лично.</div>
       </div>
       <button type="button" class="gift-rules-btn" id="supportBtn">Написать</button>
     </section>
@@ -1138,7 +1138,7 @@
     <div id="groupsTab" class="hidden">
       <section class="card invite-card">
         <div class="card-label"><i data-ico="gift"></i>Пригласи друзей</div>
-        <div class="muted invite-text">Друг придёт по твоей ссылке — вы сразу станете друзьями. Когда он запишет 3 тренировки, тебе <b>+1 билет</b> в недельный розыгрыш (до +3).</div>
+        <div class="muted invite-text">Друг придёт по твоей ссылке - вы сразу станете друзьями. Когда он запишет 3 тренировки, тебе <b>+1 билет</b> в недельный розыгрыш (до +3).</div>
         <div class="invite-stats" id="inviteStats"></div>
         <div class="btn-row">
           <button type="button" class="ghost-btn crop-save" id="inviteShareBtn">Пригласить</button>
@@ -1234,11 +1234,11 @@
     <div id="memberCoach" class="hidden">
       <div class="coach-tiles" id="mcTiles"></div>
       <section class="card mc-week">
-        <div class="mc-week-head"><span class="card-label">Неделя по дням</span><span class="muted">км · цвет — RPE</span></div>
+        <div class="mc-week-head"><span class="card-label">Неделя по дням</span><span class="muted">км · цвет - RPE</span></div>
         <div class="mc-bars" id="mcBars"></div>
       </section>
       <section class="card mc-fom">
-        <div class="mc-fom-head"><span class="fom-badge">F</span><b>Fom — для тренера</b></div>
+        <div class="mc-fom-head"><span class="fom-badge">F</span><b>Fom - для тренера</b></div>
         <div class="mc-fom-text" id="mcFomText"></div>
         <button type="button" class="ghost-btn" id="mcFomBtn">Спросить Fom</button>
       </section>
@@ -1434,7 +1434,7 @@
         <span><i class="dot dot-rest"></i> отдых</span>
       </div>
       <div id="fpCalSummary" class="muted cal-summary"></div>
-      <div id="fpCalHelp" class="muted cal-help">Нажми на отмеченный день — покажем тренировку. Закрытые дни видны без подробностей.</div>
+      <div id="fpCalHelp" class="muted cal-help">Нажми на отмеченный день - покажем тренировку. Закрытые дни видны без подробностей.</div>
     </section>
 
     <section class="card records-card hidden" id="fpRecordsCard">
@@ -1576,17 +1576,17 @@
       <div class="eyebrow">Forma</div>
       <h2 class="title">Политика конфиденциальности</h2>
       <h3>Кто мы</h3>
-      <p>Forma — тренировочный дневник в Telegram. Его делает независимый разработчик (далее — «мы»). Связаться с нами можно кнопкой «Поддержка» в настройках приложения.</p>
+      <p>Forma - тренировочный дневник в Telegram. Его делает независимый разработчик (далее - «мы»). Связаться с нами можно кнопкой «Поддержка» в настройках приложения.</p>
       <h3>Какие данные мы храним</h3>
-      <p>Данные из Telegram: числовой идентификатор, имя, фамилия, username и фото профиля. Всё, что ты вносишь сам: тренировки, самочувствие, пульс, сон, цели, рекорды, старты. По желанию — анализы крови, питание, вес, травмы и добавки. Сообщения в чатах с Fom, в группах и в чатах пробежек, город и место пробежки.</p>
+      <p>Данные из Telegram: числовой идентификатор, имя, фамилия, username и фото профиля. Всё, что ты вносишь сам: тренировки, самочувствие, пульс, сон, цели, рекорды, старты. По желанию - анализы крови, питание, вес, травмы и добавки. Сообщения в чатах с Fom, в группах и в чатах пробежек, город и место пробежки.</p>
       <h3>Зачем</h3>
       <p>Чтобы вести твой дневник, считать серии и достижения, показывать ленту друзьям, находить напарников для пробежек, присылать напоминания в Telegram и проводить розыгрыши.</p>
       <h3>Кто видит твои данные</h3>
       <p>Тренировки видят только те друзья, которым ты их открыл. Если ты вступил в группу с тренером, тренер видит данные, которыми ты делишься с группой, но не видит анализы, питание, вес, травмы и добавки. В чат пробежки пишут и читают его только участники.</p>
       <h3>ИИ</h3>
-      <p>Для ответов Fom, отзывов о тренировках, разбора анализов и распознавания фото мы отправляем нужную часть данных (текст записей, показатели, фото бланков и еды) в сервис ИИ — сейчас это Google Gemini, при необходимости — Anthropic Claude. Мы не используем ИИ вместо врача: ответы Fom — не медицинская рекомендация. Только что полученная из Strava тренировка в ИИ не отправляется: сначала ты сам дополняешь и сохраняешь запись, после этого она считается твоей и Fom может написать к ней отзыв.</p>
+      <p>Для ответов Fom, отзывов о тренировках, разбора анализов и распознавания фото мы отправляем нужную часть данных (текст записей, показатели, фото бланков и еды) в сервис ИИ - сейчас это Google Gemini, при необходимости - Anthropic Claude. Мы не используем ИИ вместо врача: ответы Fom - не медицинская рекомендация. Только что полученная из Strava тренировка в ИИ не отправляется: сначала ты сам дополняешь и сохраняешь запись, после этого она считается твоей и Fom может написать к ней отзыв.</p>
       <h3>Strava</h3>
-      <p>Если ты подключаешь Strava, мы получаем от неё твои тренировки (вид спорта, название, дату и время, дистанцию, длительность, средний и максимальный пульс) и ключи доступа к твоему аккаунту Strava. Они нужны только для одного: автоматически добавлять твои тренировки в твой дневник в Forma. Тренировки из Strava видишь только ты: они всегда закрыты, не показываются друзьям, группам и тренеру. Пока ты не дополнил и не сохранил запись, она остаётся закрытой от ИИ. Подключить Strava можно в «Настройки → Strava», отключить — там же: ключи доступа стираются, и мы отзываем доступ в самой Strava. Уже добавленные записи остаются в дневнике, их можно удалить вручную или вместе со всеми данными в «Настройки → Удалить мои данные». Forma не связана со Strava и не одобрена ею; «Strava» — товарный знак Strava, Inc.</p>
+      <p>Если ты подключаешь Strava, мы получаем от неё твои тренировки (вид спорта, название, дату и время, дистанцию, длительность, средний и максимальный пульс) и ключи доступа к твоему аккаунту Strava. Они нужны только для одного: автоматически добавлять твои тренировки в твой дневник в Forma. Тренировки из Strava видишь только ты: они всегда закрыты, не показываются друзьям, группам и тренеру. Пока ты не дополнил и не сохранил запись, она остаётся закрытой от ИИ. Подключить Strava можно в «Настройки → Strava», отключить - там же: ключи доступа стираются, и мы отзываем доступ в самой Strava. Уже добавленные записи остаются в дневнике, их можно удалить вручную или вместе со всеми данными в «Настройки → Удалить мои данные». Forma не связана со Strava и не одобрена ею; «Strava» - товарный знак Strava, Inc.</p>
       <h3>Где хранятся данные</h3>
       <p>Данные хранятся у наших поставщиков инфраструктуры: Supabase (база данных) и Railway (сервер). Их серверы могут находиться за пределами твоей страны. Передача данных защищена шифрованием.</p>
       <h3>Как долго</h3>
@@ -1637,7 +1637,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=115';
+      s.src = 'app.js?v=116';
       document.body.appendChild(s);
     });
   </script>
