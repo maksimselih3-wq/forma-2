@@ -3192,6 +3192,7 @@ async function openEditScreen(workoutId, returnTo = 'profileScreen') {
     editForm.setData(workout);
     renderEditFeedback(workout);
     $('editStatusMsg').textContent = '';
+    markEditDirty();
     renderEditSocial(workout);
 
     // если за день две тренировки - переключатель между ними
@@ -3257,6 +3258,22 @@ function renderEditFeedback(w, fresh = false) {
 
 $('editBackBtn').addEventListener('click', leaveEditScreen);
 
+// после сохранения кнопка превращается в «Сохранено ✓» и неактивна, пока что-то снова не изменишь
+function markEditSaved() {
+  const b = $('editSaveBtn');
+  b.textContent = 'Сохранено ✓';
+  b.disabled = true;
+  b.classList.add('saved');
+}
+function markEditDirty() {
+  const b = $('editSaveBtn');
+  if (!b.disabled && !b.classList.contains('saved')) return;
+  b.textContent = 'Сохранить изменения';
+  b.disabled = false;
+  b.classList.remove('saved');
+}
+['input', 'change', 'click'].forEach((ev) => $('editFormFields').addEventListener(ev, markEditDirty));
+
 $('editSaveBtn').addEventListener('click', async () => {
   if (!currentEditWorkout) return;
   const statusEl = $('editStatusMsg');
@@ -3272,6 +3289,7 @@ $('editSaveBtn').addEventListener('click', async () => {
       timeout: 60000,
     });
     currentEditWorkout = { ...currentEditWorkout, ...result.workout, date: normDate(result.workout.date) };
+    markEditSaved();
     const st = result.feedback_status;
     const updatedFb = st === 'updated' || (!st && result.workout.ai_feedback && result.workout.ai_feedback !== oldFeedback);
     statusEl.textContent = st === 'pending' ? 'Сохранено ✓ Fom пишет новый отзыв…'
