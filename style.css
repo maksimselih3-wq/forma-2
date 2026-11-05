@@ -2610,3 +2610,7 @@ html.lite .card { box-shadow: none; }
   display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #0b0d10;
 }
 .metric-row.on .metric-check { background: var(--lime); border-color: var(--lime); }
+
+/* Полосы прокрутки не показываем нигде: это приложение, а не сайт. Листать можно как обычно, пальцем или колесом */
+html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { width: 0; height: 0; display: none; background: transparent; }
