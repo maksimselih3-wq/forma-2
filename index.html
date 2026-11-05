@@ -141,7 +141,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=102" />
+<link rel="stylesheet" href="style.css?v=103" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -1519,6 +1519,7 @@
     </div>
     <!-- переключатель, если за день две тренировки -->
     <div class="segmented hidden" id="editSessionSwitch"></div>
+    <button type="button" class="ghost-btn wide hidden" id="editAddSecondBtn">+ Вторая тренировка за этот день</button>
 
     <div id="editFormFields"></div>
 
@@ -1637,7 +1638,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=116';
+      s.src = 'app.js?v=117';
       document.body.appendChild(s);
     });
   </script>
