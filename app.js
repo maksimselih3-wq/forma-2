@@ -512,7 +512,7 @@ const DISC_PROFILES = {
       { label: 'Темповый 3×1000', warmup: 'Кросс 3 км + СБУ', sets: [S('1000', '3', '', "2'")], cooldown: 'Кросс 2 км' },
       { label: 'Скорость 8×200', warmup: 'Кросс 3 км + СБУ + ускорения', sets: [S('200', '8', '', "2'")] },
       { label: "Фартлек 10×1'", warmup: 'Кросс 2 км', sets: [S("1'", '10', '', "1'")], cooldown: 'Кросс 2 км' },
-      { label: 'Лёгкий кросс', warmup: 'Кросс 8 км в лёгком темпе' },
+      { label: 'Лёгкий кросс', sets: [S('8 км', '1', '')] },
     ],
   },
   long: {
@@ -521,11 +521,11 @@ const DISC_PROFILES = {
     runTitle: 'Беговая работа', runHint: 'метры, км или время · повторы · время/темп · отдых', runPh: ["м / км / 1'", 'Кол-во', 'Время/темп', 'Отдых'], addSet: '+ Добавить отрезок',
     exTitle: 'Силовая / ОФП', exPh: 'Упражнение (присед, выпады, планка...)',
     templates: [
-      { label: 'Длительный', warmup: 'Длительный кросс 20 км в спокойном темпе' },
+      { label: 'Длительный', sets: [S('20 км', '1', '')] },
       { label: 'Темповый 2×3 км', warmup: 'Кросс 3 км + СБУ', sets: [S('3000', '2', '', "3'")], cooldown: 'Кросс 2 км' },
       { label: 'Интервалы 5×1000', warmup: 'Кросс 3 км + СБУ', sets: [S('1000', '5', '', "2'")], cooldown: 'Кросс 2 км' },
       { label: "Фартлек 12×1'", warmup: 'Кросс 3 км', sets: [S("1'", '12', '', "1'")], cooldown: 'Кросс 2 км' },
-      { label: 'Восстановительный', warmup: 'Кросс 8 км очень лёгко' },
+      { label: 'Восстановительный', sets: [S('8 км', '1', '')] },
     ],
   },
   walk: {
@@ -650,6 +650,16 @@ const FORM_TEMPLATE = `
       </div>
       <div data-f="setsList"></div>
       <button type="button" class="add-btn" data-f="addSet">+ Добавить отрезок</button>
+      <button type="button" class="add-btn" data-f="addCross">+ Кросс (один длинный бег)</button>
+      <button type="button" class="add-btn" data-f="addFartlek">+ Фартлек</button>
+      <div class="opt-chips hidden" data-f="fartlekChips">
+        <span class="opt-chips-label">Фартлек:</span>
+        <button type="button" class="chip" data-fl="10x1">10 × 1'</button>
+        <button type="button" class="chip" data-fl="8x2">8 × 2'</button>
+        <button type="button" class="chip" data-fl="6x3">6 × 3'</button>
+        <button type="button" class="chip" data-fl="pyr">Пирамида 1-2-3-2-1</button>
+        <button type="button" class="chip" data-fl="own">Свой</button>
+      </div>
     </section>
 
     <section class="card">
@@ -1011,6 +1021,30 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     sets.push({ distance_m: '', reps: '', time_or_pace: '', rest_between: '' });
     renderSets();
   });
+  // фартлек: быстрые отрезки по времени через такой же лёгкий бег. Отдых = время лёгкого бега между ускорениями
+  f('addFartlek').addEventListener('click', () => f('fartlekChips').classList.toggle('hidden'));
+  f('fartlekChips').querySelectorAll('[data-fl]').forEach((chip) => chip.addEventListener('click', () => {
+    const k = chip.dataset.fl;
+    const R = (d, n, rest) => ({ distance_m: d, reps: String(n), time_or_pace: '', rest_between: rest });
+    if (k === '10x1') sets.push(R("1'", 10, "1'"));
+    else if (k === '8x2') sets.push(R("2'", 8, "2'"));
+    else if (k === '6x3') sets.push(R("3'", 6, "2'"));
+    else if (k === 'pyr') ["1'", "2'", "3'", "2'", "1'"].forEach((d) => sets.push(R(d, 1, d)));
+    else sets.push(R("1'", '', "1'"));
+    f('fartlekChips').classList.add('hidden');
+    renderSets();
+    const rows = f('setsList').querySelectorAll('.set-row');
+    const inp = rows[rows.length - 1]?.querySelector('input[data-k="reps"]');
+    if (k === 'own' && inp) { try { inp.focus(); } catch (e) { /* ничего */ } }
+  }));
+  // кросс - один длинный бег: «8 км», повтор 1, время или темп. Идёт в беговой объём, а не в разминку
+  f('addCross').addEventListener('click', () => {
+    sets.push({ distance_m: '', reps: '1', time_or_pace: '', rest_between: '' });
+    renderSets();
+    const rows = f('setsList').querySelectorAll('.set-row');
+    const inp = rows[rows.length - 1]?.querySelector('input');
+    if (inp) { inp.placeholder = 'Сколько км'; try { inp.focus(); } catch (e) { /* ничего */ } }
+  });
 
   // --- силовая / ОФП ---
   function renderExercises() {
@@ -1081,6 +1115,8 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     set('techTitle', p?.techTitle, 'Попытки');
     set('techHint', p?.techHint, 'вид · попытки · результат');
     f('addSet').textContent = p?.addSet || '+ Добавить отрезок';
+    f('addFartlek').classList.toggle('hidden', !/км/.test((p?.runPh || ["м / км / 1'"])[0]));
+    f('addCross').classList.toggle('hidden', !/км/.test((p?.runPh || ["м / км / 1'"])[0])); // где метры только короткие (спринт, прыжки) - кросс не нужен
     f('addTech').textContent = p?.addTech || '+ Добавить';
     f('smartText').placeholder = p?.smart || 'Например: разминка 3 км + СБУ, 6×400 по 65 сек отдых 2 мин, присед 5×5 80 кг, пульс ср 150 макс 182, в паузах до 110. Было тяжело.';
     f('warmup').placeholder = p?.warmup || 'Например: 3 км трусцой + суставная';
