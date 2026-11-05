@@ -1568,6 +1568,16 @@ $('doneAddBtn').addEventListener('click', () => {
   renderEntryState();
   window.scrollTo(0, 0);
 });
+$('editAddSecondBtn')?.addEventListener('click', () => {
+  const d = currentEditWorkout?.date;
+  if (!d) return;
+  setEntryDate(d);
+  showScreen('mainScreen');
+  entrySession = 2;
+  mainForm.reset();
+  renderEntryState();
+  window.scrollTo(0, 0);
+});
 $('entryBackBtn')?.addEventListener('click', () => {
   entrySession = 1;
   renderEntryState();
@@ -3153,6 +3163,8 @@ async function openEditScreen(workoutId, returnTo = 'profileScreen') {
     const sw = $('editSessionSwitch');
     sw.innerHTML = '';
     sw.classList.toggle('hidden', sameDay.length < 2);
+    // вторую тренировку можно добавить и отсюда: если за день одна запись и это тренировка
+    $('editAddSecondBtn').classList.toggle('hidden', !(sameDay.length === 1 && sameDay[0].type === 'training'));
     sameDay.forEach((w) => {
       const b = document.createElement('button');
       b.type = 'button';
