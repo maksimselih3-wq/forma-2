@@ -2614,3 +2614,6 @@ html.lite .card { box-shadow: none; }
 /* Полосы прокрутки не показываем нигде: это приложение, а не сайт. Листать можно как обычно, пальцем или колесом */
 html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { width: 0; height: 0; display: none; background: transparent; }
+
+/* кнопка «Сохранено ✓» после сохранения правок */
+#editSaveBtn.saved { opacity: 1; background: rgba(var(--ink), 0.08); color: var(--text, inherit); box-shadow: none; }
