@@ -598,6 +598,22 @@ function disciplineGroup(d) {
 function myProfile() { return DISC_PROFILES[disciplineGroup(currentUser?.discipline)] || null; }
 
 const FORM_TEMPLATE = `
+  <section class="quick-card" data-f="quickCard">
+    <div class="quick-head"><span class="quick-bolt">${ico('sparkle')}</span>Быстрый старт</div>
+    <div class="quick-row">
+      <button type="button" class="quick-tile" data-f="repeatLast">
+        <span class="quick-tile-top"><i class="quick-ico">↻</i><b>Как в прошлый раз</b></span>
+        <span class="quick-sub" data-f="lastSub">Заполнить как последнюю тренировку</span>
+      </button>
+      <button type="button" class="quick-tile" data-f="repeatBtn">
+        <span class="quick-tile-top"><i class="quick-ico">${ico('clock')}</i><b>Из прошлых</b></span>
+        <span class="quick-sub">Выбрать из списка</span>
+      </button>
+    </div>
+    <div class="quick-label" data-f="tplLabel">Шаблоны под твою дисциплину</div>
+    <div class="quick-chips" data-f="tplChips"></div>
+  </section>
+
   <section class="card smart-card">
     <div class="card-label">${ico('sparkle')}Умный ввод</div>
     <div class="card-hint smart-hint">Опиши тренировку своими словами - Fom сам разложит всё по полям ниже.</div>
@@ -606,7 +622,6 @@ const FORM_TEMPLATE = `
     <div class="status-msg" data-f="smartStatus"></div>
   </section>
 
-  <button type="button" class="repeat-btn" data-f="repeatBtn">↻ Повторить прошлую тренировку</button>
 
 
   <div class="segmented seg-3" data-f="typeSwitch">
@@ -990,6 +1005,58 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     paintCompChips();
   }
 
+  // --- быстрый старт: «как в прошлый раз» и шаблоны под дисциплину ---
+  function lastTraining() {
+    return (typeof myWorkouts !== 'undefined' ? myWorkouts : []).find((w) => w.type === 'training' && ((w.sets || []).length || (w.exercises || []).length || w.warmup));
+  }
+  function applyTemplate(t) {
+    setType('training');
+    f('warmup').value = t.warmup || '';
+    f('cooldown').value = t.cooldown || '';
+    sets = (t.sets || []).map((x) => ({ ...x }));
+    exercises = (t.exercises || []).map((x) => ({ ...x }));
+    tech = (t.tech || []).map((x) => ({ ...x }));
+    f('smartStatus').textContent = '';
+    syncProfile(); syncOptional(); growAll(root);
+    haptic('success');
+  }
+  function renderQuick() {
+    const card = f('quickCard');
+    if (!card) return;
+    const last = lastTraining();
+    const lastBtn = f('repeatLast');
+    lastBtn.classList.toggle('disabled', !last);
+    if (last) {
+      const lines = buildDetailLines(last)
+        .filter((l) => !/^(Самочувствие|RPE|Заметка|❤️|🏆|Беговая работа:|Силовая \/ ОФП:|Разминка|Заминка)/.test(l))
+        .map((l) => l.replace(/^\d+\.\s*/, ''));
+      f('lastSub').textContent = `${relativeDateLabel(last.date)} · ${lines.slice(0, 2).join(' · ') || 'тренировка'}`;
+    } else {
+      f('lastSub').textContent = 'Появится после первой тренировки';
+    }
+    const tpls = myProfile()?.templates || [];
+    f('tplLabel').classList.toggle('hidden', !tpls.length);
+    f('tplChips').classList.toggle('hidden', !tpls.length);
+    const box = f('tplChips');
+    box.innerHTML = '';
+    tpls.forEach((t) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'quick-chip';
+      b.textContent = t.label;
+      b.addEventListener('click', () => applyTemplate(t));
+      box.appendChild(b);
+    });
+  }
+  f('repeatLast').addEventListener('click', () => {
+    const w = lastTraining();
+    if (!w) return;
+    setData({ ...w, notes: '', total_km: null, competition: null, visibility: vis, visible_to: visTo, start_time: null, end_time: null });
+    setType('training');
+    f('smartStatus').textContent = '';
+    haptic('success');
+  });
+
   // --- повторить прошлую тренировку ---
   f('repeatBtn').addEventListener('click', () => openRepeatSheet((w) => {
     setData({ ...w, notes: '', total_km: null, competition: null, visibility: vis, visible_to: visTo, start_time: null, end_time: null });
@@ -1107,6 +1174,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
 
   // --- подстройка формы под дисциплину из профиля ---
   function syncProfile() {
+    renderQuick();
     const p = myProfile();
     const set = (name, v, def) => { f(name).textContent = v || def; };
     set('runTitle', p?.runTitle, 'Беговая работа');
@@ -1296,6 +1364,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       };
     },
     setData,
+    refreshQuick() { renderQuick(); },
     reset() {
       // на сборе место и высота переносятся из последней записи (если она не старше 3 дней)
       const lastCamp = (typeof myWorkouts !== 'undefined' ? myWorkouts : []).find((w) => w.type === 'training');
@@ -1542,6 +1611,7 @@ function setEntryDate(dateStr) {
 //  - на выбранную дату записи ещё нет → показываем форму;
 //  - запись уже есть (или только что сохранена) → прячем форму и показываем карточку с итогом.
 function renderEntryState() {
+  try { mainForm.refreshQuick(); } catch (e) { /* форма ещё не готова */ }
   const list = workoutsByDate[entryDate] || [];
   const form = $('entryForm');
   const done = $('entryDone');
