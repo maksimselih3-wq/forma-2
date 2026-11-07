@@ -598,8 +598,13 @@ function disciplineGroup(d) {
 function myProfile() { return DISC_PROFILES[disciplineGroup(currentUser?.discipline)] || null; }
 
 const FORM_TEMPLATE = `
+  <div class="assist" data-f="assist">
+    <div class="assist-tabs">
+      <button type="button" class="assist-tab" data-panel="quick"><span class="assist-ico">${ico('sparkle')}</span>Быстрый старт<i class="assist-chev"></i></button>
+      <button type="button" class="assist-tab" data-panel="smart"><span class="assist-ico">${ico('sparkle')}</span>Умный ввод<i class="assist-chev"></i></button>
+    </div>
+    <div class="assist-panel" data-panel="quick"><div class="assist-inner">
   <section class="quick-card" data-f="quickCard">
-    <div class="quick-head"><span class="quick-bolt">${ico('sparkle')}</span>Быстрый старт</div>
     <div class="quick-row">
       <button type="button" class="quick-tile" data-f="repeatLast">
         <span class="quick-tile-top"><i class="quick-ico">↻</i><b>Как в прошлый раз</b></span>
@@ -613,7 +618,8 @@ const FORM_TEMPLATE = `
     <div class="quick-label" data-f="tplLabel">Шаблоны под твою дисциплину</div>
     <div class="quick-chips" data-f="tplChips"></div>
   </section>
-
+    </div></div>
+    <div class="assist-panel" data-panel="smart"><div class="assist-inner">
   <section class="card smart-card">
     <div class="card-label">${ico('sparkle')}Умный ввод</div>
     <div class="card-hint smart-hint">Опиши тренировку своими словами - Fom сам разложит всё по полям ниже.</div>
@@ -621,6 +627,8 @@ const FORM_TEMPLATE = `
     <button type="button" class="smart-btn" data-f="smartBtn">Разложить по полям</button>
     <div class="status-msg" data-f="smartStatus"></div>
   </section>
+    </div></div>
+  </div>
 
 
 
@@ -1005,6 +1013,25 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     paintCompChips();
   }
 
+  // --- «помощники» сверху формы: свёрнуты, открываются плавно, по одному ---
+  function openAssist(name) {
+    root.querySelectorAll('.assist-tab').forEach((t) => t.classList.toggle('open', t.dataset.panel === name));
+    root.querySelectorAll('.assist-panel').forEach((pn) => pn.classList.toggle('open', pn.dataset.panel === name));
+  }
+  root.querySelectorAll('.assist-tab').forEach((t) => t.addEventListener('click', () => {
+    openAssist(t.classList.contains('open') ? '' : t.dataset.panel);
+    haptic('light');
+  }));
+  // после выбора шаблона: убираем панель и плавно приводим к деталям тренировки
+  function goToDetails() {
+    openAssist('');
+    setTimeout(() => {
+      const el = f('typeSwitch');
+      const top = el.getBoundingClientRect().top + window.scrollY - 76;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }, 260);
+  }
+
   // --- быстрый старт: «как в прошлый раз» и шаблоны под дисциплину ---
   function lastTraining() {
     return (typeof myWorkouts !== 'undefined' ? myWorkouts : []).find((w) => w.type === 'training' && ((w.sets || []).length || (w.exercises || []).length || w.warmup));
@@ -1019,6 +1046,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     f('smartStatus').textContent = '';
     syncProfile(); syncOptional(); growAll(root);
     haptic('success');
+    goToDetails();
   }
   function renderQuick() {
     const card = f('quickCard');
@@ -1055,6 +1083,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     setType('training');
     f('smartStatus').textContent = '';
     haptic('success');
+    goToDetails();
   });
 
   // --- повторить прошлую тренировку ---
@@ -1062,6 +1091,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
     setData({ ...w, notes: '', total_km: null, competition: null, visibility: vis, visible_to: visTo, start_time: null, end_time: null });
     setType('training');
     f('smartStatus').textContent = '';
+    goToDetails();
   }));
   f('typeSwitch').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('click', () => setType(b.dataset.type)));
 
@@ -1288,6 +1318,7 @@ function createWorkoutForm(root, { getDate = () => null } = {}) {
       applyParsed(parsed);
       growAll(root);
       status.textContent = 'Готово! Проверь поля ниже и сохрани запись.';
+      goToDetails();
     } catch (err) {
       console.error(err);
       status.textContent = err.data?.error || 'Не получилось разобрать. Попробуй ещё раз.';
