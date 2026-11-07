@@ -1235,7 +1235,7 @@ button.hero-sport { cursor: pointer; }
 .add-second-btn:active { transform: scale(0.99); }
 /* во второй тренировке нельзя выбрать «Отдых» */
 .second-mode [data-f="typeSwitch"] [data-type="rest"] { display: none; }
-#editFormFields [data-f="repeatBtn"], #editFormFields .quick-card { display: none; }
+#editFormFields [data-f="repeatBtn"], #editFormFields .quick-card, #editFormFields .assist-tab[data-panel="quick"], #editFormFields .assist-panel[data-panel="quick"] { display: none; }
 /* в календаре - маленькая метка «×2» на днях с двумя тренировками */
 .cal-cell.double { position: relative; }
 .cal-cell.double::after {
@@ -2643,3 +2643,26 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { width: 
   transition: transform 0.15s ease, background 0.15s ease; }
 .quick-chip:active { transform: scale(0.95); background: rgba(180, 245, 60, 0.2); }
 html.lite .quick-tile, html.lite .quick-chip { transition: none; }
+
+/* ---------- Помощники сверху формы: свёрнутые вкладки, плавное раскрытие ---------- */
+.assist { margin: 0 0 14px; }
+.assist-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#editFormFields .assist-tabs { grid-template-columns: 1fr; }
+.assist-tab { display: flex; align-items: center; gap: 7px; padding: 11px 10px; white-space: nowrap; border-radius: 16px; text-align: left;
+  border: 1px solid rgba(var(--ink), 0.1); background: rgba(var(--ink), 0.04); color: var(--text); font-weight: 700; font-size: 13.5px; cursor: pointer;
+  transition: background 0.25s ease, border-color 0.25s ease, transform 0.15s ease; }
+.assist-tab:active { transform: scale(0.98); }
+.assist-tab.open { background: rgba(180, 245, 60, 0.12); border-color: rgba(180, 245, 60, 0.45); }
+.assist-ico { display: inline-flex; width: 24px; height: 24px; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 9px;
+  background: rgba(180, 245, 60, 0.16); color: var(--lime-text, #b4f53c); }
+.assist-ico svg { width: 15px; height: 15px; }
+.assist-chev { margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg) translateY(-2px); transition: transform 0.3s ease; }
+.assist-tab.open .assist-chev { transform: rotate(-135deg) translate(-2px, 0); }
+.assist-panel { display: grid; grid-template-rows: 0fr; opacity: 0; margin-top: 0; pointer-events: none;
+  transition: grid-template-rows 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease, margin-top 0.38s cubic-bezier(0.22, 1, 0.36, 1); }
+.assist-panel.open { grid-template-rows: 1fr; opacity: 1; margin-top: 10px; pointer-events: auto; }
+.assist-inner { min-height: 0; overflow: hidden; }
+.assist-inner > .quick-card, .assist-inner > .smart-card { margin: 0; }
+.assist-panel:not(.open) .assist-inner { visibility: hidden; transition: visibility 0s linear 0.38s; }
+html.lite .assist-panel, html.lite .assist-tab, html.lite .assist-chev { transition: none; }
