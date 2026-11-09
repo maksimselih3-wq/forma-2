@@ -34,7 +34,8 @@ if (!SELF_HOSTED) {
     });
   };
   // первый запуск (адрес ещё не выбирали) - ждём проверку, но не дольше 7 секунд; дальше - проверяем в фоне
-  apiReady = saved ? (pick(8000), Promise.resolve()) : pick(7000);
+  // если адрес уже запоминали - ждём проверку недолго (до 1,5 с), чтобы не слать первые запросы на мёртвый адрес
+  apiReady = saved ? Promise.race([pick(8000), new Promise((ok) => setTimeout(ok, 1500))]) : pick(7000);
   window.__switchApi = () => { API_BASE = alt(); remember(); };
 }
 
@@ -285,9 +286,13 @@ async function apiRaw(path, options = {}) {
   try {
     await apiReady;
     const { timeout, ...fetchOptions } = options;
-    const send = () => fetch(API_BASE + path, {
+    // «зависший» адрес (соединение не рвётся, но и не отвечает) раньше держал запрос все 20 секунд и без переключения на второй.
+    // Теперь для чтений и входа первая попытка ждёт 7 секунд, потом идём на второй адрес
+    const reqMethod = String(options.method || 'GET').toUpperCase();
+    const quick = !SELF_HOSTED && (reqMethod === 'GET' || /^\/api\/(email|webauth|auth)/.test(path));
+    const send = (short) => fetch(API_BASE + path, {
       ...fetchOptions,
-      signal: ctrl ? ctrl.signal : undefined,
+      signal: (short && typeof AbortSignal === 'function' && AbortSignal.timeout) ? AbortSignal.any ? AbortSignal.any([ctrl.signal, AbortSignal.timeout(7000)]) : AbortSignal.timeout(7000) : (ctrl ? ctrl.signal : undefined),
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders(),
@@ -295,13 +300,15 @@ async function apiRaw(path, options = {}) {
         ...(options.headers || {}),
       },
     });
+    const usedBase = API_BASE;
     try {
-      res = await send();
+      res = await send(quick);
     } catch (e) {
-      // адрес не отвечает совсем (заблокирован): пробуем второй адрес. Запрос до сервера не дошёл, так что повтор безопасен
+      // адрес не отвечает совсем (заблокирован или завис): пробуем второй адрес. Запрос до сервера не дошёл, так что повтор безопасен
       if (SELF_HOSTED || (ctrl && ctrl.signal.aborted)) throw e;
-      window.__switchApi();
-      res = await send();
+      // несколько запросов могли упасть одновременно: переключаем только один раз, иначе адрес вернётся обратно
+      if (API_BASE === usedBase) window.__switchApi();
+      res = await send(false);
     }
   } catch (e) {
     const err = new Error(`Нет связи с сервером (${path})`);
