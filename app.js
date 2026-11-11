@@ -595,11 +595,11 @@ function disciplineGroup(d) {
   if (/многобор|десятибор|семибор|пятибор/.test(s)) return 'combined';
   if (/барьер|с\/б/.test(s)) return 'hurdles';
   if (/ходьб/.test(s)) return 'walk';
-  if (/длинн|марафон|5000|10 ?000|стипл|кросс|3000/.test(s)) return 'long';
-  if (/средн|800|1500|миля/.test(s)) return 'middle';
+  if (/длинн|марафон|5000|10 ?000|стипл|кросс|3000|стайер|стаер/.test(s)) return 'long';
+  if (/средн|800|1500|миля|миддл/.test(s)) return 'middle';
   if (/спринт|^60|100 ?м|200 ?м|400 ?м|эстафет/.test(s)) return 'sprint';
-  if (/метан|ядр|диск|копь|молот/.test(s)) return 'throws';
-  if (/прыж|длина|тройн|высот|шест/.test(s)) return 'jumps';
+  if (/метан|метател|ядр|диск|копь|молот/.test(s)) return 'throws';
+  if (/прыж|прыгун|длина|тройн|высот|шест/.test(s)) return 'jumps';
   return null;
 }
 function myProfile() { return DISC_PROFILES[disciplineGroup(currentUser?.discipline)] || null; }
@@ -3889,11 +3889,18 @@ function closeSportSheet() { $('sportSheet').classList.add('hidden'); }
 async function saveSport(sport, discipline) {
   try {
     const res = await api('/api/auth/sport', { method: 'POST', body: JSON.stringify({ sport, discipline }) });
+    const oldGroup = disciplineGroup(currentUser.discipline);
     currentUser.sport = res.sport;
     currentUser.discipline = res.discipline;
+    // сменил специализацию (спринтер -> стайер): сбрасываем выбранные раньше графики, чтобы показались нужные новой дисциплине
+    if (oldGroup !== disciplineGroup(res.discipline)) {
+      try { localStorage.removeItem('forma_charts'); } catch (e) { /* ладно */ }
+      try { renderCharts(); } catch (e) { /* экран ещё не открывали */ }
+    }
     renderMySport();
     closeSportSheet();
     haptic('success');
+    if (res.changed) showDialog({ icon: 'sparkle', title: 'Специализация обновлена', text: 'Форма и Fom теперь смотрят на тебя как на ' + String(res.discipline).toLowerCase() + ': шаблоны, графики и разбор подстроены. Прошлые тренировки остаются в дневнике, Fom знает про переход.', ok: 'Понятно' });
   } catch (err) {
     console.error(err);
     alertMsg(err.data?.error || 'Не удалось сохранить. Попробуй ещё раз.');
