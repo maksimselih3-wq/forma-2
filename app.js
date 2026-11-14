@@ -2583,7 +2583,10 @@ async function loadFriendsList() {
     renderFriendsList(friendsScreenCache);
   } catch (err) {
     console.error('Failed to load friends', err);
-    if (!friendsScreenCache) statusEl.textContent = 'Не удалось загрузить друзей.';
+    if (!friendsScreenCache) {
+      const why = err.network ? 'нет связи с сервером' : (String(err.message || 'ошибка').slice(0, 80));
+      statusEl.textContent = `Не удалось загрузить друзей (${why}). Закрой приложение и открой снова.`;
+    }
   }
 }
 
