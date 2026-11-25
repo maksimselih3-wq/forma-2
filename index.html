@@ -57,6 +57,7 @@
       } catch (e) {}
     }
     document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
+    try { if (localStorage.getItem('forma_hand') === 'left') document.documentElement.setAttribute('data-hand', 'left'); } catch (e) {}
   })();
 </script>
 <style>
@@ -141,7 +142,7 @@
     });
   })();
 </script>
-<link rel="stylesheet" href="style.css?v=107" />
+<link rel="stylesheet" href="style.css?v=109" />
 </head>
 <body>
 <div id="statusFade" aria-hidden="true"></div>
@@ -982,6 +983,15 @@
     </section>
 
     <section class="card">
+      <div class="eyebrow">Нижняя панель</div>
+      <div class="segmented" id="handSeg">
+        <button type="button" class="seg-btn" data-hand-pick="right">Справа</button>
+        <button type="button" class="seg-btn" data-hand-pick="left">Слева</button>
+      </div>
+      <div class="muted privacy-hint">Панель стоит сбоку, под большим пальцем: справа для правой руки, слева для левой.</div>
+    </section>
+
+    <section class="card">
       <div class="eyebrow">Плавность</div>
       <label class="toggle-row privacy-row">
         <input type="checkbox" id="liteToggle" />
@@ -1638,7 +1648,7 @@
     // запускаем приложение, как только готов скрипт Telegram (или вышло время ожидания)
     (window.__tgWait || Promise.resolve()).then(function () {
       var s = document.createElement('script');
-      s.src = 'app.js?v=126';
+      s.src = 'app.js?v=128';
       document.body.appendChild(s);
     });
   </script>
