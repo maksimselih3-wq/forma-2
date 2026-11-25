@@ -2683,10 +2683,6 @@ html.lite .assist-panel, html.lite .assist-tab, html.lite .assist-chev { transit
 }
 html[data-hand="left"] .bottom-nav { right: auto; left: 6px; }
 body.kb-open .bottom-nav { transform: none; }
-/* при прокрутке вниз панель уезжает за край и не закрывает содержимое; вернётся при прокрутке вверх или когда остановишься */
-.bottom-nav { transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.15s ease; }
-.bottom-nav.away { transform: translateX(72px); }
-html[data-hand="left"] .bottom-nav.away { transform: translateX(-72px); }
 .nav-btn { flex: none; width: 100%; height: 50px; gap: 2px; }
 .nav-btn span { font-size: 8.5px; font-weight: 700; line-height: 1; letter-spacing: -0.1px; }
 .nav-plus { margin: 4px auto; width: 42px; height: 42px; border-width: 3px; transform: none; }
