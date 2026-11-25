@@ -2669,31 +2669,31 @@ html.lite .assist-panel, html.lite .assist-tab, html.lite .assist-chev { transit
 
 
 /* =====================================================================
-   Вертикальная панель сбоку - под большим пальцем (справа; для левшей слева)
+   Тонкая вертикальная панель поверх экрана - под большим пальцем (справа; для левшей слева).
+   Экран не сжимается: панель лежит поверх, только иконки.
    ===================================================================== */
-:root { --rail: 66px; --rail-r: var(--rail); --rail-l: 0px; --nav-space: 28px; }
-html[data-hand="left"] { --rail-r: 0px; --rail-l: var(--rail); }
-body { padding-right: var(--rail-r); padding-left: var(--rail-l); }
 .bottom-nav {
-  left: auto; right: 8px;
+  left: auto; right: 6px;
   transform: none;
-  bottom: calc(var(--nav-bottom) + 8px);
-  width: 58px; height: auto;
+  bottom: calc(var(--nav-bottom) + 10px);
+  width: 46px; height: auto;
   flex-direction: column; justify-content: center; gap: 2px;
   padding: 6px 0;
-  border-radius: 24px;
+  border-radius: 23px;
 }
-html[data-hand="left"] .bottom-nav { right: auto; left: 8px; }
+html[data-hand="left"] .bottom-nav { right: auto; left: 6px; }
 body.kb-open .bottom-nav { transform: none; }
-.nav-btn { flex: none; width: 100%; height: 54px; }
-.nav-plus { margin: 4px auto; width: 50px; height: 50px; border-width: 3px; transform: none; }
+.nav-btn { flex: none; width: 100%; height: 46px; }
+.nav-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.nav-plus { margin: 4px auto; width: 42px; height: 42px; border-width: 3px; transform: none; }
+.nav-plus svg { width: 22px; height: 22px; }
 .nav-plus:active { transform: scale(0.94); }
 .nav-plus.hot { transform: scale(1.08); }
 .nav-btn.hot svg { transform: scale(1.14); }
-.nav-indicator { left: 4px; top: 0; width: calc(100% - 8px); height: 50px; transition: transform 0.42s cubic-bezier(0.25, 1.25, 0.4, 1), height 0.3s ease, opacity 0.2s ease, scale 0.2s ease, box-shadow 0.2s ease; }
+.nav-indicator { left: 3px; top: 0; width: calc(100% - 6px); height: 40px; border-radius: 16px; transition: transform 0.42s cubic-bezier(0.25, 1.25, 0.4, 1), height 0.3s ease, opacity 0.2s ease, scale 0.2s ease, box-shadow 0.2s ease; }
 .bottom-nav.dragging .nav-indicator { transition: height 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease; }
-.nav-badge { left: auto; right: 6px; top: 4px; }
-/* экраны на всю высоту: подвинуты от панели */
-.chat-section, .insights-one { left: var(--rail-l); right: var(--rail-r); }
-.vol-toast { left: calc(14px + var(--rail-l)); right: calc(14px + var(--rail-r)); bottom: calc(var(--nav-space) + var(--nav-bottom) + 6px); }
+.nav-badge { left: auto; right: 4px; top: 3px; }
+/* место внизу под экраном больше не резервируется под панель */
+:root { --nav-space: 28px; }
 #bottomFade { display: none !important; }
+.vol-toast { bottom: calc(var(--nav-space) + var(--nav-bottom) + 6px); }
