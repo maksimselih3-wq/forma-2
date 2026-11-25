@@ -3009,6 +3009,23 @@ $('themeSeg').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('cl
   setThemePref(b.dataset.themePick);
   paintThemeSeg();
 }));
+// ---------- Боковая панель прячется при прокрутке вниз ----------
+(function navAutoHide() {
+  const nav = document.querySelector('.bottom-nav');
+  if (!nav) return;
+  let last = window.scrollY, acc = 0, timer = 0;
+  const show = () => { nav.classList.remove('away'); acc = 0; };
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY, d = y - last; last = y;
+    if (nav.classList.contains('dragging')) return;
+    if (y < 40 || d < 0) { show(); clearTimeout(timer); return; }
+    acc += d;
+    if (acc > 36) nav.classList.add('away');
+    clearTimeout(timer);
+    timer = setTimeout(show, 900); // остановился - панель возвращается
+  }, { passive: true });
+})();
+
 // ---------- Рука: куда ставить «Разбор» ----------
 const HAND_KEY = 'forma_hand';
 function handPref() { try { return localStorage.getItem(HAND_KEY) === 'left' ? 'left' : 'right'; } catch (e) { return 'right'; } }
