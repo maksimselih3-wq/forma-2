@@ -3009,20 +3009,28 @@ $('themeSeg').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('cl
   setThemePref(b.dataset.themePick);
   paintThemeSeg();
 }));
-// ---------- Боковая панель прячется при прокрутке вниз ----------
+// ---------- Боковая панель плавно уезжает при прокрутке вниз и возвращается ----------
+// Панель едет за пальцем пропорционально прокрутке; остановился - мягко доезжает до края или возвращается.
 (function navAutoHide() {
   const nav = document.querySelector('.bottom-nav');
   if (!nav) return;
-  let last = window.scrollY, acc = 0, timer = 0;
-  const show = () => { nav.classList.remove('away'); acc = 0; };
+  const MAX = 76;
+  let last = window.scrollY, off = 0, settle = 0, back = 0, up = false;
+  const paint = (smooth) => {
+    const dir = document.documentElement.dataset.hand === 'left' ? -1 : 1;
+    nav.style.transition = smooth ? 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease' : 'none';
+    nav.style.transform = off ? `translateX(${(dir * off).toFixed(1)}px)` : '';
+    nav.style.opacity = String(1 - Math.min(1, off / MAX) * 0.5);
+  };
   window.addEventListener('scroll', () => {
     const y = window.scrollY, d = y - last; last = y;
-    if (nav.classList.contains('dragging')) return;
-    if (y < 40 || d < 0) { show(); clearTimeout(timer); return; }
-    acc += d;
-    if (acc > 36) nav.classList.add('away');
-    clearTimeout(timer);
-    timer = setTimeout(show, 900); // остановился - панель возвращается
+    if (nav.classList.contains('dragging') || !d) return;
+    clearTimeout(settle); clearTimeout(back);
+    up = d < 0;
+    off = y < 40 ? 0 : Math.min(MAX, Math.max(0, off + d * 0.7));
+    paint(false);
+    settle = setTimeout(() => { off = !up && off > MAX * 0.4 ? MAX : 0; paint(true); }, 120);
+    if (off > 0 || d > 0) back = setTimeout(() => { off = 0; paint(true); }, 1100); // остановился - панель возвращается
   }, { passive: true });
 })();
 
