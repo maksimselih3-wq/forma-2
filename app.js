@@ -3009,6 +3009,22 @@ $('themeSeg').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('cl
   setThemePref(b.dataset.themePick);
   paintThemeSeg();
 }));
+// ---------- Рука: куда ставить «Разбор» ----------
+const HAND_KEY = 'forma_hand';
+function handPref() { try { return localStorage.getItem(HAND_KEY) === 'left' ? 'left' : 'right'; } catch (e) { return 'right'; } }
+function applyHand() {
+  const left = handPref() === 'left';
+  if (left) document.documentElement.dataset.hand = 'left'; else delete document.documentElement.dataset.hand;
+  document.querySelectorAll('#handSeg .seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.handPick === handPref()));
+  moveNavIndicator(document.querySelector('.screen:not(.hidden)')?.id);
+}
+document.querySelectorAll('#handSeg .seg-btn').forEach((b) => b.addEventListener('click', () => {
+  try { localStorage.setItem(HAND_KEY, b.dataset.handPick); } catch (e) {}
+  applyHand();
+  if (typeof haptic === 'function') haptic('select');
+}));
+applyHand();
+
 function paintThemeSeg() {
   const pref = themePref();
   $('themeSeg').querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.themePick === pref));
@@ -5265,9 +5281,9 @@ function placeNavIndicator(btn) {
   const nav = btn.parentElement;
   const nr = nav.getBoundingClientRect();
   const r = btn.getBoundingClientRect();
-  const w = Math.max(40, r.width - 8);
-  ind.style.width = `${w}px`;
-  ind.style.transform = `translateX(${r.left - nr.left - nav.clientLeft + (r.width - w) / 2}px)`;
+  const h = Math.max(40, r.height - 8);
+  ind.style.height = `${h}px`;
+  ind.style.transform = `translateY(${r.top - nr.top - nav.clientTop + (r.height - h) / 2}px)`;
 }
 function moveNavIndicator(targetId) {
   const ind = $('navIndicator');
@@ -5285,13 +5301,13 @@ function moveNavIndicator(targetId) {
   const ind = $('navIndicator');
   if (!nav || !ind) return;
   const items = () => [...nav.querySelectorAll('[data-screen]')];
-  let pid = null, startX = 0, dragging = false, hot = null, blockClickUntil = 0;
+  let pid = null, startY = 0, dragging = false, hot = null, blockClickUntil = 0;
 
-  const nearest = (x) => {
+  const nearest = (y) => {
     let best = null, bd = Infinity;
     for (const b of items()) {
       const r = b.getBoundingClientRect();
-      const d = Math.abs(x - (r.left + r.width / 2));
+      const d = Math.abs(y - (r.top + r.height / 2));
       if (d < bd) { bd = d; best = b; }
     }
     return best;
@@ -5302,17 +5318,18 @@ function moveNavIndicator(targetId) {
   const bounds = () => {
     const nr = nav.getBoundingClientRect();
     const its = items();
-    const w = Math.max(40, (its.find((b) => !b.classList.contains('nav-plus')) || nav).getBoundingClientRect().width - 8);
-    const at = (b) => { const r = b.getBoundingClientRect(); return r.left - nr.left - nav.clientLeft + (r.width - w) / 2; };
-    return { w, nr, min: at(its[0]), max: at(its[its.length - 1]) };
+    const w = Math.max(40, (its.find((b) => !b.classList.contains('nav-plus')) || nav).getBoundingClientRect().height - 8);
+    const at = (b) => { const r = b.getBoundingClientRect(); return r.top - nr.top - nav.clientTop + (r.height - w) / 2; };
+    const a0 = at(its[0]), a1 = at(its[its.length - 1]);
+    return { w, nr, min: Math.min(a0, a1), max: Math.max(a0, a1) };
   };
   let bnd = null;
-  const lq = liquidThumb((p, sx, sy) => { ind.style.transform = `translateX(${p.toFixed(1)}px) scale(${(1.08 * sx).toFixed(3)}, ${(1.08 * sy).toFixed(3)})`; });
-  const follow = (x) => {
+  const lq = liquidThumb((p, sx, sy) => { ind.style.transform = `translateY(${p.toFixed(1)}px) scale(${(1.08 * sy).toFixed(3)}, ${(1.08 * sx).toFixed(3)})`; });
+  const follow = (y) => {
     bnd = bnd || bounds();
-    ind.style.width = `${bnd.w}px`;
-    lq.to(Math.min(Math.max(x - bnd.nr.left - nav.clientLeft - bnd.w / 2, bnd.min), bnd.max));
-    const b = nearest(x);
+    ind.style.height = `${bnd.w}px`;
+    lq.to(Math.min(Math.max(y - bnd.nr.top - nav.clientTop - bnd.w / 2, bnd.min), bnd.max));
+    const b = nearest(y);
     if (b !== hot) {
       items().forEach((el) => el.classList.toggle('hot', el === b));
       hot = b;
@@ -5337,18 +5354,18 @@ function moveNavIndicator(targetId) {
 
   nav.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    pid = e.pointerId; startX = e.clientX; dragging = false;
+    pid = e.pointerId; startY = e.clientY; dragging = false;
   });
   nav.addEventListener('pointermove', (e) => {
     if (e.pointerId !== pid) return;
     if (!dragging) {
-      if (Math.abs(e.clientX - startX) < 8) return;
+      if (Math.abs(e.clientY - startY) < 8) return;
       dragging = true; bnd = bounds();
       nav.classList.add('dragging');
-      lq.start(new DOMMatrixReadOnly(getComputedStyle(ind).transform).m41);
+      lq.start(new DOMMatrixReadOnly(getComputedStyle(ind).transform).m42);
       try { nav.setPointerCapture(pid); } catch (err) { /* не страшно */ }
     }
-    follow(e.clientX);
+    follow(e.clientY);
   });
   nav.addEventListener('pointerup', (e) => { if (e.pointerId === pid && dragging) finish(true); else if (e.pointerId === pid) pid = null; });
   nav.addEventListener('pointercancel', (e) => { if (e.pointerId === pid && dragging) finish(false); });
