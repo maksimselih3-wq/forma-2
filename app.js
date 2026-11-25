@@ -3010,27 +3010,30 @@ $('themeSeg').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('cl
   paintThemeSeg();
 }));
 // ---------- Боковая панель плавно уезжает при прокрутке вниз и возвращается ----------
-// Панель едет за пальцем пропорционально прокрутке; остановился - мягко доезжает до края или возвращается.
+// Вниз: панель едет к краю вместе с прокруткой. Назад (вверх, остановка, верх страницы): всегда одна мягкая анимация по времени, без рывков.
 (function navAutoHide() {
   const nav = document.querySelector('.bottom-nav');
   if (!nav) return;
   const MAX = 76;
-  let last = window.scrollY, off = 0, settle = 0, back = 0, up = false;
-  const paint = (smooth) => {
+  let last = window.scrollY, off = 0, settle = 0, back = 0;
+  const paint = (mode) => {
     const dir = document.documentElement.dataset.hand === 'left' ? -1 : 1;
-    nav.style.transition = smooth ? 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease' : 'none';
-    nav.style.transform = off ? `translateX(${(dir * off).toFixed(1)}px)` : '';
+    nav.style.transition = mode === 'live' ? 'none'
+      : mode === 'in' ? 'transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease'
+      : 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease';
+    nav.style.transform = `translateX(${(dir * off).toFixed(1)}px)`;
     nav.style.opacity = String(1 - Math.min(1, off / MAX) * 0.5);
   };
+  const show = () => { if (off === 0) return; off = 0; paint('in'); };
   window.addEventListener('scroll', () => {
     const y = window.scrollY, d = y - last; last = y;
     if (nav.classList.contains('dragging') || !d) return;
     clearTimeout(settle); clearTimeout(back);
-    up = d < 0;
-    off = y < 40 ? 0 : Math.min(MAX, Math.max(0, off + d * 0.7));
-    paint(false);
-    settle = setTimeout(() => { off = !up && off > MAX * 0.4 ? MAX : 0; paint(true); }, 120);
-    if (off > 0 || d > 0) back = setTimeout(() => { off = 0; paint(true); }, 1100); // остановился - панель возвращается
+    if (d < 0 || y < 40) { show(); return; }       // вверх или у верха страницы - плавно возвращается
+    off = Math.min(MAX, off + d * 0.7);
+    paint('live');
+    settle = setTimeout(() => { off = off > MAX * 0.4 ? MAX : 0; paint('out'); }, 140);
+    back = setTimeout(show, 1200);                  // остановился - панель возвращается
   }, { passive: true });
 })();
 
