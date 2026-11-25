@@ -3010,30 +3010,29 @@ $('themeSeg').querySelectorAll('.seg-btn').forEach((b) => b.addEventListener('cl
   paintThemeSeg();
 }));
 // ---------- Боковая панель плавно уезжает при прокрутке вниз и возвращается ----------
-// Вниз: панель едет к краю вместе с прокруткой. Назад (вверх, остановка, верх страницы): всегда одна мягкая анимация по времени, без рывков.
+// И уход, и возврат - одна мягкая анимация по времени (не зависит от скорости пальца, без рывков).
 (function navAutoHide() {
   const nav = document.querySelector('.bottom-nav');
   if (!nav) return;
   const MAX = 76;
-  let last = window.scrollY, off = 0, settle = 0, back = 0;
+  let last = window.scrollY, off = 0, acc = 0, back = 0;
   const paint = (mode) => {
     const dir = document.documentElement.dataset.hand === 'left' ? -1 : 1;
-    nav.style.transition = mode === 'live' ? 'none'
-      : mode === 'in' ? 'transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease'
-      : 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease';
+    nav.style.transition = mode === 'in' ? 'transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease'
+      : 'transform 0.75s cubic-bezier(0.45, 0, 0.2, 1), opacity 0.6s ease';
     nav.style.transform = `translateX(${(dir * off).toFixed(1)}px)`;
-    nav.style.opacity = String(1 - Math.min(1, off / MAX) * 0.5);
+    nav.style.opacity = off ? '0.5' : '1';
   };
-  const show = () => { if (off === 0) return; off = 0; paint('in'); };
+  const show = () => { acc = 0; if (off === 0) return; off = 0; paint('in'); };
+  const hide = () => { if (off === MAX) return; off = MAX; paint('out'); };
   window.addEventListener('scroll', () => {
     const y = window.scrollY, d = y - last; last = y;
     if (nav.classList.contains('dragging') || !d) return;
-    clearTimeout(settle); clearTimeout(back);
-    if (d < 0 || y < 40) { show(); return; }       // вверх или у верха страницы - плавно возвращается
-    off = Math.min(MAX, off + d * 0.7);
-    paint('live');
-    settle = setTimeout(() => { off = off > MAX * 0.4 ? MAX : 0; paint('out'); }, 140);
-    back = setTimeout(show, 1200);                  // остановился - панель возвращается
+    clearTimeout(back);
+    if (d < 0 || y < 40) { show(); return; }      // вверх или у верха страницы - возвращается
+    acc += d;
+    if (acc > 28) hide();                          // прокрутил вниз заметно - плавно уезжает
+    back = setTimeout(show, 1300);                 // остановился - возвращается
   }, { passive: true });
 })();
 
