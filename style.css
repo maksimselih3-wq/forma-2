@@ -2727,3 +2727,10 @@ html[data-theme="light"] .back-fab { background: rgba(255, 255, 255, 0.9); }
 body.kb-open .back-fab { display: none; }
 /* на «Разборе» кнопка «Назад» лежит внизу - оставляем под неё место, чтобы не закрывать содержимое */
 body.immersive .insights-one { padding-bottom: 68px; }
+/* в чате с Fom нижней панели нет - строка ввода и «Отправить» ставим ниже, у самого края */
+body.chat-open:not(.kb-open) { padding-bottom: 0; }
+body.chat-open:not(.kb-open) .chat-section {
+  height: calc(var(--app-h, 100vh) - 64px - env(safe-area-inset-top, 0px));
+  padding-bottom: 6px;
+}
+body.chat-open:not(.kb-open) .chat-input-row { padding-bottom: max(env(safe-area-inset-bottom, 0px) - 8px, 4px); }
