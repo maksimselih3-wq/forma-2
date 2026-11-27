@@ -4715,7 +4715,7 @@ $('repeatSheet').addEventListener('click', (e) => { if (e.target === $('repeatSh
 //  ГРАФИКИ ПО НЕДЕЛЯМ («Разбор»)
 // =====================================================================
 const CHART_WEEKS = 8;
-const CHART_COLORS = { km: '#b4f53c', count: '#9b6bff', feel: '#5ea818', rpe: '#9b6bff' };
+const CHART_COLORS = { km: '#38bdf8', count: '#9b6bff', feel: '#34d399', rpe: '#9b6bff' };
 const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
 // Беговой объём записи в км: отрезки (метры × кол-во) + «N км»/«N м» в разминке и заминке + дистанция старта
@@ -5501,7 +5501,7 @@ async function drawStoryCard(w) {
   g.addColorStop(0, 'rgba(155,107,255,0.38)'); g.addColorStop(1, 'rgba(155,107,255,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, STORY_W, STORY_H);
   g = ctx.createRadialGradient(0, STORY_H, 0, 0, STORY_H, 1000);
-  g.addColorStop(0, 'rgba(180,245,60,0.22)'); g.addColorStop(1, 'rgba(180,245,60,0)');
+  g.addColorStop(0, 'rgba(56, 189, 248,0.22)'); g.addColorStop(1, 'rgba(56, 189, 248,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, STORY_W, STORY_H);
 
   // логотип
@@ -5511,8 +5511,8 @@ async function drawStoryCard(w) {
   ctx.fillText('Forma', X, 200);
   const lw = ctx.measureText('Forma').width;
   ctx.save();
-  ctx.shadowColor = 'rgba(180,245,60,0.8)'; ctx.shadowBlur = 24;
-  ctx.fillStyle = '#b4f53c';
+  ctx.shadowColor = 'rgba(56, 189, 248,0.8)'; ctx.shadowBlur = 24;
+  ctx.fillStyle = '#38bdf8';
   ctx.beginPath(); ctx.arc(X + lw + 20, 186, 12, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 
@@ -5530,11 +5530,11 @@ async function drawStoryCard(w) {
   ctx.font = `800 34px ${BODY}`;
   const chipW = ctx.measureText(label).width + 64 + label.length * 3;
   rrect(ctx, X, 300, chipW, 72, 36);
-  ctx.fillStyle = w.competition ? 'rgba(255,196,77,0.14)' : 'rgba(180,245,60,0.12)';
+  ctx.fillStyle = w.competition ? 'rgba(255,196,77,0.14)' : 'rgba(56, 189, 248,0.12)';
   ctx.fill();
-  ctx.strokeStyle = w.competition ? 'rgba(255,196,77,0.7)' : 'rgba(180,245,60,0.6)';
+  ctx.strokeStyle = w.competition ? 'rgba(255,196,77,0.7)' : 'rgba(56, 189, 248,0.6)';
   ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = w.competition ? '#ffd15a' : '#b4f53c';
+  ctx.fillStyle = w.competition ? '#ffd15a' : '#38bdf8';
   if ('letterSpacing' in ctx) ctx.letterSpacing = '4px';
   ctx.fillText(label, X + 32, 348);
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
@@ -5580,7 +5580,7 @@ async function drawStoryCard(w) {
       y += Math.round(big * 0.55);
       if (l.small) {
         ctx.font = `600 ${hero.lines.length === 1 ? 50 : 40}px ${BODY}`;
-        ctx.fillStyle = '#b4f53c';
+        ctx.fillStyle = '#38bdf8';
         wrapLines(ctx, l.small, CW, 2).forEach((s) => { ctx.fillText(s, X, y); y += hero.lines.length === 1 ? 64 : 52; });
       }
       y += Math.round(big * 0.7);
@@ -5593,7 +5593,7 @@ async function drawStoryCard(w) {
     const kmText = fmtNum(Math.round(hero.km * 10) / 10);
     ctx.fillText(kmText, X, y);
     const kw = ctx.measureText(kmText).width;
-    ctx.font = `700 80px ${HEAD}`; ctx.fillStyle = '#b4f53c';
+    ctx.font = `700 80px ${HEAD}`; ctx.fillStyle = '#38bdf8';
     ctx.fillText('км', X + kw + 24, y);
     y += 110;
     if (w.warmup) {
@@ -5643,7 +5643,7 @@ async function drawStoryCard(w) {
   const streak = currentUser?.current_streak || 0;
   let by = 1640;
   if (streak >= 2) {
-    ctx.font = `800 56px ${BODY}`; ctx.fillStyle = '#b4f53c';
+    ctx.font = `800 56px ${BODY}`; ctx.fillStyle = '#38bdf8';
     ctx.fillText(`🔥 ${streak} ${daysWordRu(streak)} подряд`, X, by);
     by += 80;
   }
