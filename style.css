@@ -2697,3 +2697,33 @@ body.kb-open .bottom-nav { transform: none; }
 :root { --nav-space: 28px; }
 #bottomFade { display: none !important; }
 .vol-toast { bottom: calc(var(--nav-space) + var(--nav-bottom) + 6px); }
+
+/* =====================================================================
+   Полноэкранные разделы (Fom, Разбор): панель уходит, появляется «назад»
+   ===================================================================== */
+body.immersive .bottom-nav {
+  transform: translateX(96px) !important; opacity: 0 !important; pointer-events: none;
+  transition: transform 0.55s cubic-bezier(0.45, 0, 0.2, 1), opacity 0.4s ease !important;
+}
+html[data-hand="left"] body.immersive .bottom-nav { transform: translateX(-96px) !important; }
+.chat-back { flex: none; width: 38px; height: 38px; margin-right: -4px; }
+.back-fab {
+  position: fixed; z-index: 60;
+  right: 14px; bottom: calc(var(--nav-bottom) + 14px);
+  height: 46px; padding: 0 16px 0 12px; gap: 4px;
+  display: flex; align-items: center;
+  border-radius: 23px; border: 1px solid var(--border-strong);
+  background: rgba(20, 23, 31, 0.82); color: var(--text, #fff);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  font: 600 14px var(--font-body, inherit); cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  opacity: 0; transform: translateX(40px); pointer-events: none;
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+}
+html[data-hand="left"] .back-fab { right: auto; left: 14px; transform: translateX(-40px); }
+body.immersive[data-screen="insightsScreen"] .back-fab { opacity: 1; transform: none; pointer-events: auto; transition-delay: 0.12s; }
+.back-fab:active { transform: scale(0.95); }
+html[data-theme="light"] .back-fab { background: rgba(255, 255, 255, 0.9); }
+body.kb-open .back-fab { display: none; }
+/* на «Разборе» кнопка «Назад» лежит внизу - оставляем под неё место, чтобы не закрывать содержимое */
+body.immersive .insights-one { padding-bottom: 68px; }
