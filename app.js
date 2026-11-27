@@ -350,6 +350,7 @@ function showScreen(targetId) {
     btn.classList.toggle('active', btn.dataset.screen === (NAV_PARENT[targetId] || targetId));
   });
   document.body.classList.toggle('chat-open', targetId === 'chatScreen');
+  document.body.classList.toggle('immersive', targetId === 'chatScreen' || targetId === 'insightsScreen'); // панель уходит, вместо неё «назад»
   try { moveNavIndicator(targetId); animateScreenIn(targetId); } catch (e) {}
   document.body.dataset.screen = targetId; // для стилей: например, в своём профиле прячем огонёк и аватарку в шапке
   window.scrollTo(0, 0);
@@ -3206,6 +3207,8 @@ $('chatBtn').addEventListener('click', () => {
   loadChatLimit();
 });
 $('chatSendBtn').addEventListener('click', sendChatMessage);
+$('chatBackBtn').addEventListener('click', () => goBack());
+$('insBackFab').addEventListener('click', () => goBack());
 // Кнопка отправки не забирает фокус у поля: клавиатура остаётся открытой, экран не прыгает
 // и нажатие не «теряется» (как в мессенджерах)
 $('chatSendBtn').addEventListener('mousedown', (e) => e.preventDefault());
